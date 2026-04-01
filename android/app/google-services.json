@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "93532617575",
+    "project_id": "look-fashion-app",
+    "storage_bucket": "look-fashion-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:93532617575:android:91f494f78d1d6e9a128dc2",
+        "android_client_info": {
+          "package_name": "com.example.my_fashion_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5NBxzfL3eZux-p_agGMrUDCji7mUkbAA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
