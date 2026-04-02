@@ -3,6 +3,7 @@ import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/services/product_service.dart';
 import 'package:my_fashion_app/screens/products.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import 'dart:async';
 
 class ProductListScreen extends StatefulWidget {
@@ -26,15 +27,101 @@ class _ProductListScreenState extends State<ProductListScreen> {
   ];
   final ProductService productService = ProductService();
   final TextEditingController _searchController = TextEditingController();
+  final SpeechToText _speech = SpeechToText();
+  bool _speechAvailable = false;
   bool _isSearchFocused = false;
+  bool _isListening = false;
   late Timer _timer;
   int currentIndex = 0;
 
   @override
   void dispose() {
+    _speech.stop();
     _searchController.dispose();
     _timer.cancel(); // cancel the timer when the widget is disposed
     super.dispose();
+  }
+
+  Future<void> _startListening() async {
+    bool isAvailable = await _speech.initialize(
+      onStatus: (status) {
+        if (!mounted) return;
+        setState(() {
+          _isListening = status == 'listening';
+        });
+      },
+      onError: (error) {
+        if (!mounted) return;
+        setState(() {
+          _isListening = false;
+          _speechAvailable = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('عذراً، حدث خطأ في التعرف على الصوت. تحقق من صلاحيات الميكروفون.'),
+          ),
+        );
+      },
+    );
+
+    if (mounted) {
+      setState(() => _speechAvailable = isAvailable);
+    }
+
+
+    if (!isAvailable) {
+      if (mounted) {
+        setState(() {
+          _speechAvailable = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('التعرف الصوتي غير مفعل. يرجى السماح بالوصول إلى الميكروفون من إعدادات الجهاز.')),
+        );
+        await _showSpeechPermissionDialog();
+      }
+      return;
+    }
+
+    _speech.listen(onResult: (result) {
+      if (!mounted) return;
+      setState(() {
+        _searchController.text = result.recognizedWords;
+        _searchController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _searchController.text.length),
+        );
+      });
+    });
+  }
+
+  void _stopListening() {
+    _speech.stop();
+    if (!mounted) return;
+    setState(() {
+      _isListening = false;
+    });
+  }
+
+  Future<void> _showSpeechPermissionDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('ترخيص الميكروفون مطلوب'),
+        content: Text('التعرف الصوتي غير مفعل. الرجاء السماح بالوصول إلى الميكروفون من إعدادات التطبيق ثم إعادة المحاولة.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _startListening();
+            },
+            child: Text('إعادة المحاولة'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('إغلاق'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -58,6 +145,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
           });
           _searchController.clear();
           FocusScope.of(context).unfocus();
+          _stopListening();
         }
       },
       child: Scaffold(
@@ -135,7 +223,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search for products',
+                        hintText: 'Search for products or tap the mic',
                         border: InputBorder.none,
                         hintStyle: TextStyle(
                           color: Color.fromARGB(255, 255, 255, 255),
@@ -162,6 +250,21 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     SizedBox(width: 10),
                     IconButton(
                       icon: Icon(
+                        _isListening ? Icons.mic : Icons.mic_none,
+                        color: _isListening
+                            ? Colors.yellow
+                            : Color.fromARGB(255, 255, 255, 255),
+                      ),
+                      onPressed: () async {
+                        if (_isListening) {
+                          _stopListening();
+                        } else {
+                          await _startListening();
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(
                         Icons.search,
                         color: Color.fromARGB(255, 255, 255, 255),
                       ),
@@ -171,6 +274,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           if (!_isSearchFocused) {
                             _searchController.clear();
                             FocusScope.of(context).unfocus();
+                            _stopListening();
                           }
                         });
                       },
@@ -178,6 +282,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ],
                 ),
               ),
+              if (!_speechAvailable && !_isListening)
+                Padding(
+                  padding: EdgeInsets.only(top: 6, bottom: 6, left: 20, right: 20),
+                  child: Text(
+                    'التعرف الصوتي غير مفعل; يرجى السماح بالوصول إلى الميكروفون من إعدادات الجهاز أو السحب للأعلى لإعادة المحاولة.',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
               Container(
                 margin: EdgeInsets.only(top: 20),
                 height: 240,
