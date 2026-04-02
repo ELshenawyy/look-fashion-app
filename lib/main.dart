@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
+import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:my_fashion_app/firebase/login.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -7,7 +8,7 @@ import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -28,9 +29,8 @@ class MyApp extends StatelessWidget {
       builder: DevicePreview.appBuilder,
       title: 'My Fashion App',
       debugShowCheckedModeBanner: false,
-      home: MainScreen());
-          
-
+      home: AppShell(),
+    );
   }
 }
 
@@ -135,11 +135,12 @@ class _MainScreen extends State<MainScreen>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => AppShell()),
+                          builder: (context) => ProductListScreen()),
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.black, backgroundColor: Color.fromARGB(255, 255, 255, 255),
+                    foregroundColor: Colors.black,
+                    backgroundColor: Color.fromARGB(255, 255, 255, 255),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50.0),
                       side: BorderSide(color: Color.fromARGB(255, 0, 0, 0)),
@@ -170,7 +171,8 @@ class _MainScreen extends State<MainScreen>
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    foregroundColor: Color.fromARGB(255, 255, 255, 255), backgroundColor: Color.fromARGB(0, 255, 255, 255),
+                    foregroundColor: Color.fromARGB(255, 255, 255, 255),
+                    backgroundColor: Color.fromARGB(0, 255, 255, 255),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50.0),
                       side:

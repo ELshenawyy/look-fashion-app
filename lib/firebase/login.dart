@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:my_fashion_app/screens/app_shell.dart';
+import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:my_fashion_app/firebase/auth_service.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
 import 'package:my_fashion_app/firebase/signup.dart';
@@ -84,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.of(context).pop();
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => AppShell()),
+        MaterialPageRoute(builder: (context) => ProductListScreen()),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;

@@ -29,7 +29,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   bool _isSearchFocused = false;
   late Timer _timer;
   int currentIndex = 0;
-  @override
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -66,6 +66,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
           backgroundColor: Color.fromARGB(255, 0, 0, 0),
           elevation: 0,
           toolbarHeight: 50,
+          automaticallyImplyLeading: false,
           title: Text(
             'My Fashion App',
             style: TextStyle(
@@ -214,7 +215,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  const Color.fromRGBO(0, 0, 0, 0.6)
+                                  Colors.black.withOpacity(0.6)
                                 ],
                               ),
                             ),

@@ -1,7 +1,7 @@
 ﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:my_fashion_app/screens/app_shell.dart';
+import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pinput/pinput.dart';
 
@@ -120,7 +120,7 @@ class _OTPScreenState extends State<OTPScreen> {
       );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => AppShell()),
+        MaterialPageRoute(builder: (context) => ProductListScreen()),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
