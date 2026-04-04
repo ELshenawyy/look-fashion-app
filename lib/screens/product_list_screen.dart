@@ -478,8 +478,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       margin: EdgeInsets.only(top: 20),
                       height: 220,
                       width: 380,
-                      child: FutureBuilder<List<Product>>(
-                        future: productService.getProducts(),
+                      child: StreamBuilder<List<Product>>(
+                        stream: productService.getProductsStream(),
                         builder: (BuildContext context,
                             AsyncSnapshot<List<Product>> snapshot) {
                           if (snapshot.hasData) {
@@ -518,11 +518,39 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                           child: ClipRRect(
                                             borderRadius:
                                                 BorderRadius.circular(20),
-                                            child: Image.asset(
-                                              product.image,
+                                            child: Image.network(
+                                              product.imageUrl,
                                               fit: BoxFit.cover,
                                               height: 150,
                                               width: 150,
+                                              loadingBuilder: (context, child, loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                return Container(
+                                                  width: 150,
+                                                  height: 150,
+                                                  color: Colors.grey[300],
+                                                  child: Center(
+                                                    child: CircularProgressIndicator(
+                                                      value: loadingProgress.expectedTotalBytes != null
+                                                          ? loadingProgress.cumulativeBytesLoaded /
+                                                              loadingProgress.expectedTotalBytes!
+                                                          : null,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return Container(
+                                                  width: 150,
+                                                  height: 150,
+                                                  color: Colors.grey[300],
+                                                  child: Icon(
+                                                    Icons.image_not_supported,
+                                                    color: Colors.grey[600],
+                                                    size: 40,
+                                                  ),
+                                                );
+                                              },
                                             ),
                                           ),
                                         ),
@@ -619,8 +647,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               margin: EdgeInsets.only(top: 20),
                               height: 220,
                               width: 380,
-                              child: FutureBuilder<List<Product>>(
-                                future: productService.getProducts(),
+                              child: StreamBuilder<List<Product>>(
+                                stream: productService.getProductsStream(),
                                 builder: (BuildContext context,
                                     AsyncSnapshot<List<Product>> snapshot) {
                                   if (snapshot.hasData) {
@@ -663,11 +691,39 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                                     borderRadius:
                                                         BorderRadius.circular(
                                                             20),
-                                                    child: Image.asset(
-                                                      product.image,
+                                                    child: Image.network(
+                                                      product.imageUrl,
                                                       fit: BoxFit.cover,
                                                       height: 150,
                                                       width: 150,
+                                                      loadingBuilder: (context, child, loadingProgress) {
+                                                        if (loadingProgress == null) return child;
+                                                        return Container(
+                                                          width: 150,
+                                                          height: 150,
+                                                          color: Colors.grey[300],
+                                                          child: Center(
+                                                            child: CircularProgressIndicator(
+                                                              value: loadingProgress.expectedTotalBytes != null
+                                                                  ? loadingProgress.cumulativeBytesLoaded /
+                                                                      loadingProgress.expectedTotalBytes!
+                                                                  : null,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      },
+                                                      errorBuilder: (context, error, stackTrace) {
+                                                        return Container(
+                                                          width: 150,
+                                                          height: 150,
+                                                          color: Colors.grey[300],
+                                                          child: Icon(
+                                                            Icons.image_not_supported,
+                                                            color: Colors.grey[600],
+                                                            size: 40,
+                                                          ),
+                                                        );
+                                                      },
                                                     ),
                                                   ),
                                                 ),

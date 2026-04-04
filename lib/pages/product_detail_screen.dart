@@ -45,9 +45,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             left: 0,
             right: 0,
             height: MediaQuery.of(context).size.height / 2,
-            child: Image.asset(
-              product.image,
+            child: Image.network(
+              product.imageUrl,
               fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  color: Colors.grey[300],
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
+                    ),
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey[300],
+                  child: Icon(
+                    Icons.image_not_supported,
+                    color: Colors.grey[600],
+                    size: 50,
+                  ),
+                );
+              },
             ),
           ),
           Positioned(

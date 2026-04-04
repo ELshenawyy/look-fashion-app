@@ -57,8 +57,8 @@ class _Productss extends State<Productss> {
                 ),
               ),
             ),
-            FutureBuilder<List<Product>>(
-              future: productService.getProducts(),
+            StreamBuilder<List<Product>>(
+              stream: productService.getProductsStream(),
               builder: (BuildContext context,
                   AsyncSnapshot<List<Product>> snapshot) {
                 if (snapshot.hasData) {
@@ -91,11 +91,39 @@ class _Productss extends State<Productss> {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(20),
-                                child: Image.asset(
-                                  product.image,
+                                child: Image.network(
+                                  product.imageUrl,
                                   fit: BoxFit.cover,
                                   width: 100,
                                   height: 100,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Container(
+                                      width: 100,
+                                      height: 100,
+                                      color: Colors.grey[300],
+                                      child: Center(
+                                        child: CircularProgressIndicator(
+                                          value: loadingProgress.expectedTotalBytes != null
+                                              ? loadingProgress.cumulativeBytesLoaded /
+                                                  loadingProgress.expectedTotalBytes!
+                                              : null,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 100,
+                                      height: 100,
+                                      color: Colors.grey[300],
+                                      child: Icon(
+                                        Icons.image_not_supported,
+                                        color: Colors.grey[600],
+                                        size: 40,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               SizedBox(width: 20),
