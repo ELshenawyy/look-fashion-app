@@ -5,6 +5,11 @@ class Product {
   final String imageUrl;
   final String description;
   final String gender;
+  final List<String> sizes;
+  final List<String> colors;
+  final int stockQuantity;
+  final String category;
+  final String? docId; // Firestore document ID
 
   Product({
     required this.id,
@@ -13,6 +18,11 @@ class Product {
     required this.imageUrl,
     required this.description,
     required this.gender,
+    this.sizes = const [],
+    this.colors = const [],
+    this.stockQuantity = 0,
+    this.category = '',
+    this.docId,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -28,6 +38,24 @@ class Product {
       parsedPrice = 0.0;
     }
 
+    List<String> parsedSizes = [];
+    if (json['sizes'] is List) {
+      parsedSizes = List<String>.from(json['sizes'].map((e) => e.toString()));
+    }
+
+    List<String> parsedColors = [];
+    if (json['colors'] is List) {
+      parsedColors = List<String>.from(json['colors'].map((e) => e.toString()));
+    }
+
+    int parsedStock = 0;
+    final rawStock = json['stockQuantity'];
+    if (rawStock is int) {
+      parsedStock = rawStock;
+    } else if (rawStock is String) {
+      parsedStock = int.tryParse(rawStock) ?? 0;
+    }
+
     return Product(
       id: json['id'] is int
           ? json['id']
@@ -37,6 +65,11 @@ class Product {
       imageUrl: json['imageUrl'] ?? '',
       description: json['description'] ?? '',
       gender: json['gender'] ?? '',
+      sizes: parsedSizes,
+      colors: parsedColors,
+      stockQuantity: parsedStock,
+      category: json['category'] ?? '',
+      docId: json['docId'] ?? json.containsKey('_id') ? json['_id'] : null,
     );
   }
 
@@ -48,6 +81,10 @@ class Product {
       'imageUrl': imageUrl,
       'description': description,
       'gender': gender,
+      'sizes': sizes,
+      'colors': colors,
+      'stockQuantity': stockQuantity,
+      'category': category,
     };
   }
 }

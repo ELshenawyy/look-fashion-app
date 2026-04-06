@@ -1,7 +1,7 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:my_fashion_app/screens/product_list_screen.dart';
+import 'package:my_fashion_app/screens/app_shell.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pinput/pinput.dart';
 
@@ -118,9 +118,9 @@ class _OTPScreenState extends State<OTPScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Login successful!')),
       );
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ProductListScreen()),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const AppShell()),
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -228,7 +228,8 @@ class _OTPScreenState extends State<OTPScreen> {
                       children: [
                         Text(
                           'Resend available in ',
-                          style: TextStyle(color: Colors.white70, fontFamily: 'arial'),
+                          style: TextStyle(
+                              color: Colors.white70, fontFamily: 'arial'),
                         ),
                         Text(
                           _timerText,
@@ -243,12 +244,17 @@ class _OTPScreenState extends State<OTPScreen> {
                     SizedBox(height: 18),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _isResendAvailable ? themeColor : Colors.white24,
+                        backgroundColor:
+                            _isResendAvailable ? themeColor : Colors.white24,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        padding: EdgeInsets.symmetric(vertical: 14, horizontal: 48),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                        padding:
+                            EdgeInsets.symmetric(vertical: 14, horizontal: 48),
                       ),
-                      onPressed: _isResendAvailable && !_isSending ? _resendCode : null,
+                      onPressed: _isResendAvailable && !_isSending
+                          ? _resendCode
+                          : null,
                       child: _isSending
                           ? SizedBox(
                               height: 18,
@@ -260,7 +266,10 @@ class _OTPScreenState extends State<OTPScreen> {
                             )
                           : Text(
                               'Resend',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'arial'),
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'arial'),
                             ),
                     ),
                     SizedBox(height: 24),
@@ -268,13 +277,18 @@ class _OTPScreenState extends State<OTPScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themeColor,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 90),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                        padding:
+                            EdgeInsets.symmetric(vertical: 16, horizontal: 90),
                       ),
                       onPressed: _verifyOTP,
                       child: Text(
                         'Verify OTP',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'arial'),
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'arial'),
                       ),
                     ),
                   ],

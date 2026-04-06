@@ -4,7 +4,7 @@ import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/services/product_service.dart';
 
 class Productss extends StatefulWidget {
-  const Productss({Key? key});
+  const Productss({Key? key}) : super(key: key);
 
   @override
   _Productss createState() => _Productss();
@@ -96,7 +96,8 @@ class _Productss extends State<Productss> {
                                   fit: BoxFit.cover,
                                   width: 100,
                                   height: 100,
-                                  loadingBuilder: (context, child, loadingProgress) {
+                                  loadingBuilder:
+                                      (context, child, loadingProgress) {
                                     if (loadingProgress == null) return child;
                                     return Container(
                                       width: 100,
@@ -104,9 +105,13 @@ class _Productss extends State<Productss> {
                                       color: Colors.grey[300],
                                       child: Center(
                                         child: CircularProgressIndicator(
-                                          value: loadingProgress.expectedTotalBytes != null
-                                              ? loadingProgress.cumulativeBytesLoaded /
-                                                  loadingProgress.expectedTotalBytes!
+                                          value: loadingProgress
+                                                      .expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
                                               : null,
                                         ),
                                       ),

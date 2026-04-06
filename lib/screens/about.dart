@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 
 class About extends StatefulWidget {
+  const About({Key? key}) : super(key: key);
+
   @override
   _About createState() => _About();
 }
 
 class _About extends State<About> {
-  bool _isNotificationsEnabled = true;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color.fromARGB(255, 0, 0, 0),
+      backgroundColor: const Color.fromARGB(255, 0, 0, 0),
       appBar: AppBar(
-        backgroundColor: Color.fromARGB(255, 87, 7, 7),
+        backgroundColor: const Color.fromARGB(255, 87, 7, 7),
         elevation: 0,
-        title: Text('About Us'),
+        title: const Text('About Us'),
         leading: IconButton(
-          icon: Icon(
+          icon: const Icon(
             Icons.arrow_back_ios,
             color: Color.fromARGB(255, 255, 255, 255),
           ),

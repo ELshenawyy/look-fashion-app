@@ -1,17 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
-import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:my_fashion_app/firebase/login.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Configure Firestore for development (disable App Check enforcement)
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+  );
+
+  print('✅ Firebase initialized successfully');
+  print('📱 Firestore configured for development (App Check not enforced)');
+  print('🔗 Project ID: ${FirebaseFirestore.instance.app.options.projectId}');
+
   runApp(
     DevicePreview(
       enabled: true,
@@ -29,7 +41,7 @@ class MyApp extends StatelessWidget {
       builder: DevicePreview.appBuilder,
       title: 'My Fashion App',
       debugShowCheckedModeBanner: false,
-      home: AppShell(),
+      home: MainScreen(),
     );
   }
 }
@@ -83,6 +95,13 @@ class _MainScreen extends State<MainScreen>
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    // If user is logged in, go to AppShell (with admin check)
+    if (user != null) {
+      return AppShell();
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
@@ -135,7 +154,7 @@ class _MainScreen extends State<MainScreen>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => ProductListScreen()),
+                          builder: (context) => AppShell()),
                     );
                   },
                   style: ElevatedButton.styleFrom(

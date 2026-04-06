@@ -7,6 +7,8 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'dart:async';
 
 class ProductListScreen extends StatefulWidget {
+  const ProductListScreen({Key? key}) : super(key: key);
+
   @override
   _ProductListScreenState createState() => _ProductListScreenState();
 }
@@ -58,7 +60,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('عذراً، حدث خطأ في التعرف على الصوت. تحقق من صلاحيات الميكروفون.'),
+            content: Text(
+                'عذراً، حدث خطأ في التعرف على الصوت. تحقق من صلاحيات الميكروفون.'),
           ),
         );
       },
@@ -68,14 +71,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
       setState(() => _speechAvailable = isAvailable);
     }
 
-
     if (!isAvailable) {
       if (mounted) {
         setState(() {
           _speechAvailable = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('التعرف الصوتي غير مفعل. يرجى السماح بالوصول إلى الميكروفون من إعدادات الجهاز.')),
+          SnackBar(
+              content: Text(
+                  'التعرف الصوتي غير مفعل. يرجى السماح بالوصول إلى الميكروفون من إعدادات الجهاز.')),
         );
         await _showSpeechPermissionDialog();
       }
@@ -106,7 +110,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('ترخيص الميكروفون مطلوب'),
-        content: Text('التعرف الصوتي غير مفعل. الرجاء السماح بالوصول إلى الميكروفون من إعدادات التطبيق ثم إعادة المحاولة.'),
+        content: Text(
+            'التعرف الصوتي غير مفعل. الرجاء السماح بالوصول إلى الميكروفون من إعدادات التطبيق ثم إعادة المحاولة.'),
         actions: [
           TextButton(
             onPressed: () {
@@ -284,7 +289,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ),
               if (!_speechAvailable && !_isListening)
                 Padding(
-                  padding: EdgeInsets.only(top: 6, bottom: 6, left: 20, right: 20),
+                  padding:
+                      EdgeInsets.only(top: 6, bottom: 6, left: 20, right: 20),
                   child: Text(
                     'التعرف الصوتي غير مفعل; يرجى السماح بالوصول إلى الميكروفون من إعدادات الجهاز أو السحب للأعلى لإعادة المحاولة.',
                     style: TextStyle(color: Colors.white70, fontSize: 12),
@@ -328,7 +334,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 end: Alignment.bottomCenter,
                                 colors: [
                                   Colors.transparent,
-                                  Colors.black.withOpacity(0.6)
+                                  Colors.black.withValues(alpha: 0.6)
                                 ],
                               ),
                             ),
@@ -492,6 +498,40 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                           _searchController.text.toLowerCase()))
                                   .toList();
                             }
+
+                            // Check if products list is empty
+                            if (products.isEmpty) {
+                              return Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.shopping_bag_outlined,
+                                      size: 80,
+                                      color: Colors.white30,
+                                    ),
+                                    SizedBox(height: 20),
+                                    Text(
+                                      'No Products Yet',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Tap + to add one',
+                                      style: TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+
                             return ListView.builder(
                               scrollDirection: Axis.horizontal,
                               itemCount: products.length,
@@ -523,23 +563,31 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                               fit: BoxFit.cover,
                                               height: 150,
                                               width: 150,
-                                              loadingBuilder: (context, child, loadingProgress) {
-                                                if (loadingProgress == null) return child;
+                                              loadingBuilder: (context, child,
+                                                  loadingProgress) {
+                                                if (loadingProgress == null)
+                                                  return child;
                                                 return Container(
                                                   width: 150,
                                                   height: 150,
                                                   color: Colors.grey[300],
                                                   child: Center(
-                                                    child: CircularProgressIndicator(
-                                                      value: loadingProgress.expectedTotalBytes != null
-                                                          ? loadingProgress.cumulativeBytesLoaded /
-                                                              loadingProgress.expectedTotalBytes!
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      value: loadingProgress
+                                                                  .expectedTotalBytes !=
+                                                              null
+                                                          ? loadingProgress
+                                                                  .cumulativeBytesLoaded /
+                                                              loadingProgress
+                                                                  .expectedTotalBytes!
                                                           : null,
                                                     ),
                                                   ),
                                                 );
                                               },
-                                              errorBuilder: (context, error, stackTrace) {
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
                                                 return Container(
                                                   width: 150,
                                                   height: 150,
@@ -604,174 +652,173 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       ),
                     ),
                     SizedBox(height: 20),
-                    GestureDetector(
-                      onTap: () {
-                        print("object");
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Color.fromARGB(255, 255, 255, 255),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(20),
-                            topRight: Radius.circular(20),
-                          ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Color.fromARGB(255, 255, 255, 255),
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(20),
+                          topRight: Radius.circular(20),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              height: 4,
-                              width: 100,
-                              color: Color.fromARGB(255, 0, 0, 0),
-                              margin: EdgeInsets.only(top: 10),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Recommended for you',
-                                    style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color.fromARGB(255, 0, 0, 0),
-                                      fontFamily: 'times new roman',
-                                    ),
-                                  ),
-                                ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 4,
+                            width: 100,
+                            color: Color.fromARGB(255, 0, 0, 0),
+                            margin: EdgeInsets.only(top: 10, left: 20),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'Recommended for you',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color.fromARGB(255, 0, 0, 0),
+                                fontFamily: 'times new roman',
                               ),
                             ),
-                            Container(
-                              margin: EdgeInsets.only(top: 20),
-                              height: 220,
-                              width: 380,
-                              child: StreamBuilder<List<Product>>(
-                                stream: productService.getProductsStream(),
-                                builder: (BuildContext context,
-                                    AsyncSnapshot<List<Product>> snapshot) {
-                                  if (snapshot.hasData) {
-                                    List<Product> products = snapshot.data!;
+                          ),
+                          Container(
+                            margin: EdgeInsets.symmetric(horizontal: 16),
+                            height: 350,
+                            child: StreamBuilder<List<Product>>(
+                              stream: productService.getProductsStream(),
+                              builder: (BuildContext context,
+                                  AsyncSnapshot<List<Product>> snapshot) {
+                                if (snapshot.hasData) {
+                                  List<Product> products = snapshot.data!;
 
-                                    return GridView.builder(
-                                      gridDelegate:
-                                          SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2, // number of columns
-                                        crossAxisSpacing:
-                                            10, // horizontal spacing between columns
-                                        mainAxisSpacing:
-                                            10, // vertical spacing between rows
-                                        childAspectRatio:
-                                            0.8, // width to height ratio of each grid item
-                                      ),
-                                      itemCount: products.length,
-                                      itemBuilder:
-                                          (BuildContext context, int index) {
-                                        Product product = products[index];
-                                        return GestureDetector(
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) =>
-                                                    ProductDetailScreen(
-                                                        product: product),
-                                              ),
-                                            );
-                                          },
-                                          child: Container(
-                                            width: 190,
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
-                                              children: [
-                                                Expanded(
-                                                  child: ClipRRect(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            20),
-                                                    child: Image.network(
-                                                      product.imageUrl,
-                                                      fit: BoxFit.cover,
-                                                      height: 150,
-                                                      width: 150,
-                                                      loadingBuilder: (context, child, loadingProgress) {
-                                                        if (loadingProgress == null) return child;
-                                                        return Container(
-                                                          width: 150,
-                                                          height: 150,
-                                                          color: Colors.grey[300],
-                                                          child: Center(
-                                                            child: CircularProgressIndicator(
-                                                              value: loadingProgress.expectedTotalBytes != null
-                                                                  ? loadingProgress.cumulativeBytesLoaded /
-                                                                      loadingProgress.expectedTotalBytes!
-                                                                  : null,
-                                                            ),
-                                                          ),
-                                                        );
-                                                      },
-                                                      errorBuilder: (context, error, stackTrace) {
-                                                        return Container(
-                                                          width: 150,
-                                                          height: 150,
-                                                          color: Colors.grey[300],
-                                                          child: Icon(
-                                                            Icons.image_not_supported,
-                                                            color: Colors.grey[600],
-                                                            size: 40,
-                                                          ),
-                                                        );
-                                                      },
-                                                    ),
-                                                  ),
-                                                ),
-                                                SizedBox(height: 10),
-                                                Text(
-                                                  product.title,
-                                                  style: TextStyle(
-                                                    color: Color.fromARGB(
-                                                        255, 0, 0, 0),
-                                                    fontSize: 20,
-                                                    fontFamily:
-                                                        'times new roman',
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                                SizedBox(height: 10),
-                                                SizedBox(height: 20),
-                                              ],
+                                  // Check if products list is empty
+                                  if (products.isEmpty) {
+                                    return Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(
+                                            Icons.shopping_bag_outlined,
+                                            size: 60,
+                                            color: Colors.black26,
+                                          ),
+                                          SizedBox(height: 16),
+                                          Text(
+                                            'No Products Available',
+                                            style: TextStyle(
+                                              color: Colors.black54,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w500,
                                             ),
                                           ),
-                                        );
-                                      },
+                                        ],
+                                      ),
                                     );
-                                  } else if (snapshot.hasError) {
-                                    return Text("${snapshot.error}");
                                   }
-                                  // By default, show a loading spinner.
+
+                                  return GridView.builder(
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      crossAxisSpacing: 12,
+                                      mainAxisSpacing: 12,
+                                      childAspectRatio: 0.7,
+                                    ),
+                                    itemCount: products.length,
+                                    itemBuilder:
+                                        (BuildContext context, int index) {
+                                      Product product = products[index];
+                                      return GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ProductDetailScreen(
+                                                      product: product),
+                                            ),
+                                          );
+                                        },
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Expanded(
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                child: Image.network(
+                                                  product.imageUrl,
+                                                  fit: BoxFit.cover,
+                                                  loadingBuilder: (context,
+                                                      child, loadingProgress) {
+                                                    if (loadingProgress == null)
+                                                      return child;
+                                                    return Container(
+                                                      color: Colors.grey[200],
+                                                      child: Center(
+                                                        child:
+                                                            CircularProgressIndicator(),
+                                                      ),
+                                                    );
+                                                  },
+                                                  errorBuilder: (context, error,
+                                                      stackTrace) {
+                                                    return Container(
+                                                      color: Colors.grey[200],
+                                                      child: Icon(
+                                                        Icons
+                                                            .image_not_supported,
+                                                        color: Colors.grey[400],
+                                                      ),
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+                                            SizedBox(height: 8),
+                                            Text(
+                                              product.title,
+                                              style: TextStyle(
+                                                color: Colors.black87,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            SizedBox(height: 4),
+                                            Text(
+                                              '\$${product.price.toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                color: Color.fromARGB(
+                                                    255, 200, 100, 0),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                } else if (snapshot.hasError) {
                                   return Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: <Widget>[
-                                        CircularProgressIndicator(
-                                          color: Colors.black,
-                                        ),
-                                        SizedBox(height: 10.0),
-                                        Text(
-                                          'Loading...',
-                                          style: TextStyle(color: Colors.black),
-                                        ),
-                                      ],
+                                    child: Text(
+                                      'Error: ${snapshot.error}',
+                                      style: TextStyle(color: Colors.red),
                                     ),
                                   );
-                                },
-                              ),
+                                }
+                                return Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              },
                             ),
-                          ],
-                        ),
+                          ),
+                          SizedBox(height: 20),
+                        ],
                       ),
                     ),
                   ],

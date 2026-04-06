@@ -1,13 +1,13 @@
-﻿import 'package:flutter/gestures.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:my_fashion_app/firebase/auth_service.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
 import 'package:my_fashion_app/firebase/signup.dart';
 import 'package:my_fashion_app/main.dart';
+import 'package:my_fashion_app/screens/app_shell.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -32,10 +32,13 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _sendOTP() {
-    if (!(kIsWeb || defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+    if (!(kIsWeb ||
+        defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Phone authentication is only supported on Android, iOS, or web.'),
+          content: Text(
+              'Phone authentication is only supported on Android, iOS, or web.'),
         ),
       );
       return;
@@ -44,7 +47,9 @@ class _LoginPageState extends State<LoginPage> {
     final phoneNumber = _completePhoneNumber.replaceAll(RegExp(r'\s+'), '');
     if (phoneNumber.isEmpty || !_isPhoneValid) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter a valid phone number with country code.')),
+        SnackBar(
+            content:
+                Text('Please enter a valid phone number with country code.')),
       );
       return;
     }
@@ -82,9 +87,9 @@ class _LoginPageState extends State<LoginPage> {
       await AuthService.signIn(email, password);
       if (!mounted) return;
       Navigator.of(context).pop();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ProductListScreen()),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const AppShell()),
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -104,7 +109,8 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unexpected error: $e'), backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Unexpected error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -170,7 +176,8 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         labelColor: Colors.white,
                         unselectedLabelColor: Colors.white70,
-                        labelStyle: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'arial'),
+                        labelStyle: TextStyle(
+                            fontWeight: FontWeight.bold, fontFamily: 'arial'),
                         tabs: [
                           Tab(text: 'Phone Login'),
                           Tab(text: 'Email Login'),
@@ -210,7 +217,8 @@ class _LoginPageState extends State<LoginPage> {
                                   controller: _phoneController,
                                   initialCountryCode: 'SD',
                                   showCountryFlag: true,
-                                  dropdownIcon: Icon(Icons.arrow_drop_down, color: Colors.white),
+                                  dropdownIcon: Icon(Icons.arrow_drop_down,
+                                      color: Colors.white),
                                   style: TextStyle(color: Colors.white),
                                   decoration: InputDecoration(
                                     filled: true,
@@ -219,11 +227,13 @@ class _LoginPageState extends State<LoginPage> {
                                     hintStyle: TextStyle(color: Colors.white54),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(25),
-                                      borderSide: BorderSide(color: Colors.white24),
+                                      borderSide:
+                                          BorderSide(color: Colors.white24),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(25),
-                                      borderSide: BorderSide(color: Colors.white24),
+                                      borderSide:
+                                          BorderSide(color: Colors.white24),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(25),
@@ -233,13 +243,17 @@ class _LoginPageState extends State<LoginPage> {
                                   keyboardType: TextInputType.phone,
                                   onChanged: (phone) {
                                     setState(() {
-                                      _completePhoneNumber = phone.completeNumber.replaceAll(RegExp(r'\s+'), '');
-                                      _isPhoneValid = phone.number.isNotEmpty && _completePhoneNumber.startsWith('+');
+                                      _completePhoneNumber = phone
+                                          .completeNumber
+                                          .replaceAll(RegExp(r'\s+'), '');
+                                      _isPhoneValid = phone.number.isNotEmpty &&
+                                          _completePhoneNumber.startsWith('+');
                                     });
                                   },
                                   onCountryChanged: (country) {
                                     setState(() {
-                                      final cleaned = _completePhoneNumber.replaceAll(RegExp(r'\s+'), '');
+                                      final cleaned = _completePhoneNumber
+                                          .replaceAll(RegExp(r'\s+'), '');
                                       _completePhoneNumber = cleaned;
                                       _isPhoneValid = cleaned.startsWith('+');
                                     });
@@ -248,21 +262,30 @@ class _LoginPageState extends State<LoginPage> {
                                 SizedBox(height: 30),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: _isPhoneValid ? themeColor : Colors.white24,
+                                    backgroundColor: _isPhoneValid
+                                        ? themeColor
+                                        : Colors.white24,
                                     foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                                    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 110),
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(30)),
+                                    padding: EdgeInsets.symmetric(
+                                        vertical: 16, horizontal: 110),
                                   ),
                                   onPressed: _isPhoneValid ? _sendOTP : null,
                                   child: Text(
                                     'Send OTP',
-                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'arial'),
+                                    style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        fontFamily: 'arial'),
                                   ),
                                 ),
                                 SizedBox(height: 14),
                                 Text(
                                   'We will send a one-time verification code to your phone.',
-                                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                                  style: TextStyle(
+                                      color: Colors.white54, fontSize: 14),
                                   textAlign: TextAlign.center,
                                 ),
                                 SizedBox(height: 24),
@@ -300,30 +323,37 @@ class _LoginPageState extends State<LoginPage> {
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
                                     decoration: InputDecoration(
-                                      prefixIcon: Icon(Icons.email, color: Colors.white),
+                                      prefixIcon: Icon(Icons.email,
+                                          color: Colors.white),
                                       labelText: 'Email',
-                                      labelStyle: TextStyle(color: Colors.white70),
+                                      labelStyle:
+                                          TextStyle(color: Colors.white70),
                                       filled: true,
                                       fillColor: Colors.white24,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
-                                        borderSide: BorderSide(color: Colors.white24),
+                                        borderSide:
+                                            BorderSide(color: Colors.white24),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
-                                        borderSide: BorderSide(color: Colors.white24),
+                                        borderSide:
+                                            BorderSide(color: Colors.white24),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
-                                        borderSide: BorderSide(color: themeColor),
+                                        borderSide:
+                                            BorderSide(color: themeColor),
                                       ),
                                     ),
                                     style: TextStyle(color: Colors.white),
                                     validator: (value) {
-                                      if (value == null || value.trim().isEmpty) {
+                                      if (value == null ||
+                                          value.trim().isEmpty) {
                                         return 'Email is required';
                                       }
-                                      if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(value.trim())) {
+                                      if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+                                          .hasMatch(value.trim())) {
                                         return 'Enter a valid email';
                                       }
                                       return null;
@@ -334,14 +364,18 @@ class _LoginPageState extends State<LoginPage> {
                                     controller: _passwordController,
                                     obscureText: _obscureText,
                                     decoration: InputDecoration(
-                                      prefixIcon: Icon(Icons.lock, color: Colors.white),
+                                      prefixIcon:
+                                          Icon(Icons.lock, color: Colors.white),
                                       labelText: 'Password',
-                                      labelStyle: TextStyle(color: Colors.white70),
+                                      labelStyle:
+                                          TextStyle(color: Colors.white70),
                                       filled: true,
                                       fillColor: Colors.white24,
                                       suffixIcon: IconButton(
                                         icon: Icon(
-                                          _obscureText ? Icons.visibility_off : Icons.visibility,
+                                          _obscureText
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
                                           color: Colors.white70,
                                         ),
                                         onPressed: () {
@@ -352,15 +386,18 @@ class _LoginPageState extends State<LoginPage> {
                                       ),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
-                                        borderSide: BorderSide(color: Colors.white24),
+                                        borderSide:
+                                            BorderSide(color: Colors.white24),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
-                                        borderSide: BorderSide(color: Colors.white24),
+                                        borderSide:
+                                            BorderSide(color: Colors.white24),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
-                                        borderSide: BorderSide(color: themeColor),
+                                        borderSide:
+                                            BorderSide(color: themeColor),
                                       ),
                                     ),
                                     style: TextStyle(color: Colors.white),
@@ -379,10 +416,12 @@ class _LoginPageState extends State<LoginPage> {
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
                                       onPressed: () {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
                                           SnackBar(
                                             content: Text('Forget Password'),
-                                            backgroundColor: Color.fromARGB(255, 94, 255, 0),
+                                            backgroundColor:
+                                                Color.fromARGB(255, 94, 255, 0),
                                           ),
                                         );
                                       },
@@ -396,13 +435,19 @@ class _LoginPageState extends State<LoginPage> {
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: themeColor,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                                      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 110),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(30)),
+                                      padding: EdgeInsets.symmetric(
+                                          vertical: 16, horizontal: 110),
                                     ),
                                     onPressed: _signInWithEmail,
                                     child: Text(
                                       'Login',
-                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'arial'),
+                                      style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          fontFamily: 'arial'),
                                     ),
                                   ),
                                   SizedBox(height: 18),
@@ -410,15 +455,19 @@ class _LoginPageState extends State<LoginPage> {
                                   SizedBox(height: 18),
                                   Text(
                                     'Or continue with',
-                                    style: TextStyle(color: Colors.white70, fontFamily: 'arial'),
+                                    style: TextStyle(
+                                        color: Colors.white70,
+                                        fontFamily: 'arial'),
                                   ),
                                   SizedBox(height: 18),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      _socialButton('assets/google.png', 'Google'),
+                                      _socialButton(
+                                          'assets/google.png', 'Google'),
                                       SizedBox(width: 16),
-                                      _socialButton('assets/apple.png', 'Apple'),
+                                      _socialButton(
+                                          'assets/apple.png', 'Apple'),
                                     ],
                                   ),
                                 ],
@@ -436,12 +485,16 @@ class _LoginPageState extends State<LoginPage> {
                         children: [
                           TextSpan(
                             text: 'Register now',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF9B0B19)),
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF9B0B19)),
                             recognizer: TapGestureRecognizer()
                               ..onTap = () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (context) => Signup()),
+                                  MaterialPageRoute(
+                                      builder: (context) => Signup()),
                                 );
                               },
                           ),
@@ -452,8 +505,10 @@ class _LoginPageState extends State<LoginPage> {
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themeColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 50),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25)),
+                        padding:
+                            EdgeInsets.symmetric(vertical: 16, horizontal: 50),
                       ),
                       onPressed: () {
                         Navigator.pushReplacement(
@@ -463,7 +518,10 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       child: Text(
                         'Go to Home',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, fontFamily: 'arial'),
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'arial'),
                       ),
                     ),
                   ],

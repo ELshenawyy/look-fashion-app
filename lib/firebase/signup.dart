@@ -2,7 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:my_fashion_app/screens/product_list_screen.dart';
+import 'package:my_fashion_app/screens/app_shell.dart';
 
 import 'auth_service.dart';
 import 'login.dart';
@@ -80,9 +80,9 @@ class _SignupState extends State<Signup> {
         ),
       );
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ProductListScreen()),
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const AppShell()),
+        (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       Navigator.of(context).pop();
