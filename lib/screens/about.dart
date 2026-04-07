@@ -19,7 +19,7 @@ class _About extends State<About> {
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios,
-            color: Color.fromARGB(255, 255, 255, 255),
+            color: Color(0xFFD4AF37),
           ),
           onPressed: () {
             Navigator.pop(context);

@@ -1,10 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/services/product_service.dart';
-import 'package:my_fashion_app/screens/products.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import 'dart:async';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({Key? key}) : super(key: key);
@@ -140,6 +140,22 @@ class _ProductListScreenState extends State<ProductListScreen> {
     });
   }
 
+  List<Product> _applySearchFilter(List<Product> products) {
+    if (_searchController.text.isEmpty) {
+      return products;
+    }
+
+    final query = _searchController.text.toLowerCase();
+    return products
+        .where(
+          (product) =>
+              product.title.toLowerCase().contains(query) ||
+              product.description.toLowerCase().contains(query) ||
+              product.category.toLowerCase().contains(query),
+        )
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -243,7 +259,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       textInputAction: TextInputAction.search,
                       maxLines: 1,
                       textAlignVertical: TextAlignVertical.center,
-                      autofocus: true,
+                      autofocus: false,
                       onChanged: (value) {
                         setState(
                             () {}); // Trigger rebuild to update the filtered list
@@ -344,11 +360,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               children: [
                                 GestureDetector(
                                   onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) => Productss()),
-                                    );
+                                    FocusScope.of(context).unfocus();
                                   },
                                   child: Container(
                                     decoration: BoxDecoration(
@@ -360,7 +372,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     padding: EdgeInsets.symmetric(
                                         horizontal: 6.0, vertical: 2.0),
                                     child: Text(
-                                      'Learn More',
+                                      'Explore',
                                       style: TextStyle(
                                         color: Color.fromARGB(255, 87, 7, 7),
                                         fontSize: 20.0,
@@ -414,11 +426,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'New Arrival Collection',
+                            'Latest Additions',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -426,56 +438,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               fontFamily: 'times new roman',
                             ),
                           ),
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Color.fromARGB(255, 0, 0, 0),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.grey),
+                          SizedBox(height: 4),
+                          Text(
+                            'Fresh arrivals across every category, newest first.',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
                             ),
-                            child: TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => Productss()));
-                              },
-                              child: Text(
-                                'See all',
-                                style: TextStyle(
-                                  color: Color.fromARGB(255, 255, 255, 255),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Wrap(
-                        spacing: 10,
-                        children: [
-                          FilterButton(
-                            label: 'Popular',
-                            isSelected: false,
-                            onPressed: () {},
-                          ),
-                          FilterButton(
-                            label: 'Trending',
-                            isSelected: false,
-                          ),
-                          FilterButton(
-                            label: 'New',
-                            isSelected: false,
-                          ),
-                          FilterButton(
-                            label: 'Summer',
-                            isSelected: false,
-                          ),
-                          FilterButton(
-                            label: 'OverSize',
-                            isSelected: false,
                           ),
                         ],
                       ),
@@ -489,15 +458,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         builder: (BuildContext context,
                             AsyncSnapshot<List<Product>> snapshot) {
                           if (snapshot.hasData) {
-                            List<Product> products = snapshot.data!;
-                            if (_searchController.text.isNotEmpty) {
-                              products = products
-                                  .where((product) => product.title
-                                      .toLowerCase()
-                                      .contains(
-                                          _searchController.text.toLowerCase()))
-                                  .toList();
-                            }
+                            List<Product> products =
+                                _applySearchFilter(snapshot.data!);
 
                             // Check if products list is empty
                             if (products.isEmpty) {
@@ -689,7 +651,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               builder: (BuildContext context,
                                   AsyncSnapshot<List<Product>> snapshot) {
                                 if (snapshot.hasData) {
-                                  List<Product> products = snapshot.data!;
+                                  List<Product> products =
+                                      _applySearchFilter(snapshot.data!);
 
                                   // Check if products list is empty
                                   if (products.isEmpty) {
@@ -825,53 +788,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class FilterButton extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback? onPressed;
-
-  const FilterButton({
-    Key? key,
-    required this.label,
-    this.isSelected = false,
-    this.onPressed,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final backgroundColor =
-        isSelected ? Color.fromARGB(255, 0, 0, 0) : Colors.white;
-    final textColor =
-        isSelected ? Color.fromARGB(255, 255, 255, 255) : Colors.black;
-    final borderColor = isSelected
-        ? Color.fromARGB(255, 0, 0, 0)
-        : Color.fromARGB(255, 0, 0, 0);
-
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: borderColor,
-            width: 2,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
           ),
         ),
       ),

@@ -11,6 +11,8 @@ class AdminDashboard extends StatefulWidget {
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
+  static const Color _gold = Color(0xFFD4AF37);
+
   late Stream<QuerySnapshot> _productsStream;
 
   @override
@@ -26,13 +28,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Product'),
-        content: const Text('Are you sure you want to delete this product?'),
+        title: const Text(
+          'Delete Product',
+          style: TextStyle(color: _gold),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this product?',
+          style: TextStyle(color: Colors.white70),
+        ),
         backgroundColor: Colors.grey[900],
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: _gold),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -93,7 +104,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text('Admin Dashboard'),
+        iconTheme: const IconThemeData(color: _gold),
+        title: const Text(
+          'Admin Dashboard',
+          style: TextStyle(color: _gold),
+        ),
       ),
       backgroundColor: Colors.black,
       body: StreamBuilder<QuerySnapshot>(

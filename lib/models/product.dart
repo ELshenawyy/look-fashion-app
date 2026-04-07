@@ -69,7 +69,7 @@ class Product {
       colors: parsedColors,
       stockQuantity: parsedStock,
       category: json['category'] ?? '',
-      docId: json['docId'] ?? json.containsKey('_id') ? json['_id'] : null,
+      docId: json['docId'] ?? (json.containsKey('_id') ? json['_id'] : null),
     );
   }
 

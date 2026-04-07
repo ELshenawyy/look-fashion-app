@@ -23,7 +23,7 @@ class _Productss extends State<Productss> {
           icon: Icon(
             Icons.arrow_back_ios,
           ),
-          color: Colors.white,
+          color: Color(0xFFD4AF37),
           onPressed: () {
             Navigator.pop(context);
           },

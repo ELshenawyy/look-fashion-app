@@ -33,6 +33,8 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
+  static const Color _gold = Color(0xFFD4AF37);
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -41,6 +43,24 @@ class MyApp extends StatelessWidget {
       builder: DevicePreview.appBuilder,
       title: 'My Fashion App',
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        scaffoldBackgroundColor: Colors.black,
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.black,
+          elevation: 0,
+          centerTitle: true,
+          foregroundColor: _gold,
+          iconTheme: IconThemeData(color: _gold),
+          titleTextStyle: TextStyle(
+            color: _gold,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
       home: MainScreen(),
     );
   }

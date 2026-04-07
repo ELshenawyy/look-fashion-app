@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:my_fashion_app/firebase/login.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
 import 'package:my_fashion_app/screens/admin_dashboard.dart';
+import 'package:my_fashion_app/screens/categories_screen.dart';
+import 'package:my_fashion_app/screens/favorites_screen.dart';
+import 'package:my_fashion_app/screens/profile_screen.dart';
 import 'package:my_fashion_app/screens/product_list_screen.dart';
-import 'package:my_fashion_app/screens/products.dart';
 import 'package:my_fashion_app/screens/cart.dart';
-import 'package:my_fashion_app/screens/about.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({Key? key}) : super(key: key);
@@ -20,18 +21,12 @@ class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   bool _isSigningOut = false;
 
-  static final List<Widget> _pages = <Widget>[
-    ProductListScreen(),
-    Productss(),
-    CartPage(),
-    About(),
-  ];
-
   static const List<String> _titles = <String>[
-    'Fashion Shop',
-    'Products',
+    'Home',
+    'Categories',
     'Cart',
-    'About',
+    'Favorites',
+    'Profile',
   ];
 
   void _onItemTapped(int index) {
@@ -117,6 +112,14 @@ class _AppShellState extends State<AppShell> {
           print('DEBUG: Waiting for Firestore data...');
         }
 
+        final pages = <Widget>[
+          const ProductListScreen(),
+          const CategoriesScreen(),
+          const CartPage(),
+          const FavoritesScreen(),
+          const ProfileScreen(),
+        ];
+
         return Scaffold(
           backgroundColor: Colors.black,
           appBar: AppBar(
@@ -147,7 +150,7 @@ class _AppShellState extends State<AppShell> {
               ),
             ],
           ),
-          body: _pages[_selectedIndex],
+          body: pages[_selectedIndex],
           floatingActionButton: isAdmin
               ? Column(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -198,16 +201,20 @@ class _AppShellState extends State<AppShell> {
                 label: 'Home',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.shopping_bag),
-                label: 'Products',
+                icon: Icon(Icons.grid_view_rounded),
+                label: 'Categories',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.shopping_cart),
                 label: 'Cart',
               ),
               BottomNavigationBarItem(
-                icon: Icon(Icons.info),
-                label: 'About',
+                icon: Icon(Icons.favorite_border),
+                label: 'Favorites',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline),
+                label: 'Profile',
               ),
             ],
           ),

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:my_fashion_app/constants/category_constants.dart';
 
 class AddProductScreen extends StatefulWidget {
   final Map<String, dynamic>? productData;
@@ -16,17 +17,22 @@ class AddProductScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _AddProductScreenState createState() => _AddProductScreenState();
+  State<AddProductScreen> createState() => _AddProductScreenState();
 }
 
 class _AddProductScreenState extends State<AddProductScreen> {
+  static const Color _gold = Color(0xFFD4AF37);
+  static const Color _maroon = Color(0xFF800000);
+  static const Color _surface = Color(0xFF121212);
+  static const Color _inputFill = Color(0xFF1B1B1B);
+  static const Color _chipBase = Color(0xFF4A1F1F);
+  static const Color _grey = Color(0xFF8E8E8E);
+
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _priceController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
-  final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _stockController = TextEditingController();
-  final TextEditingController _colorController = TextEditingController();
 
   XFile? _pickedImage;
   bool _isSaving = false;
@@ -35,9 +41,29 @@ class _AddProductScreenState extends State<AddProductScreen> {
   late List<String> _selectedSizes;
   late List<String> _selectedColors;
   late String _selectedGender;
+  String? _selectedCategory;
 
-  final List<String> _availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+  final List<String> _clothingSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+  final List<String> _shoeSizes = ['38', '39', '40', '41', '42', '43', '44', '45'];
+  final List<String> _availableColors = [
+    'Black',
+    'White',
+    'Red',
+    'Blue',
+    'Maroon',
+    'Gold',
+    'Grey',
+  ];
   final List<String> _genders = ['Men', 'Women', 'Unisex'];
+  late final Map<String, Color> _colorPalette = <String, Color>{
+    'Black': Colors.black,
+    'White': Colors.white,
+    'Red': const Color(0xFFC62828),
+    'Blue': const Color(0xFF0D47A1),
+    'Maroon': _maroon,
+    'Gold': _gold,
+    'Grey': _grey,
+  };
 
   @override
   void initState() {
@@ -54,11 +80,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _titleController.text = data['title'] ?? '';
       _priceController.text = (data['price'] ?? '').toString();
       _descriptionController.text = data['description'] ?? '';
-      _categoryController.text = data['category'] ?? '';
       _stockController.text = (data['stockQuantity'] ?? '').toString();
       _selectedSizes = List<String>.from(data['sizes'] ?? []);
       _selectedColors = List<String>.from(data['colors'] ?? []);
       _selectedGender = data['gender'] ?? 'Unisex';
+      final savedCategory = data['category']?.toString();
+      _selectedCategory =
+          kProductCategories.contains(savedCategory) ? savedCategory : null;
     }
   }
 
@@ -83,29 +111,163 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
-  void _addColor() {
-    final color = _colorController.text.trim();
-    if (color.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a color (hex code or name)'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
+  bool get _isShoeCategory => _selectedCategory == kProductCategories[3];
+
+  List<String> get _availableSizes =>
+      _isShoeCategory ? _shoeSizes : _clothingSizes;
+
+  InputDecoration _buildInputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      floatingLabelStyle: const TextStyle(
+        color: _gold,
+        fontWeight: FontWeight.w700,
+      ),
+      labelStyle: const TextStyle(color: Colors.white70),
+      filled: true,
+      fillColor: _inputFill,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Colors.white24),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: _gold, width: 1.4),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Colors.white24),
+      ),
+    );
+  }
+
+  void _toggleSelection(List<String> values, String value) {
     setState(() {
-      if (!_selectedColors.contains(color)) {
-        _selectedColors.add(color);
-        _colorController.clear();
+      if (values.contains(value)) {
+        values.remove(value);
+      } else {
+        values.add(value);
       }
     });
   }
 
-  void _removeColor(String color) {
-    setState(() {
-      _selectedColors.remove(color);
-    });
+  Widget _buildSelectionChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      backgroundColor: _chipBase,
+      selectedColor: _gold,
+      checkmarkColor: Colors.black,
+      side: BorderSide(
+        color: isSelected ? _gold : Colors.white24,
+      ),
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.black : Colors.white,
+        fontWeight: FontWeight.w700,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+    );
+  }
+
+  Widget _buildSectionHeading(String title, {String? subtitle}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: _gold,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildColorOption(String colorName) {
+    final colorValue = _colorPalette[colorName] ?? _grey;
+    final isSelected = _selectedColors.contains(colorName);
+    final isLightColor =
+        ThemeData.estimateBrightnessForColor(colorValue) == Brightness.light;
+
+    return GestureDetector(
+      onTap: () => _toggleSelection(_selectedColors, colorName),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: isSelected ? 0.08 : 0.03),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isSelected ? _gold : Colors.white10,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: colorValue,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isSelected
+                          ? _gold
+                          : (colorName == 'White' ? Colors.white54 : Colors.white24),
+                      width: isSelected ? 2.5 : 1.2,
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 10,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    Icons.check_rounded,
+                    size: 20,
+                    color: isLightColor ? Colors.black : Colors.white,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              colorName,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _saveProduct() async {
@@ -132,7 +294,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (_selectedColors.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add at least one color.'),
+          content: Text('Please select at least one color.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -147,7 +309,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final String title = _titleController.text.trim();
       final String description = _descriptionController.text.trim();
       final double price = double.parse(_priceController.text.trim());
-      final String category = _categoryController.text.trim();
+      final String category = _selectedCategory!;
       final int stock = int.parse(_stockController.text.trim());
 
       String imageUrl = '';
@@ -155,7 +317,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
       // Upload new image if selected
       if (_pickedImage != null) {
         final File imageFile = File(_pickedImage!.path);
-        final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+        final String timestamp =
+            DateTime.now().millisecondsSinceEpoch.toString();
         final String storagePath = 'products/prod_$timestamp.jpg';
 
         final Reference storageRef = FirebaseStorage.instance.ref(storagePath);
@@ -237,23 +400,42 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _titleController.dispose();
     _priceController.dispose();
     _descriptionController.dispose();
-    _categoryController.dispose();
     _stockController.dispose();
-    _colorController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
+    final stepperTheme = Theme.of(context).copyWith(
+      canvasColor: Colors.black,
+      colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: _gold,
+            onPrimary: Colors.black,
+            onSurface: Colors.white,
+            surface: _surface,
+          ),
+      textTheme: Theme.of(context).textTheme.apply(
+            bodyColor: Colors.white,
+            displayColor: Colors.white,
+          ),
+    );
+
+    return Theme(
+      data: stepperTheme,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.productId != null ? 'Edit Product' : 'Add Product'),
+          iconTheme: const IconThemeData(color: _gold),
+          titleTextStyle: const TextStyle(
+            color: _gold,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         backgroundColor: Colors.black,
-        title: Text(widget.productId != null ? 'Edit Product' : 'Add Product'),
-      ),
-      backgroundColor: Colors.black,
-      body: Form(
-        key: _formKey,
-        child: Stepper(
+        body: Form(
+          key: _formKey,
+          child: Stepper(
           currentStep: _currentStep,
           onStepContinue: () {
             if (_currentStep < 3) {
@@ -274,7 +456,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
           steps: [
             // Step 1: Basic Information
             Step(
-              title: const Text('Basic Info'),
+              title: const Text(
+                'Basic Info',
+                style: TextStyle(
+                  color: _gold,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               isActive: _currentStep >= 0,
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -282,16 +470,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   TextFormField(
                     controller: _titleController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Title',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Colors.white12,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
+                    decoration: _buildInputDecoration('Product Name'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Title is required';
@@ -302,19 +481,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _priceController,
-                    keyboardType:
-                        TextInputType.numberWithOptions(decimal: true),
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Price',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Colors.white12,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _buildInputDecoration('Price'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Price is required';
@@ -331,16 +502,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     controller: _descriptionController,
                     maxLines: 4,
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Description',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Colors.white12,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
+                    decoration: _buildInputDecoration('Description'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Description is required';
@@ -353,7 +515,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ),
             // Step 2: Media
             Step(
-              title: const Text('Media'),
+              title: const Text(
+                'Media',
+                style: TextStyle(
+                  color: _gold,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               isActive: _currentStep >= 1,
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -362,7 +530,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     icon: const Icon(Icons.photo_library),
                     label: const Text('Select Product Image'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF800000),
+                      backgroundColor: _maroon,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: _pickImage,
@@ -393,8 +562,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     Container(
                       height: 220,
                       decoration: BoxDecoration(
-                        color: Colors.white12,
-                        borderRadius: BorderRadius.circular(12),
+                        color: _surface,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white10),
                       ),
                       child: const Center(
                         child: Text(
@@ -408,24 +578,43 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ),
             // Step 3: Inventory & Category
             Step(
-              title: const Text('Inventory'),
+              title: const Text(
+                'Inventory',
+                style: TextStyle(
+                  color: _gold,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               isActive: _currentStep >= 2,
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextFormField(
-                    controller: _categoryController,
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategory,
+                    dropdownColor: _surface,
+                    iconEnabledColor: _gold,
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Category',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Colors.white12,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
+                    decoration: _buildInputDecoration('Category'),
+                    items: kProductCategories
+                        .map(
+                          (category) => DropdownMenuItem<String>(
+                            value: category,
+                            child: Text(
+                              category,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedCategory = value;
+                        _selectedSizes = _selectedSizes
+                            .where(_availableSizes.contains)
+                            .toList();
+                      });
+                    },
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Category is required';
@@ -438,16 +627,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     controller: _stockController,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: 'Stock Quantity',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Colors.white12,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
+                    decoration: _buildInputDecoration('Stock Quantity'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return 'Stock quantity is required';
@@ -464,109 +644,54 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ),
             // Step 4: Attributes (Sizes, Colors, Gender)
             Step(
-              title: const Text('Attributes'),
+              title: const Text(
+                'Attributes',
+                style: TextStyle(
+                  color: _gold,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               isActive: _currentStep >= 3,
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Select Sizes:',
-                    style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500),
+                  _buildSectionHeading(
+                    'Select Sizes',
+                    subtitle: _isShoeCategory
+                        ? 'Tap one or more shoe sizes.'
+                        : 'Tap one or more clothing sizes.',
                   ),
                   const SizedBox(height: 12),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: 10,
+                    runSpacing: 10,
                     children: _availableSizes.map((size) {
                       final isSelected = _selectedSizes.contains(size);
-                      return FilterChip(
-                        label: Text(size),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedSizes.add(size);
-                            } else {
-                              _selectedSizes.remove(size);
-                            }
-                          });
-                        },
-                        backgroundColor: Colors.white12,
-                        selectedColor: const Color(0xFF800000),
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
-                        ),
+                      return _buildSelectionChip(
+                        label: size,
+                        isSelected: isSelected,
+                        onTap: () => _toggleSelection(_selectedSizes, size),
                       );
                     }).toList(),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Select Colors:',
-                    style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _colorController,
-                          style: const TextStyle(color: Colors.white),
-                          decoration: InputDecoration(
-                            hintText: 'e.g., Red, #FF0000',
-                            hintStyle: const TextStyle(color: Colors.white38),
-                            filled: true,
-                            fillColor: Colors.white12,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _addColor,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF800000),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 16),
-                        ),
-                        child: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  if (_selectedColors.isNotEmpty)
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _selectedColors.map((color) {
-                        return FilterChip(
-                          label: Text(color),
-                          onSelected: (_) {},
-                          onDeleted: () => _removeColor(color),
-                          backgroundColor: Colors.white12,
-                          labelStyle: const TextStyle(color: Colors.white70),
-                        );
-                      }).toList(),
-                    ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Gender:',
-                    style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500),
+                  _buildSectionHeading(
+                    'Select Colors',
+                    subtitle:
+                        'Use the color swatches below to define available options.',
                   ),
                   const SizedBox(height: 12),
                   Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: _availableColors.map(_buildColorOption).toList(),
+                  ),
+                  const SizedBox(height: 24),
+                  _buildSectionHeading('Gender'),
+                  const SizedBox(height: 12),
+                  Wrap(
                     spacing: 8,
+                    runSpacing: 8,
                     children: _genders.map((gender) {
                       final isSelected = _selectedGender == gender;
                       return ChoiceChip(
@@ -577,10 +702,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                             _selectedGender = gender;
                           });
                         },
-                        backgroundColor: Colors.white12,
-                        selectedColor: const Color(0xFF800000),
+                        backgroundColor: _chipBase,
+                        selectedColor: _gold,
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.white70,
+                          color: isSelected ? Colors.black : Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        side: BorderSide(
+                          color: isSelected ? _gold : Colors.white24,
                         ),
                       );
                     }).toList(),
@@ -597,8 +726,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ElevatedButton(
                     onPressed: _isSaving ? null : details.onStepContinue,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF800000),
+                      backgroundColor: _maroon,
+                      foregroundColor: Colors.white,
                       disabledBackgroundColor: Colors.grey,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
                     ),
                     child: Text(
                       _currentStep == 3
@@ -608,11 +742,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ),
                   const SizedBox(width: 12),
                   if (_currentStep > 0)
-                    ElevatedButton(
+                    OutlinedButton(
                       onPressed: _isSaving ? null : details.onStepCancel,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey,
-                        disabledBackgroundColor: Colors.grey,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _gold,
+                        side: const BorderSide(color: _gold),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 14,
+                        ),
                       ),
                       child: const Text('Back'),
                     ),
@@ -620,6 +758,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
               ),
             );
           },
+          ),
         ),
       ),
     );
