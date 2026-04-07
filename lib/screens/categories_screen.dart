@@ -84,8 +84,8 @@ class CategoriesScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(color: Colors.white24),
                             ),
-                            child: const Text(
-                              'Collection',
+                        child: const Text(
+                          'تشكيلة',
                               style: TextStyle(
                                 color: _gold,
                                 fontSize: 11,

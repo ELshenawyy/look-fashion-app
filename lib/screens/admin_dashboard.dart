@@ -29,11 +29,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text(
-          'Delete Product',
+          'حذف المنتج',
           style: TextStyle(color: _gold),
         ),
         content: const Text(
-          'Are you sure you want to delete this product?',
+          'هل أنت متأكد من رغبتك في حذف هذا المنتج؟',
           style: TextStyle(color: Colors.white70),
         ),
         backgroundColor: Colors.grey[900],
@@ -41,13 +41,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text(
-              'Cancel',
+              'إلغاء',
               style: TextStyle(color: _gold),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            child: const Text('حذف', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -72,7 +72,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Product deleted successfully'),
+          content: Text('تم حذف المنتج بنجاح'),
           backgroundColor: Colors.green,
         ),
       );
@@ -80,7 +80,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to delete product: $e'),
+          content: Text('تعذر حذف المنتج: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -106,7 +106,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: _gold),
         title: const Text(
-          'Admin Dashboard',
+          'لوحة الإدارة',
           style: TextStyle(color: _gold),
         ),
       ),
@@ -123,7 +123,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'Error: ${snapshot.error}',
+                'حدث خطأ: ${snapshot.error}',
                 style: const TextStyle(color: Colors.white),
               ),
             );
@@ -132,7 +132,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(
               child: Text(
-                'No products found',
+                'لا توجد منتجات',
                 style: TextStyle(color: Colors.white70),
               ),
             );
@@ -181,7 +181,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           child: const Icon(Icons.image, color: Colors.white38),
                         ),
                   title: Text(
-                    data['title'] ?? 'Unknown',
+                    data['title'] ?? 'غير معروف',
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -195,7 +195,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     children: [
                       const SizedBox(height: 4),
                       Text(
-                        '\$${data['price'] ?? 0}',
+                        '${data['price'] ?? 0} ج.م',
                         style: const TextStyle(
                           color: Color(0xFFFFE600),
                           fontWeight: FontWeight.bold,
@@ -203,12 +203,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Stock: ${data['stockQuantity'] ?? 0}',
+                        'المخزون: ${data['stockQuantity'] ?? 0}',
                         style: const TextStyle(color: Colors.white70, fontSize: 12),
                       ),
                       if (data['sizes'] != null && (data['sizes'] as List).isNotEmpty)
                         Text(
-                          'Sizes: ${(data['sizes'] as List).join(', ')}',
+                          'المقاسات: ${(data['sizes'] as List).join(', ')}',
                           style: const TextStyle(color: Colors.white54, fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -222,12 +222,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.edit, color: Colors.blue),
-                          tooltip: 'Edit',
+                          tooltip: 'تعديل',
                           onPressed: () => _editProduct(doc.id, data),
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete, color: Colors.red),
-                          tooltip: 'Delete',
+                          tooltip: 'حذف',
                           onPressed: () =>
                               _deleteProduct(doc.id, data['imageUrl'] ?? ''),
                         ),

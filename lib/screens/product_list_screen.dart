@@ -177,7 +177,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
           toolbarHeight: 50,
           automaticallyImplyLeading: false,
           title: Text(
-            'My Fashion App',
+            'تطبيق الأزياء',
             style: TextStyle(
               color: Colors.white,
             ),
@@ -209,7 +209,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
           child: Column(
             children: [
               Text(
-                'Discover the best app',
+                'اكتشف أفضل تجربة تسوق',
                 textAlign: TextAlign.left,
                 style: TextStyle(
                   color: Colors.white,
@@ -219,7 +219,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               Align(
                 alignment: Alignment.topCenter,
                 child: Text(
-                  'To buy and choose clothes',
+                  'لاختيار الملابس وشرائها بسهولة',
                   style: TextStyle(
                     color: Color.fromARGB(255, 255, 230, 0),
                     fontSize: 26,
@@ -244,7 +244,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         child: TextField(
                       controller: _searchController,
                       decoration: InputDecoration(
-                        hintText: 'Search for products or tap the mic',
+                        hintText: 'ابحث عن المنتجات أو اضغط على الميكروفون',
                         border: InputBorder.none,
                         hintStyle: TextStyle(
                           color: Color.fromARGB(255, 255, 255, 255),
@@ -372,7 +372,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     padding: EdgeInsets.symmetric(
                                         horizontal: 6.0, vertical: 2.0),
                                     child: Text(
-                                      'Explore',
+                                      'استكشف',
                                       style: TextStyle(
                                         color: Color.fromARGB(255, 87, 7, 7),
                                         fontSize: 20.0,
@@ -430,7 +430,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Latest Additions',
+                            'أحدث الإضافات',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -440,7 +440,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            'Fresh arrivals across every category, newest first.',
+                            'وصل حديثًا من مختلف الفئات، مرتبة من الأحدث إلى الأقدم.',
                             style: TextStyle(
                               color: Colors.white70,
                               fontSize: 13,
@@ -474,7 +474,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     ),
                                     SizedBox(height: 20),
                                     Text(
-                                      'No Products Yet',
+                                      'لا توجد منتجات بعد',
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: 20,
@@ -483,7 +483,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     ),
                                     SizedBox(height: 8),
                                     Text(
-                                      'Tap + to add one',
+                                      'اضغط على + لإضافة منتج',
                                       style: TextStyle(
                                         color: Colors.white54,
                                         fontSize: 14,
@@ -576,7 +576,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                         ),
                                         SizedBox(height: 10),
                                         Text(
-                                          'Price : \$${product.price.toString()}',
+                                          'السعر: ${product.price.toString()} ج.م',
                                           style: TextStyle(
                                             color: Color.fromARGB(
                                                 255, 255, 238, 0),
@@ -592,7 +592,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               },
                             );
                           } else if (snapshot.hasError) {
-                            return Text("${snapshot.error}");
+                            return Text("حدث خطأ: ${snapshot.error}");
                           }
                           // By default, show a loading spinner.
                           return Center(
@@ -604,7 +604,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 ),
                                 SizedBox(height: 10.0),
                                 Text(
-                                  'Loading...',
+                                  'جاري التحميل...',
                                   style: TextStyle(color: Colors.white),
                                 ),
                               ],
@@ -634,7 +634,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Text(
-                              'Recommended for you',
+                              'مقترح لك',
                               style: TextStyle(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
@@ -668,7 +668,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                           ),
                                           SizedBox(height: 16),
                                           Text(
-                                            'No Products Available',
+                                            'لا توجد منتجات متاحة',
                                             style: TextStyle(
                                               color: Colors.black54,
                                               fontSize: 18,
@@ -753,7 +753,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                             ),
                                             SizedBox(height: 4),
                                             Text(
-                                              '\$${product.price.toStringAsFixed(2)}',
+                                              '${product.price.toStringAsFixed(2)} ج.م',
                                               style: TextStyle(
                                                 color: Color.fromARGB(
                                                     255, 200, 100, 0),
@@ -769,7 +769,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 } else if (snapshot.hasError) {
                                   return Center(
                                     child: Text(
-                                      'Error: ${snapshot.error}',
+                                      'حدث خطأ: ${snapshot.error}',
                                       style: TextStyle(color: Colors.red),
                                     ),
                                   );

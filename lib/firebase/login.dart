@@ -38,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Phone authentication is only supported on Android, iOS, or web.'),
+              'تسجيل الدخول عبر الهاتف متاح فقط على أندرويد وiOS والويب.'),
         ),
       );
       return;
@@ -49,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content:
-                Text('Please enter a valid phone number with country code.')),
+                Text('يرجى إدخال رقم هاتف صحيح مع مفتاح الدولة.')),
       );
       return;
     }
@@ -68,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
       },
       (FirebaseAuthException e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.message}')),
+          SnackBar(content: Text('حدث خطأ: ${e.message}')),
         );
       },
     );
@@ -94,13 +94,13 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
-      String errorMessage = 'Login failed';
+      String errorMessage = 'فشل تسجيل الدخول';
       if (e.code == 'user-not-found') {
-        errorMessage = 'No account found with this email.';
+        errorMessage = 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.';
       } else if (e.code == 'wrong-password') {
-        errorMessage = 'Incorrect password.';
+        errorMessage = 'كلمة المرور غير صحيحة.';
       } else if (e.code == 'invalid-email') {
-        errorMessage = 'Invalid email format.';
+        errorMessage = 'صيغة البريد الإلكتروني غير صحيحة.';
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
@@ -110,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('Unexpected error: $e'), backgroundColor: Colors.red),
+            content: Text('خطأ غير متوقع: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -136,7 +136,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   children: [
                     Text(
-                      'Welcome Back',
+                      'مرحبًا بعودتك',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 34,
@@ -146,7 +146,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      'Login with phone or email to continue shopping.',
+                      'سجّل الدخول عبر الهاتف أو البريد الإلكتروني لمتابعة التسوق.',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 16,
@@ -179,8 +179,8 @@ class _LoginPageState extends State<LoginPage> {
                         labelStyle: TextStyle(
                             fontWeight: FontWeight.bold, fontFamily: 'arial'),
                         tabs: [
-                          Tab(text: 'Phone Login'),
-                          Tab(text: 'Email Login'),
+                          Tab(text: 'دخول الهاتف'),
+                          Tab(text: 'دخول البريد'),
                         ],
                       ),
                     ),
@@ -194,7 +194,7 @@ class _LoginPageState extends State<LoginPage> {
                               children: [
                                 SizedBox(height: 20),
                                 Text(
-                                  'Phone Login',
+                                  'تسجيل الدخول بالهاتف',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 30,
@@ -204,7 +204,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 SizedBox(height: 12),
                                 Text(
-                                  'Use your Sudan number and receive a secure OTP.',
+                                  'استخدم رقم هاتفك واستلم رمز تحقق آمن.',
                                   style: TextStyle(
                                     color: Colors.white70,
                                     fontSize: 15,
@@ -223,7 +223,7 @@ class _LoginPageState extends State<LoginPage> {
                                   decoration: InputDecoration(
                                     filled: true,
                                     fillColor: Colors.white24,
-                                    hintText: 'Phone Number',
+                                    hintText: 'رقم الهاتف',
                                     hintStyle: TextStyle(color: Colors.white54),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(25),
@@ -274,7 +274,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   onPressed: _isPhoneValid ? _sendOTP : null,
                                   child: Text(
-                                    'Send OTP',
+                                    'إرسال الرمز',
                                     style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
@@ -283,7 +283,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 SizedBox(height: 14),
                                 Text(
-                                  'We will send a one-time verification code to your phone.',
+                                  'سنرسل رمز تحقق يستخدم مرة واحدة إلى هاتفك.',
                                   style: TextStyle(
                                       color: Colors.white54, fontSize: 14),
                                   textAlign: TextAlign.center,
@@ -300,7 +300,7 @@ class _LoginPageState extends State<LoginPage> {
                                 children: [
                                   SizedBox(height: 20),
                                   Text(
-                                    'Email Login',
+                                    'تسجيل الدخول بالبريد الإلكتروني',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 30,
@@ -310,7 +310,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   SizedBox(height: 12),
                                   Text(
-                                    'Sign in with your email and password.',
+                                    'سجّل الدخول باستخدام البريد الإلكتروني وكلمة المرور.',
                                     style: TextStyle(
                                       color: Colors.white70,
                                       fontSize: 15,
@@ -325,7 +325,7 @@ class _LoginPageState extends State<LoginPage> {
                                     decoration: InputDecoration(
                                       prefixIcon: Icon(Icons.email,
                                           color: Colors.white),
-                                      labelText: 'Email',
+                                      labelText: 'البريد الإلكتروني',
                                       labelStyle:
                                           TextStyle(color: Colors.white70),
                                       filled: true,
@@ -350,11 +350,11 @@ class _LoginPageState extends State<LoginPage> {
                                     validator: (value) {
                                       if (value == null ||
                                           value.trim().isEmpty) {
-                                        return 'Email is required';
+                                        return 'البريد الإلكتروني مطلوب';
                                       }
                                       if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
                                           .hasMatch(value.trim())) {
-                                        return 'Enter a valid email';
+                                        return 'يرجى إدخال بريد إلكتروني صحيح';
                                       }
                                       return null;
                                     },
@@ -366,7 +366,7 @@ class _LoginPageState extends State<LoginPage> {
                                     decoration: InputDecoration(
                                       prefixIcon:
                                           Icon(Icons.lock, color: Colors.white),
-                                      labelText: 'Password',
+                                      labelText: 'كلمة المرور',
                                       labelStyle:
                                           TextStyle(color: Colors.white70),
                                       filled: true,
@@ -403,10 +403,10 @@ class _LoginPageState extends State<LoginPage> {
                                     style: TextStyle(color: Colors.white),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
-                                        return 'Password is required';
+                                        return 'كلمة المرور مطلوبة';
                                       }
                                       if (value.length < 6) {
-                                        return 'Password must be at least 6 characters';
+                                        return 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل';
                                       }
                                       return null;
                                     },
@@ -419,14 +419,14 @@ class _LoginPageState extends State<LoginPage> {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
                                           SnackBar(
-                                            content: Text('Forget Password'),
+                                            content: Text('نسيت كلمة المرور'),
                                             backgroundColor:
                                                 Color.fromARGB(255, 94, 255, 0),
                                           ),
                                         );
                                       },
                                       child: Text(
-                                        'Forgot Password?',
+                                        'هل نسيت كلمة المرور؟',
                                         style: TextStyle(color: Colors.white),
                                       ),
                                     ),
@@ -443,7 +443,7 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     onPressed: _signInWithEmail,
                                     child: Text(
-                                      'Login',
+                                      'تسجيل الدخول',
                                       style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -484,7 +484,7 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(fontSize: 16, color: Colors.white),
                         children: [
                           TextSpan(
-                            text: 'Register now',
+                            text: 'أنشئ حسابًا الآن',
                             style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -539,7 +539,7 @@ class _LoginPageState extends State<LoginPage> {
       onTap: () {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Login With $label ID'),
+            content: Text('تسجيل الدخول عبر $label'),
             backgroundColor: Color.fromARGB(255, 104, 99, 99),
           ),
         );

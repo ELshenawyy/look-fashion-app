@@ -18,7 +18,7 @@ class _Productss extends State<Productss> {
       backgroundColor: Color.fromARGB(255, 0, 0, 0),
       appBar: AppBar(
         backgroundColor: Color.fromARGB(255, 87, 7, 7),
-        title: Text('All our products'),
+        title: Text('كل منتجاتنا'),
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios,
@@ -36,7 +36,7 @@ class _Productss extends State<Productss> {
             Container(
               padding: EdgeInsets.symmetric(vertical: 10),
               child: Text(
-                'Select your favourite item that you are interested in from our products',
+                'اختر القطعة التي تناسبك من بين منتجاتنا المتاحة',
                 textAlign: TextAlign.start,
                 style: TextStyle(
                   color: Color.fromARGB(255, 251, 255, 0),
@@ -49,7 +49,7 @@ class _Productss extends State<Productss> {
             Container(
               padding: EdgeInsets.symmetric(vertical: 10),
               child: Text(
-                'Here is the list of our available products',
+                'هذه قائمة المنتجات المتوفرة لدينا',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
@@ -146,7 +146,7 @@ class _Productss extends State<Productss> {
                                     ),
                                     SizedBox(height: 10),
                                     Text(
-                                      '\$${product.price.toString()}',
+                                      '${product.price.toString()} ج.م',
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 16,
@@ -173,7 +173,7 @@ class _Productss extends State<Productss> {
                     },
                   );
                 } else if (snapshot.hasError) {
-                  return Text("${snapshot.error}");
+                  return Text("حدث خطأ: ${snapshot.error}");
                 }
                 // By default, show a loading spinner.
                 return Center(
@@ -185,7 +185,7 @@ class _Productss extends State<Productss> {
                       ),
                       SizedBox(height: 10.0),
                       Text(
-                        'Loading...',
+                        'جاري التحميل...',
                         style: TextStyle(color: Colors.white),
                       ),
                     ],

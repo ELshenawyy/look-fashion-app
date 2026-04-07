@@ -15,7 +15,7 @@ class _About extends State<About> {
       appBar: AppBar(
         backgroundColor: const Color.fromARGB(255, 87, 7, 7),
         elevation: 0,
-        title: const Text('About Us'),
+        title: const Text('من نحن'),
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios,
@@ -36,7 +36,7 @@ class _About extends State<About> {
             ),
             SizedBox(height: 30),
             Text(
-              'My Fashion App',
+              'تطبيق الأزياء',
               style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
@@ -45,7 +45,7 @@ class _About extends State<About> {
             ),
             SizedBox(height: 10),
             Text(
-              'Version 1.0.0',
+              'الإصدار 1.0.0',
               style: TextStyle(
                 fontSize: 18,
                 color: Color.fromARGB(255, 255, 255, 255),
@@ -70,7 +70,7 @@ class _About extends State<About> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    'About The App',
+                    'عن التطبيق',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -79,7 +79,7 @@ class _About extends State<About> {
                   ),
                   SizedBox(height: 20),
                   Text(
-                    'My Fashion App is the ultimate fashion app for all fashion lovers. You can browse the latest fashion trends, get fashion tips and advice, and create your own fashion looks. Whether you’re a fashion blogger, a stylist, or just someone who loves fashion, My Fashion App has everything you need to stay up-to-date and look your best.',
+                    'تطبيق الأزياء هو وجهتك المثالية لعشاق الموضة. يمكنك استعراض أحدث الصيحات، واكتشاف منتجات مميزة، وبناء إطلالتك الخاصة بسهولة. سواء كنت تهتم بالأزياء يوميًا أو تبحث عن قطع مميزة لمناسباتك، ستجد هنا ما يساعدك على الظهور بأفضل صورة.',
                     style: TextStyle(
                       fontSize: 18,
                       color: Colors.grey[600],
@@ -107,7 +107,7 @@ class _About extends State<About> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    'Contact Us',
+                    'تواصل معنا',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

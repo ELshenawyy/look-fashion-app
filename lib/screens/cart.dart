@@ -8,7 +8,18 @@ class CartPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Color.fromARGB(255, 0, 0, 0),
       appBar: AppBar(
-          backgroundColor: Color.fromARGB(255, 87, 7, 7), title: Text('Cart')),
+        backgroundColor: Color.fromARGB(255, 87, 7, 7),
+        title: Text('السلة'),
+      ),
+      body: const Center(
+        child: Text(
+          'سيتم عرض المنتجات المضافة إلى السلة هنا.',
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 16,
+          ),
+        ),
+      ),
     );
   }
 }

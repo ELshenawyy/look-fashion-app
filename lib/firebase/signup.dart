@@ -29,7 +29,7 @@ class _SignupState extends State<Signup> {
     if (_password != _confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Password and confirm password do not match'),
+          content: Text('كلمة المرور وتأكيدها غير متطابقين'),
           backgroundColor: Colors.red,
         ),
       );
@@ -39,7 +39,7 @@ class _SignupState extends State<Signup> {
     if (_name.trim().isEmpty || _email.trim().isEmpty || _password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Name, email, and password are required'),
+          content: Text('الاسم والبريد الإلكتروني وكلمة المرور مطلوبة'),
           backgroundColor: Colors.red,
         ),
       );
@@ -75,7 +75,7 @@ class _SignupState extends State<Signup> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Success! Account created.'),
+          content: Text('تم إنشاء الحساب بنجاح.'),
           backgroundColor: Colors.green,
         ),
       );
@@ -89,7 +89,7 @@ class _SignupState extends State<Signup> {
       print('Sign Up FirebaseAuthException: ${e.code} - ${e.message}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: ${e.message ?? e.code}'),
+          content: Text('حدث خطأ: ${e.message ?? e.code}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -98,7 +98,7 @@ class _SignupState extends State<Signup> {
       print('Sign Up Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Unexpected error: $e'),
+          content: Text('خطأ غير متوقع: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -131,7 +131,7 @@ class _SignupState extends State<Signup> {
                   children: <Widget>[
                     SizedBox(
                       child: Text(
-                        'Create Account',
+                        'إنشاء حساب',
                         style: TextStyle(
                             color: Color.fromARGB(255, 255, 255, 255),
                             fontWeight: FontWeight.bold,
@@ -146,7 +146,7 @@ class _SignupState extends State<Signup> {
                           Icons.person,
                           color: Colors.white,
                         ),
-                        labelText: 'Full Name',
+                        labelText: 'الاسم الكامل',
                         labelStyle: TextStyle(
                           color: Colors.white,
                         ),
@@ -173,7 +173,7 @@ class _SignupState extends State<Signup> {
                       },
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your name';
+                          return 'يرجى إدخال الاسم';
                         }
                         return null;
                       },
@@ -186,7 +186,7 @@ class _SignupState extends State<Signup> {
                           Icons.email,
                           color: Colors.white,
                         ),
-                        labelText: 'Email',
+                        labelText: 'البريد الإلكتروني',
                         labelStyle: TextStyle(
                           color: Colors.white,
                         ),
@@ -213,11 +213,11 @@ class _SignupState extends State<Signup> {
                       },
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your email';
+                          return 'يرجى إدخال البريد الإلكتروني';
                         }
                         if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
                             .hasMatch(value.trim())) {
-                          return 'Please enter a valid email';
+                          return 'يرجى إدخال بريد إلكتروني صحيح';
                         }
                         return null;
                       },
@@ -226,7 +226,7 @@ class _SignupState extends State<Signup> {
                     SizedBox(height: 16.0),
                     TextFormField(
                       decoration: InputDecoration(
-                        labelText: 'Password',
+                        labelText: 'كلمة المرور',
                         labelStyle: TextStyle(
                           color: Colors.white,
                         ),
@@ -272,10 +272,10 @@ class _SignupState extends State<Signup> {
                       },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter a password';
+                          return 'يرجى إدخال كلمة المرور';
                         }
                         if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
+                          return 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل';
                         }
                         return null;
                       },
@@ -283,7 +283,7 @@ class _SignupState extends State<Signup> {
                     SizedBox(height: 16.0),
                     TextFormField(
                       decoration: InputDecoration(
-                        labelText: 'Confirm password',
+                        labelText: 'تأكيد كلمة المرور',
                         labelStyle: TextStyle(
                           color: Colors.white,
                         ),
@@ -329,10 +329,10 @@ class _SignupState extends State<Signup> {
                       },
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please confirm your password';
+                          return 'يرجى تأكيد كلمة المرور';
                         }
                         if (value != _password) {
-                          return 'Passwords do not match';
+                          return 'كلمتا المرور غير متطابقتين';
                         }
                         return null;
                       },
@@ -350,7 +350,7 @@ class _SignupState extends State<Signup> {
                         ),
                       ),
                       child: Text(
-                        'Sign Up',
+                        'إنشاء حساب',
                         style: TextStyle(
                             fontSize: 18.0,
                             fontWeight: FontWeight.bold,
@@ -363,7 +363,7 @@ class _SignupState extends State<Signup> {
                       child: RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
-                          text: 'Already have an account? ',
+                          text: 'لديك حساب بالفعل؟ ',
                           style: TextStyle(
                             color: Color.fromARGB(255, 255, 255, 255),
                             fontSize: 16.0,

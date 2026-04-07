@@ -50,7 +50,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please sign in to save favorites.'),
+          content: Text('يرجى تسجيل الدخول لحفظ المنتجات في المفضلة.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -95,7 +95,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to update favorites: $e'),
+          content: Text('تعذر تحديث المفضلة: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -231,7 +231,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
                           children: [
                             Expanded(
                               child: Text(
-                                '${product.price.toStringAsFixed(2)} EGP',
+                                '${product.price.toStringAsFixed(2)} ج.م',
                                 style: const TextStyle(
                                   color: _gold,
                                   fontSize: 22,
@@ -285,8 +285,8 @@ class _ProductListingPageState extends State<ProductListingPage> {
         child: Center(
           child: Text(
             categoryLabel == null
-                ? 'No products found'
-                : 'No products found in $categoryLabel',
+                ? 'لا توجد منتجات'
+                : 'لا توجد منتجات في قسم $categoryLabel',
             style: const TextStyle(color: Colors.white70, fontSize: 18),
             textAlign: TextAlign.center,
           ),
@@ -307,7 +307,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final title = widget.categoryName ?? 'All our products';
+    final title = widget.categoryName ?? 'كل المنتجات';
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
@@ -339,7 +339,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
           if (productSnapshot.hasError) {
             return Center(
               child: Text(
-                'Error: ${productSnapshot.error}',
+                'حدث خطأ: ${productSnapshot.error}',
                 style: const TextStyle(color: Colors.redAccent),
               ),
             );
@@ -363,7 +363,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
                     Container(
                       padding: const EdgeInsets.only(top: 14, bottom: 10),
                       child: const Text(
-                        'Select your favourite item that you are interested in from our products',
+                        'اختر القطعة التي تناسبك من بين منتجاتنا المتاحة.',
                         textAlign: TextAlign.start,
                         style: TextStyle(
                           color: _gold,
@@ -376,7 +376,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       child: const Text(
-                        'Here is the list of our available products',
+                        'هذه قائمة المنتجات المتوفرة لدينا',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,

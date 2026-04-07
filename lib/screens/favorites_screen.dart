@@ -44,7 +44,7 @@ class FavoritesScreen extends StatelessWidget {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to remove favorite: $e'),
+          content: Text('تعذر إزالة المنتج من المفضلة: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -178,7 +178,7 @@ class FavoritesScreen extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                '${product.price.toStringAsFixed(2)} EGP',
+                                '${product.price.toStringAsFixed(2)} ج.م',
                                 style: const TextStyle(
                                   color: _gold,
                                   fontSize: 22,
@@ -202,7 +202,7 @@ class FavoritesScreen extends StatelessWidget {
                                   color: Colors.redAccent,
                                   size: 20,
                                 ),
-                                tooltip: 'Remove from favorites',
+                                tooltip: 'إزالة من المفضلة',
                                 onPressed: () =>
                                     _removeFavorite(context, product),
                               ),
@@ -234,7 +234,7 @@ class FavoritesScreen extends StatelessWidget {
                 child: Padding(
                   padding: EdgeInsets.all(24),
                   child: Text(
-                    'Please sign in to view your favorites',
+                    'يرجى تسجيل الدخول لعرض المفضلة',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
@@ -258,7 +258,7 @@ class FavoritesScreen extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Text(
-                          'Error loading favorites: ${snapshot.error}',
+                          'حدث خطأ أثناء تحميل المفضلة: ${snapshot.error}',
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: Colors.redAccent),
                         ),
@@ -282,7 +282,7 @@ class FavoritesScreen extends StatelessWidget {
                             ),
                             SizedBox(height: 16),
                             Text(
-                              'Your favorites will appear here',
+                              'ستظهر منتجاتك المفضلة هنا',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.white,
@@ -292,7 +292,7 @@ class FavoritesScreen extends StatelessWidget {
                             ),
                             SizedBox(height: 8),
                             Text(
-                              'Save the pieces you love and come back to them anytime.',
+                              'احفظ القطع التي تعجبك وارجع إليها في أي وقت.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: Colors.white60,
@@ -313,7 +313,7 @@ class FavoritesScreen extends StatelessWidget {
                         const Padding(
                           padding: EdgeInsets.only(top: 14, bottom: 10),
                           child: Text(
-                            'Your saved pieces, curated in one premium place.',
+                            'منتجاتك المفضلة، مجمعة لك في مكان واحد.',
                             style: TextStyle(
                               color: _gold,
                               fontSize: 22,
@@ -322,7 +322,7 @@ class FavoritesScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${products.length} saved item${products.length == 1 ? '' : 's'}',
+                          '${products.length} منتج محفوظ',
                           style: const TextStyle(
                             color: Colors.white60,
                             fontSize: 14,

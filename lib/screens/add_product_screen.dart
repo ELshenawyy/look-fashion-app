@@ -54,7 +54,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     'Gold',
     'Grey',
   ];
-  final List<String> _genders = ['Men', 'Women', 'Unisex'];
+  final List<String> _genders = ['رجالي', 'نسائي', 'للجنسين'];
   late final Map<String, Color> _colorPalette = <String, Color>{
     'Black': Colors.black,
     'White': Colors.white,
@@ -70,7 +70,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     super.initState();
     _selectedSizes = [];
     _selectedColors = [];
-    _selectedGender = 'Unisex';
+    _selectedGender = 'للجنسين';
     _loadProductData();
   }
 
@@ -83,7 +83,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _stockController.text = (data['stockQuantity'] ?? '').toString();
       _selectedSizes = List<String>.from(data['sizes'] ?? []);
       _selectedColors = List<String>.from(data['colors'] ?? []);
-      _selectedGender = data['gender'] ?? 'Unisex';
+      _selectedGender = data['gender'] ?? 'للجنسين';
       final savedCategory = data['category']?.toString();
       _selectedCategory =
           kProductCategories.contains(savedCategory) ? savedCategory : null;
@@ -104,7 +104,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Image selection failed: $e'),
+          content: Text('فشل اختيار الصورة: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -276,7 +276,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (_pickedImage == null && widget.productData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a product image.'),
+          content: Text('يرجى اختيار صورة للمنتج.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -285,7 +285,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (_selectedSizes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one size.'),
+          content: Text('يرجى اختيار مقاس واحد على الأقل.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -294,7 +294,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     if (_selectedColors.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one color.'),
+          content: Text('يرجى اختيار لون واحد على الأقل.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -355,7 +355,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Product updated successfully!'),
+            content: Text('تم تحديث المنتج بنجاح!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -368,7 +368,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Product added successfully!'),
+            content: Text('تمت إضافة المنتج بنجاح!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -382,7 +382,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to save product: $e'),
+          content: Text('تعذر حفظ المنتج: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -424,7 +424,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       data: stepperTheme,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.productId != null ? 'Edit Product' : 'Add Product'),
+          title: Text(widget.productId != null ? 'تعديل المنتج' : 'إضافة منتج'),
           iconTheme: const IconThemeData(color: _gold),
           titleTextStyle: const TextStyle(
             color: _gold,
@@ -457,7 +457,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             // Step 1: Basic Information
             Step(
               title: const Text(
-                'Basic Info',
+                'البيانات الأساسية',
                 style: TextStyle(
                   color: _gold,
                   fontWeight: FontWeight.w700,
@@ -470,10 +470,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   TextFormField(
                     controller: _titleController,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration('Product Name'),
+                    decoration: _buildInputDecoration('اسم المنتج'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Title is required';
+                        return 'اسم المنتج مطلوب';
                       }
                       return null;
                     },
@@ -485,14 +485,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       decimal: true,
                     ),
                     style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration('Price'),
+                    decoration: _buildInputDecoration('السعر'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Price is required';
+                        return 'السعر مطلوب';
                       }
                       final parsed = double.tryParse(value.trim());
                       if (parsed == null || parsed <= 0) {
-                        return 'Enter a valid price';
+                        return 'أدخل سعرًا صحيحًا';
                       }
                       return null;
                     },
@@ -502,10 +502,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     controller: _descriptionController,
                     maxLines: 4,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration('Description'),
+                    decoration: _buildInputDecoration('الوصف'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Description is required';
+                        return 'الوصف مطلوب';
                       }
                       return null;
                     },
@@ -516,7 +516,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             // Step 2: Media
             Step(
               title: const Text(
-                'Media',
+                'الوسائط',
                 style: TextStyle(
                   color: _gold,
                   fontWeight: FontWeight.w700,
@@ -528,7 +528,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 children: [
                   ElevatedButton.icon(
                     icon: const Icon(Icons.photo_library),
-                    label: const Text('Select Product Image'),
+                    label: const Text('اختر صورة المنتج'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _maroon,
                       foregroundColor: Colors.white,
@@ -568,7 +568,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                       child: const Center(
                         child: Text(
-                          'No image selected',
+                          'لم يتم اختيار صورة',
                           style: TextStyle(color: Colors.white70),
                         ),
                       ),
@@ -579,7 +579,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             // Step 3: Inventory & Category
             Step(
               title: const Text(
-                'Inventory',
+                'المخزون',
                 style: TextStyle(
                   color: _gold,
                   fontWeight: FontWeight.w700,
@@ -594,7 +594,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     dropdownColor: _surface,
                     iconEnabledColor: _gold,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration('Category'),
+                    decoration: _buildInputDecoration('الفئة'),
                     items: kProductCategories
                         .map(
                           (category) => DropdownMenuItem<String>(
@@ -617,7 +617,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     },
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Category is required';
+                        return 'الفئة مطلوبة';
                       }
                       return null;
                     },
@@ -627,14 +627,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     controller: _stockController,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _buildInputDecoration('Stock Quantity'),
+                    decoration: _buildInputDecoration('كمية المخزون'),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Stock quantity is required';
+                        return 'كمية المخزون مطلوبة';
                       }
                       final parsed = int.tryParse(value.trim());
                       if (parsed == null || parsed < 0) {
-                        return 'Enter a valid stock quantity';
+                        return 'أدخل كمية مخزون صحيحة';
                       }
                       return null;
                     },
@@ -645,7 +645,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             // Step 4: Attributes (Sizes, Colors, Gender)
             Step(
               title: const Text(
-                'Attributes',
+                'الخصائص',
                 style: TextStyle(
                   color: _gold,
                   fontWeight: FontWeight.w700,
@@ -656,10 +656,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildSectionHeading(
-                    'Select Sizes',
+                    'اختر المقاسات',
                     subtitle: _isShoeCategory
-                        ? 'Tap one or more shoe sizes.'
-                        : 'Tap one or more clothing sizes.',
+                        ? 'اختر مقاسًا واحدًا أو أكثر للأحذية.'
+                        : 'اختر مقاسًا واحدًا أو أكثر للملابس.',
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -676,9 +676,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   ),
                   const SizedBox(height: 24),
                   _buildSectionHeading(
-                    'Select Colors',
+                    'اختر الألوان',
                     subtitle:
-                        'Use the color swatches below to define available options.',
+                        'استخدم دوائر الألوان بالأسفل لتحديد الخيارات المتاحة.',
                   ),
                   const SizedBox(height: 12),
                   Wrap(
@@ -687,7 +687,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     children: _availableColors.map(_buildColorOption).toList(),
                   ),
                   const SizedBox(height: 24),
-                  _buildSectionHeading('Gender'),
+                  _buildSectionHeading('الفئة المستهدفة'),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -736,8 +736,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                     child: Text(
                       _currentStep == 3
-                          ? (_isSaving ? 'Saving...' : 'Save Product')
-                          : 'Next',
+                          ? (_isSaving ? 'جارٍ الحفظ...' : 'حفظ المنتج')
+                          : 'التالي',
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -752,7 +752,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                           vertical: 14,
                         ),
                       ),
-                      child: const Text('Back'),
+                      child: const Text('رجوع'),
                     ),
                 ],
               ),

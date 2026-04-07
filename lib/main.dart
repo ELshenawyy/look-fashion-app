@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:my_fashion_app/firebase/login.dart';
@@ -39,9 +40,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       useInheritedMediaQuery: true,
-      locale: DevicePreview.locale(context),
+      locale: const Locale('ar'),
       builder: DevicePreview.appBuilder,
-      title: 'My Fashion App',
+      supportedLocales: const [
+        Locale('ar'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      title: 'تطبيق الأزياء',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.black,
@@ -140,8 +149,8 @@ class _MainScreen extends State<MainScreen>
                 child: Padding(
                   padding: EdgeInsets.only(left: 30.0),
                   child: Text(
-                    'Brands and New Styles',
-                    textAlign: TextAlign.left,
+                    'ماركات وإطلالات جديدة',
+                    textAlign: TextAlign.right,
                     style: TextStyle(
                       color: Color.fromARGB(255, 255, 255, 255),
                       fontSize: 40,
@@ -155,7 +164,7 @@ class _MainScreen extends State<MainScreen>
               SlideTransition(
                 position: _textOffsetAnimation,
                 child: Text(
-                  "Let's start to browse and purchase the latest fashion brands and styles.",
+                  'ابدأ الآن في استكشاف أحدث الماركات وصيحات الأزياء والتسوق بسهولة.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _isTextAnimated
@@ -190,7 +199,7 @@ class _MainScreen extends State<MainScreen>
                     minimumSize: Size(300.0, 60.0),
                   ),
                   child: Text(
-                    'Get Start',
+                    'ابدأ الآن',
                     style: TextStyle(
                         color: Color.fromARGB(255, 0, 0, 0),
                         fontWeight: FontWeight.normal,
@@ -223,7 +232,7 @@ class _MainScreen extends State<MainScreen>
                     minimumSize: Size(300.0, 60.0),
                   ),
                   child: Text(
-                    'Login',
+                    'تسجيل الدخول',
                     style: TextStyle(
                         color: Color.fromARGB(255, 255, 255, 255),
                         fontWeight: FontWeight.normal,

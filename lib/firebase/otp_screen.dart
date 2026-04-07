@@ -83,7 +83,7 @@ class _OTPScreenState extends State<OTPScreen> {
         });
         _startCountdown();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('A new code has been sent.')),
+          SnackBar(content: Text('تم إرسال رمز جديد.')),
         );
       },
       (FirebaseAuthException e) {
@@ -92,7 +92,7 @@ class _OTPScreenState extends State<OTPScreen> {
           _isSending = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Resend failed: ${e.message}')),
+          SnackBar(content: Text('تعذر إعادة الإرسال: ${e.message}')),
         );
       },
     );
@@ -102,7 +102,7 @@ class _OTPScreenState extends State<OTPScreen> {
     final smsCode = _otpController.text.trim();
     if (smsCode.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please enter a valid 6-digit OTP')),
+        SnackBar(content: Text('يرجى إدخال رمز تحقق صحيح مكوّن من 6 أرقام')),
       );
       return;
     }
@@ -116,7 +116,7 @@ class _OTPScreenState extends State<OTPScreen> {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login successful!')),
+        SnackBar(content: Text('تم تسجيل الدخول بنجاح!')),
       );
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const AppShell()),
@@ -126,13 +126,13 @@ class _OTPScreenState extends State<OTPScreen> {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.message}')),
+        SnackBar(content: Text('حدث خطأ: ${e.message}')),
       );
     } catch (e) {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unexpected error: $e')),
+        SnackBar(content: Text('خطأ غير متوقع: $e')),
       );
     }
   }
@@ -184,7 +184,7 @@ class _OTPScreenState extends State<OTPScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'Verification Code',
+                      'رمز التحقق',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 30,
@@ -194,7 +194,7 @@ class _OTPScreenState extends State<OTPScreen> {
                     ),
                     SizedBox(height: 12),
                     Text(
-                      'Enter the 6-digit code sent to ${widget.phoneNumber}',
+                      'أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى ${widget.phoneNumber}',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 16,
@@ -284,7 +284,7 @@ class _OTPScreenState extends State<OTPScreen> {
                       ),
                       onPressed: _verifyOTP,
                       child: Text(
-                        'Verify OTP',
+                        'تأكيد الرمز',
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

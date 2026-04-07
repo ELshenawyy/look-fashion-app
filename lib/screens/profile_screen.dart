@@ -30,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             const Text(
-              'My Fashion App',
+              'تطبيق الأزياء',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,
@@ -40,7 +40,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Manage your profile and account details from here.',
+              'يمكنك إدارة ملفك الشخصي وبيانات حسابك من هنا.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white60,
@@ -50,17 +50,17 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 28),
             _ProfileTile(
               icon: Icons.person,
-              title: 'Account Information',
+              title: 'معلومات الحساب',
             ),
             const SizedBox(height: 12),
             _ProfileTile(
               icon: Icons.local_shipping_outlined,
-              title: 'Orders & Tracking',
+              title: 'الطلبات والتتبع',
             ),
             const SizedBox(height: 12),
             _ProfileTile(
               icon: Icons.support_agent_outlined,
-              title: 'Support',
+              title: 'الدعم',
             ),
           ],
         ),

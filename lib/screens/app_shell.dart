@@ -22,11 +22,11 @@ class _AppShellState extends State<AppShell> {
   bool _isSigningOut = false;
 
   static const List<String> _titles = <String>[
-    'Home',
-    'Categories',
-    'Cart',
-    'Favorites',
-    'Profile',
+    'الرئيسية',
+    'التصنيفات',
+    'السلة',
+    'المفضلة',
+    'الملف الشخصي',
   ];
 
   void _onItemTapped(int index) {
@@ -60,7 +60,7 @@ class _AppShellState extends State<AppShell> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Sign out failed: $e'),
+          content: Text('فشل تسجيل الخروج: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -141,12 +141,12 @@ class _AppShellState extends State<AppShell> {
                       ),
                     );
                   },
-                  tooltip: 'Admin Dashboard',
+                  tooltip: 'لوحة الإدارة',
                 ),
               IconButton(
                 icon: const Icon(Icons.logout, color: Colors.white),
                 onPressed: _isSigningOut ? null : _signOut,
-                tooltip: 'Sign Out',
+                tooltip: 'تسجيل الخروج',
               ),
             ],
           ),
@@ -167,7 +167,7 @@ class _AppShellState extends State<AppShell> {
                           ),
                         );
                       },
-                      tooltip: 'Dashboard',
+                      tooltip: 'لوحة الإدارة',
                     ),
                     const SizedBox(height: 12),
                     FloatingActionButton(
@@ -182,7 +182,7 @@ class _AppShellState extends State<AppShell> {
                           ),
                         );
                       },
-                      tooltip: 'Add Product',
+                      tooltip: 'إضافة منتج',
                     ),
                   ],
                 )
@@ -198,23 +198,23 @@ class _AppShellState extends State<AppShell> {
             items: const [
               BottomNavigationBarItem(
                 icon: Icon(Icons.home),
-                label: 'Home',
+                label: 'الرئيسية',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.grid_view_rounded),
-                label: 'Categories',
+                label: 'التصنيفات',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.shopping_cart),
-                label: 'Cart',
+                label: 'السلة',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.favorite_border),
-                label: 'Favorites',
+                label: 'المفضلة',
               ),
               BottomNavigationBarItem(
                 icon: Icon(Icons.person_outline),
-                label: 'Profile',
+                label: 'الملف الشخصي',
               ),
             ],
           ),

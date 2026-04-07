@@ -53,7 +53,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (product.sizes.isNotEmpty && _selectedSize == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please choose a size first.'),
+          content: Text('يرجى اختيار المقاس أولًا.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -63,20 +63,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (product.colors.isNotEmpty && _selectedColor == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please choose a color first.'),
+          content: Text('يرجى اختيار اللون أولًا.'),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
 
-    final chosenColor = _selectedColor ?? 'Default';
-    final chosenSize = _selectedSize ?? 'Default';
+    final chosenColor = _selectedColor ?? 'افتراضي';
+    final chosenSize = _selectedSize ?? 'افتراضي';
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Added ${product.title} to cart. Color: $chosenColor, Size: $chosenSize.',
+          'تمت إضافة ${product.title} إلى السلة. اللون: $chosenColor، المقاس: $chosenSize.',
         ),
         backgroundColor: const Color(0xFF2E7D32),
       ),
@@ -271,7 +271,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '\$${product.price.toStringAsFixed(2)}',
+                          '${product.price.toStringAsFixed(2)} ج.م',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,
@@ -289,7 +289,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             border: Border.all(color: Colors.white12),
                           ),
                           child: Text(
-                            'Stock: ${product.stockQuantity}',
+                            'المخزون: ${product.stockQuantity}',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontWeight: FontWeight.w600,
@@ -300,7 +300,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                     const SizedBox(height: 24),
                     if (product.colors.isNotEmpty) ...[
-                      _buildSectionTitle('Color'),
+                      _buildSectionTitle('اللون'),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
@@ -310,7 +310,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(height: 24),
                     ],
                     if (product.sizes.isNotEmpty) ...[
-                      _buildSectionTitle('Size'),
+                      _buildSectionTitle('المقاس'),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
@@ -319,7 +319,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       const SizedBox(height: 24),
                     ],
-                    _buildSectionTitle('Description'),
+                    _buildSectionTitle('الوصف'),
                     const SizedBox(height: 10),
                     Text(
                       product.description,
@@ -335,7 +335,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _handleAddToCart,
                         icon: const Icon(Icons.shopping_cart_checkout_rounded),
-                        label: const Text('Add to Cart'),
+                        label: const Text('إضافة إلى السلة'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _gold,
                           foregroundColor: Colors.black,
