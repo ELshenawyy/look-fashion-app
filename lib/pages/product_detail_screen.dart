@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:my_fashion_app/models/product.dart';
+import 'package:my_fashion_app/models/cartt.dart';
+import 'package:my_fashion_app/services/cart_provider.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -73,12 +76,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final chosenColor = _selectedColor ?? 'افتراضي';
     final chosenSize = _selectedSize ?? 'افتراضي';
 
+    final cartItem = CartItem(
+      productId: product.docId ?? product.id.toString(),
+      name: product.title,
+      price: product.price,
+      image: product.imageUrl,
+      size: chosenSize,
+      color: chosenColor,
+    );
+
+    Provider.of<Cart>(context, listen: false).addItem(cartItem);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'تمت إضافة ${product.title} إلى السلة. اللون: $chosenColor، المقاس: $chosenSize.',
+          'تمت إضافة ${product.title} إلى السلة.',
         ),
         backgroundColor: const Color(0xFF2E7D32),
+        action: SnackBarAction(
+          label: 'عرض السلة',
+          textColor: Colors.white,
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
     );
   }
