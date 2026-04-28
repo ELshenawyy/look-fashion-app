@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/screens/order_chat_screen.dart';
 
 class OrdersScreen extends StatelessWidget {
   const OrdersScreen({Key? key}) : super(key: key);
@@ -25,72 +26,111 @@ class OrdersScreen extends StatelessWidget {
           ? const Center(
               child: Text('يرجى تسجيل الدخول',
                   style: TextStyle(color: Colors.white54)))
-          : StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('orders')
-                  .where('userId', isEqualTo: user.uid)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                      child: CircularProgressIndicator(color: _gold));
-                }
+          : _OrdersBody(userId: user.uid),
+    );
+  }
+}
 
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text('خطأ: ${snapshot.error}',
-                        style: const TextStyle(color: Colors.red)),
-                  );
-                }
+/// Separate stateful widget to load admin status once
+class _OrdersBody extends StatefulWidget {
+  final String userId;
+  const _OrdersBody({required this.userId});
 
-                final docs = snapshot.data?.docs ?? []
-                  ..sort((a, b) {
-                    final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
-                    final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
-                    if (aTime == null || bTime == null) return 0;
-                    return bTime.compareTo(aTime);
-                  });
+  @override
+  State<_OrdersBody> createState() => _OrdersBodyState();
+}
 
-                if (docs.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.receipt_long_outlined,
-                            color: Colors.white24, size: 72),
-                        SizedBox(height: 16),
-                        Text('لا توجد طلبات بعد',
-                            style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600)),
-                        SizedBox(height: 8),
-                        Text('ابدأ التسوق وستظهر طلباتك هنا',
-                            style: TextStyle(color: Colors.white38)),
-                      ],
-                    ),
-                  );
-                }
+class _OrdersBodyState extends State<_OrdersBody> {
+  static const Color _gold = Color(0xFFD4AF37);
+  bool _isAdmin = false;
 
-                return ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
-                    return _OrderCard(data: data);
-                  },
-                );
-              },
+  @override
+  void initState() {
+    super.initState();
+    _checkAdmin();
+  }
+
+  Future<void> _checkAdmin() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.userId)
+        .get();
+    final role = doc.data()?['role'] as String? ?? '';
+    if (mounted) {
+      setState(() => _isAdmin = role.toLowerCase() == 'admin');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('orders')
+          .where('userId', isEqualTo: widget.userId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: _gold));
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('خطأ: ${snapshot.error}',
+                style: const TextStyle(color: Colors.red)),
+          );
+        }
+
+        final docs = snapshot.data?.docs ?? []
+          ..sort((a, b) {
+            final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
+            final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
+            if (aTime == null || bTime == null) return 0;
+            return bTime.compareTo(aTime);
+          });
+
+        if (docs.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.receipt_long_outlined, color: Colors.white24, size: 72),
+                SizedBox(height: 16),
+                Text('لا توجد طلبات بعد',
+                    style: TextStyle(
+                        color: Colors.white54, fontSize: 18, fontWeight: FontWeight.w600)),
+                SizedBox(height: 8),
+                Text('ابدأ التسوق وستظهر طلباتك هنا',
+                    style: TextStyle(color: Colors.white38)),
+              ],
             ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: docs.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            return _OrderCard(orderId: doc.id, data: data, isAdmin: _isAdmin);
+          },
+        );
+      },
     );
   }
 }
 
 class _OrderCard extends StatelessWidget {
+  final String orderId;
   final Map<String, dynamic> data;
+  final bool isAdmin;
 
-  const _OrderCard({required this.data});
+  const _OrderCard({
+    required this.orderId,
+    required this.data,
+    required this.isAdmin,
+  });
 
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
@@ -136,9 +176,7 @@ class _OrderCard extends StatelessWidget {
     final items = data['items'] as List<dynamic>? ?? [];
     final address = data['address'] as String? ?? '';
     final createdAt = data['createdAt'] as Timestamp?;
-    final dateStr = createdAt != null
-        ? _formatDate(createdAt.toDate())
-        : 'غير محدد';
+    final dateStr = createdAt != null ? _formatDate(createdAt.toDate()) : 'غير محدد';
 
     return Container(
       decoration: BoxDecoration(
@@ -158,8 +196,8 @@ class _OrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(dateStr,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w600)),
+                      style:
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Text('${total.toStringAsFixed(2)} ج.م  •  ${items.length} منتج',
                       style: const TextStyle(color: Colors.white54, fontSize: 13)),
@@ -169,16 +207,14 @@ class _OrderCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: _statusColor(status).withOpacity(0.15),
+                color: _statusColor(status).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _statusColor(status).withOpacity(0.5)),
+                border: Border.all(color: _statusColor(status).withValues(alpha: 0.5)),
               ),
               child: Text(
                 _statusLabel(status),
                 style: TextStyle(
-                    color: _statusColor(status),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600),
+                    color: _statusColor(status), fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -217,6 +253,34 @@ class _OrderCard extends StatelessWidget {
               ),
             );
           }),
+          // Chat button — only for regular users, NOT for admin
+          if (!isAdmin) ...[
+            const Divider(color: Colors.white10, height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OrderChatScreen(
+                        orderId: orderId,
+                        otherUserName: 'الإدارة',
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                label: const Text('تواصل مع الإدارة'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _gold,
+                  side: const BorderSide(color: _gold),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

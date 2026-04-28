@@ -53,6 +53,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   void _handleAddToCart() {
+    if (product.stockQuantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('هذا المنتج غير متاح حالياً.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     if (product.sizes.isNotEmpty && _selectedSize == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -352,11 +362,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _handleAddToCart,
-                        icon: const Icon(Icons.shopping_cart_checkout_rounded),
-                        label: const Text('إضافة إلى السلة'),
+                        onPressed: product.stockQuantity > 0 ? _handleAddToCart : null,
+                        icon: Icon(product.stockQuantity > 0
+                            ? Icons.shopping_cart_checkout_rounded
+                            : Icons.block),
+                        label: Text(product.stockQuantity > 0
+                            ? 'إضافة إلى السلة'
+                            : 'نفد من المخزون'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _gold,
+                          backgroundColor: product.stockQuantity > 0 ? _gold : Colors.grey[700],
                           foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           textStyle: const TextStyle(

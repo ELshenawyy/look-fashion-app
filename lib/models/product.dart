@@ -10,6 +10,7 @@ class Product {
   final int stockQuantity;
   final String category;
   final String? docId; // Firestore document ID
+  final String state; // Sudanese state where product is located
 
   Product({
     required this.id,
@@ -23,6 +24,7 @@ class Product {
     this.stockQuantity = 0,
     this.category = '',
     this.docId,
+    this.state = '',
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -70,6 +72,7 @@ class Product {
       stockQuantity: parsedStock,
       category: json['category'] ?? '',
       docId: json['docId'] ?? (json.containsKey('_id') ? json['_id'] : null),
+      state: json['state'] as String? ?? '',
     );
   }
 
@@ -85,6 +88,7 @@ class Product {
       'colors': colors,
       'stockQuantity': stockQuantity,
       'category': category,
+      'state': state,
     };
   }
 }

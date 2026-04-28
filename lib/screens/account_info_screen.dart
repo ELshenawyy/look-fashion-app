@@ -5,7 +5,6 @@ class AccountInfoScreen extends StatelessWidget {
   const AccountInfoScreen({Key? key}) : super(key: key);
 
   static const Color _gold = Color(0xFFD4AF37);
-  static const Color _panel = Color(0xFF180808);
 
   @override
   Widget build(BuildContext context) {

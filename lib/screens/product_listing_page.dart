@@ -122,20 +122,20 @@ class _ProductListingPageState extends State<ProductListingPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(26),
           onTap: () => _openProduct(product),
-          splashColor: _gold.withOpacity(0.14),
-          highlightColor: _gold.withOpacity(0.08),
+          splashColor: _gold.withValues(alpha: 0.14),
+          highlightColor: _gold.withValues(alpha: 0.08),
           child: Ink(
             height: 156,
             decoration: BoxDecoration(
               color: _maroon,
               borderRadius: BorderRadius.circular(26),
               border: Border.all(
-                color: _gold.withOpacity(0.22),
+                color: _gold.withValues(alpha: 0.22),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.42),
+                  color: Colors.black.withValues(alpha: 0.42),
                   blurRadius: 18,
                   offset: const Offset(0, 10),
                 ),
@@ -156,8 +156,8 @@ class _ProductListingPageState extends State<ProductListingPage> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.white.withOpacity(0.10),
-                        Colors.black.withOpacity(0.18),
+                        Colors.white.withValues(alpha: 0.10),
+                        Colors.black.withValues(alpha: 0.18),
                       ],
                     ),
                   ),
@@ -167,10 +167,10 @@ class _ProductListingPageState extends State<ProductListingPage> {
                       height: 102,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.08),
+                        color: Colors.white.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(22),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.14),
+                          color: Colors.white.withValues(alpha: 0.14),
                         ),
                       ),
                       child: ClipRRect(
@@ -241,10 +241,10 @@ class _ProductListingPageState extends State<ProductListingPage> {
                             ),
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.16),
+                                color: Colors.black.withValues(alpha: 0.16),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.12),
+                                  color: Colors.white.withValues(alpha: 0.12),
                                 ),
                               ),
                               child: IconButton(

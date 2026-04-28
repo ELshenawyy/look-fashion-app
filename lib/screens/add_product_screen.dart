@@ -42,17 +42,20 @@ class _AddProductScreenState extends State<AddProductScreen> {
   late List<String> _selectedColors;
   late String _selectedGender;
   String? _selectedCategory;
+  String? _selectedState; // Sudanese state where product is located
 
-  final List<String> _clothingSizes = ['S', 'M', 'L', 'XL', 'XXL'];
-  final List<String> _shoeSizes = ['38', '39', '40', '41', '42', '43', '44', '45'];
+  final List<String> _clothingSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  final List<String> _shoeSizes = ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'];
   final List<String> _availableColors = [
-    'Black',
-    'White',
-    'Red',
-    'Blue',
-    'Maroon',
-    'Gold',
-    'Grey',
+    'Black', 'White', 'Red', 'Blue', 'Maroon', 'Gold', 'Grey',
+    'Green', 'Navy', 'Brown', 'Orange', 'Yellow', 'Pink',
+    'Purple', 'Beige', 'Turquoise', 'Burgundy', 'Cream', 'Khaki',
+  ];
+  final List<String> _sudanStates = [
+    'الخرطوم', 'الجزيرة', 'النيل الأبيض', 'النيل الأزرق', 'نهر النيل',
+    'البحر الأحمر', 'الشمالية', 'كسلا', 'القضارف', 'سنار',
+    'شمال كردفان', 'جنوب كردفان', 'غرب كردفان',
+    'شمال دارفور', 'جنوب دارفور', 'وسط دارفور', 'شرق دارفور', 'غرب دارفور',
   ];
   final List<String> _genders = ['رجالي', 'نسائي', 'للجنسين'];
   late final Map<String, Color> _colorPalette = <String, Color>{
@@ -63,6 +66,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
     'Maroon': _maroon,
     'Gold': _gold,
     'Grey': _grey,
+    'Green': const Color(0xFF2E7D32),
+    'Navy': const Color(0xFF1A237E),
+    'Brown': const Color(0xFF5D4037),
+    'Orange': const Color(0xFFE65100),
+    'Yellow': const Color(0xFFF9A825),
+    'Pink': const Color(0xFFE91E8C),
+    'Purple': const Color(0xFF6A1B9A),
+    'Beige': const Color(0xFFF5F0DC),
+    'Turquoise': const Color(0xFF00897B),
+    'Burgundy': const Color(0xFF880E4F),
+    'Cream': const Color(0xFFFFFDD0),
+    'Khaki': const Color(0xFFBDB76B),
   };
 
   @override
@@ -87,6 +102,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final savedCategory = data['category']?.toString();
       _selectedCategory =
           kProductCategories.contains(savedCategory) ? savedCategory : null;
+      final savedState = data['state']?.toString();
+      _selectedState = _sudanStates.contains(savedState) ? savedState : null;
     }
   }
 
@@ -343,6 +360,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         'sizes': _selectedSizes,
         'colors': _selectedColors,
         'gender': _selectedGender,
+        'state': _selectedState ?? '',
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -635,6 +653,33 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       final parsed = int.tryParse(value.trim());
                       if (parsed == null || parsed < 0) {
                         return 'أدخل كمية مخزون صحيحة';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _selectedState,
+                    dropdownColor: _surface,
+                    iconEnabledColor: _gold,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _buildInputDecoration('ولاية المنتج (السودان)'),
+                    isExpanded: true,
+                    items: _sudanStates
+                        .map((state) => DropdownMenuItem<String>(
+                              value: state,
+                              child: Text(
+                                state,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      setState(() => _selectedState = value);
+                    },
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'يرجى تحديد ولاية المنتج';
                       }
                       return null;
                     },

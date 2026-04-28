@@ -44,7 +44,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      useInheritedMediaQuery: true,
       locale: const Locale('ar'),
       builder: DevicePreview.appBuilder,
       supportedLocales: const [

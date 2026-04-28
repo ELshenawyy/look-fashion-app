@@ -19,6 +19,34 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _isPlacingOrder = false;
+  String? _selectedState;
+
+  static const double _khartoumDelivery = 7000;
+  static const double _otherStateDelivery = 1000;
+
+  static const List<String> _sudanStates = [
+    'الخرطوم', 'الجزيرة', 'النيل الأبيض', 'النيل الأزرق', 'نهر النيل',
+    'البحر الأحمر', 'الشمالية', 'كسلا', 'القضارف', 'سنار',
+    'شمال كردفان', 'جنوب كردفان', 'غرب كردفان',
+    'شمال دارفور', 'جنوب دارفور', 'وسط دارفور', 'شرق دارفور', 'غرب دارفور',
+  ];
+
+  double get _deliveryCost {
+    if (_selectedState == null) return 0;
+    return _selectedState == 'الخرطوم' ? _khartoumDelivery : _otherStateDelivery;
+  }
+
+  /// Validates Sudanese phone number: 09XXXXXXXX (10 digits) or +249XXXXXXXXX
+  bool _isValidSudanesePhone(String phone) {
+    final cleaned = phone.replaceAll(RegExp(r'[\s\-]'), '');
+    // +249XXXXXXXXX = 12 digits after +
+    if (RegExp(r'^\+249[0-9]{9}$').hasMatch(cleaned)) return true;
+    // 249XXXXXXXXX = 12 digits without +
+    if (RegExp(r'^249[0-9]{9}$').hasMatch(cleaned)) return true;
+    // 09XXXXXXXX = 10 digits
+    if (RegExp(r'^09[0-9]{8}$').hasMatch(cleaned)) return true;
+    return false;
+  }
 
   @override
   void dispose() {
@@ -27,22 +55,99 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
+  /// Validates that all items have sufficient stock before placing order.
+  Future<String?> _validateStock(Cart cart) async {
+    final firestore = FirebaseFirestore.instance;
+
+    for (final item in cart.items) {
+      final docRef = firestore.collection('products').doc(item.productId);
+      final docSnap = await docRef.get();
+
+      if (!docSnap.exists) {
+        return 'المنتج "${item.name}" لم يعد متاحاً.';
+      }
+
+      final data = docSnap.data()!;
+      final currentStock = (data['stockQuantity'] as num?)?.toInt() ?? 0;
+
+      if (currentStock < item.quantity) {
+        if (currentStock == 0) {
+          return 'المنتج "${item.name}" نفد من المخزون.';
+        }
+        return 'المنتج "${item.name}" متاح فقط $currentStock قطعة، لكن طلبت ${item.quantity}.';
+      }
+    }
+    return null; // all good
+  }
+
+  /// Decrements stock for all ordered items using a batch write.
+  Future<void> _decrementStock(Cart cart) async {
+    final firestore = FirebaseFirestore.instance;
+    final batch = firestore.batch();
+
+    for (final item in cart.items) {
+      final docRef = firestore.collection('products').doc(item.productId);
+      batch.update(docRef, {
+        'stockQuantity': FieldValue.increment(-item.quantity),
+      });
+    }
+
+    await batch.commit();
+  }
+
+  /// Creates a notification for all admins about the new order.
+  Future<void> _notifyAdmins(String orderId, Cart cart, String userName) async {
+    final firestore = FirebaseFirestore.instance;
+    final itemNames = cart.items.map((i) => '${i.name} x${i.quantity}').join('، ');
+
+    await firestore.collection('notifications').add({
+      'type': 'new_order',
+      'title': 'طلب جديد',
+      'body': 'طلب جديد من $userName: $itemNames',
+      'orderId': orderId,
+      'forRole': 'admin',
+      'forUserId': null,
+      'read': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> _placeOrder(Cart cart) async {
     if (_addressController.text.trim().isEmpty) {
       _showSnack('يرجى إدخال عنوان التوصيل', Colors.orange);
+      return;
+    }
+    if (_selectedState == null) {
+      _showSnack('يرجى اختيار الولاية', Colors.orange);
       return;
     }
     if (_phoneController.text.trim().isEmpty) {
       _showSnack('يرجى إدخال رقم الهاتف', Colors.orange);
       return;
     }
+    if (!_isValidSudanesePhone(_phoneController.text.trim())) {
+      _showSnack('رقم الهاتف غير صحيح — يرجى إدخال رقم سوداني صحيح (مثال: 0912345678)', Colors.orange);
+      return;
+    }
 
     setState(() => _isPlacingOrder = true);
 
     try {
+      // 1) Validate stock
+      final stockError = await _validateStock(cart);
+      if (stockError != null) {
+        if (!mounted) return;
+        _showSnack(stockError, Colors.red);
+        setState(() => _isPlacingOrder = false);
+        return;
+      }
+
+      // 2) Create order
       final user = FirebaseAuth.instance.currentUser;
+      final userName = user?.displayName ?? user?.email ?? 'مستخدم';
       final orderItems = cart.items
           .map((item) => {
+                'productId': item.productId,
                 'name': item.name,
                 'price': item.price,
                 'quantity': item.quantity,
@@ -52,17 +157,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               })
           .toList();
 
-      await FirebaseFirestore.instance.collection('orders').add({
+      final deliveryCost = _deliveryCost;
+      final grandTotal = cart.totalPrice + deliveryCost;
+
+      final orderRef = await FirebaseFirestore.instance.collection('orders').add({
         'userId': user?.uid,
         'userEmail': user?.email,
+        'userName': userName,
         'items': orderItems,
-        'total': cart.totalPrice,
+        'subtotal': cart.totalPrice,
+        'deliveryCost': deliveryCost,
+        'total': grandTotal,
         'address': _addressController.text.trim(),
+        'state': _selectedState,
         'phone': _phoneController.text.trim(),
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // 3) Decrement stock
+      await _decrementStock(cart);
+
+      // 4) Notify admins
+      await _notifyAdmins(orderRef.id, cart, userName);
+
+      // 5) Clear cart & show confirmation
       cart.clear();
 
       if (!mounted) return;
@@ -208,19 +327,52 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: _maroon.withOpacity(0.3),
+                color: _maroon.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _gold.withOpacity(0.3)),
+                border: Border.all(color: _gold.withValues(alpha: 0.3)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
                 children: [
-                  const Text('الإجمالي',
-                      style: TextStyle(
-                          color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-                  Text('${cart.totalPrice.toStringAsFixed(2)} ج.م',
-                      style: const TextStyle(
-                          color: _gold, fontSize: 20, fontWeight: FontWeight.w700)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('المجموع الفرعي',
+                          style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      Text('${cart.totalPrice.toStringAsFixed(0)} ج.س',
+                          style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('التوصيل',
+                          style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      Text(
+                        _selectedState == null
+                            ? 'اختر الولاية أولاً'
+                            : '${_deliveryCost.toStringAsFixed(0)} ج.س',
+                        style: TextStyle(
+                          color: _selectedState == null ? Colors.white38 : Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(color: Colors.white24, height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('الإجمالي',
+                          style: TextStyle(
+                              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                      Text(
+                        '${(cart.totalPrice + _deliveryCost).toStringAsFixed(0)} ج.س',
+                        style: const TextStyle(
+                            color: _gold, fontSize: 20, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -229,16 +381,77 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             const SizedBox(height: 12),
             _inputField(
               controller: _addressController,
-              label: 'عنوان التوصيل',
+              label: 'عنوان التوصيل التفصيلي',
               icon: Icons.location_on_outlined,
               maxLines: 2,
             ),
             const SizedBox(height: 12),
+            // Sudan State Dropdown
+            Container(
+              decoration: BoxDecoration(
+                color: _panel,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: _selectedState,
+                  isExpanded: true,
+                  dropdownColor: const Color(0xFF1E1010),
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _gold),
+                  hint: Row(
+                    children: [
+                      const Icon(Icons.map_outlined, color: _gold, size: 20),
+                      const SizedBox(width: 12),
+                      const Text('اختر الولاية', style: TextStyle(color: Colors.white54)),
+                    ],
+                  ),
+                  items: _sudanStates.map((state) {
+                    return DropdownMenuItem<String>(
+                      value: state,
+                      child: Text(state, style: const TextStyle(color: Colors.white)),
+                    );
+                  }).toList(),
+                  onChanged: (value) => setState(() => _selectedState = value),
+                ),
+              ),
+            ),
+            if (_selectedState != null) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _gold.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _gold.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.local_shipping_outlined, color: _gold, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'تكلفة التوصيل إلى $_selectedState: ${_deliveryCost.toStringAsFixed(0)} ج.س',
+                      style: const TextStyle(color: _gold, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
             _inputField(
               controller: _phoneController,
-              label: 'رقم الهاتف',
+              label: 'رقم الهاتف (سوداني)',
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 6),
+            const Padding(
+              padding: EdgeInsets.only(right: 4),
+              child: Text(
+                'مثال: 0912345678 أو +249912345678',
+                style: TextStyle(color: Colors.white38, fontSize: 11),
+              ),
             ),
             const SizedBox(height: 32),
             SizedBox(

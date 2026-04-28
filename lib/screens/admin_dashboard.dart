@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
+import 'package:my_fashion_app/screens/admin_orders_screen.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({Key? key}) : super(key: key);
@@ -109,6 +110,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
           'لوحة الإدارة',
           style: TextStyle(color: _gold),
         ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminOrdersScreen()),
+              );
+            },
+            icon: const Icon(Icons.receipt_long, color: Colors.blue, size: 20),
+            label: const Text('الطلبات', style: TextStyle(color: Colors.blue)),
+          ),
+        ],
       ),
       backgroundColor: Colors.black,
       body: StreamBuilder<QuerySnapshot>(

@@ -10,6 +10,7 @@ import 'package:my_fashion_app/screens/favorites_screen.dart';
 import 'package:my_fashion_app/screens/profile_screen.dart';
 import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:my_fashion_app/screens/cart.dart';
+import 'package:my_fashion_app/screens/notifications_screen.dart';
 import 'package:my_fashion_app/services/cart_provider.dart';
 
 class AppShell extends StatefulWidget {
@@ -132,6 +133,51 @@ class _AppShellState extends State<AppShell> {
               style: const TextStyle(color: Colors.white),
             ),
             actions: [
+              // Notification bell with unread count
+              StreamBuilder<int>(
+                stream: NotificationsScreen.getUnreadCount(
+                  userId: user.uid,
+                  isAdmin: isAdmin,
+                ),
+                builder: (context, notifSnap) {
+                  final unread = notifSnap.data ?? 0;
+                  return IconButton(
+                    icon: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.notifications_outlined, color: Color(0xFFD4AF37)),
+                        if (unread > 0)
+                          Positioned(
+                            right: -4,
+                            top: -4,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                unread > 9 ? '9+' : '$unread',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                      );
+                    },
+                    tooltip: 'الإشعارات',
+                  );
+                },
+              ),
               if (isAdmin)
                 IconButton(
                   icon: const Icon(Icons.dashboard, color: Colors.blue),
