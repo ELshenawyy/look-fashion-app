@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
+import 'package:my_fashion_app/screens/product_listing_page.dart';
 import 'package:my_fashion_app/services/product_service.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -389,6 +392,102 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           ),
                         ),
                       ],
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: 16),
+              // ── قسم تسوق حسب الفئة ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'تسوق حسب الفئة',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Icon(Icons.grid_view_rounded,
+                        color: Color(0xFFD4AF37), size: 20),
+                  ],
+                ),
+              ),
+              SizedBox(height: 10),
+              SizedBox(
+                height: 110,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: kCategoryData.length,
+                  itemBuilder: (context, index) {
+                    final data = kCategoryData[index];
+                    final name = data['name'] as String;
+                    final image = data['image'] as String;
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ProductListingPage(categoryName: name),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: 90,
+                        margin: const EdgeInsets.only(right: 10),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.asset(
+                                image,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  color: const Color(0xFF161B22),
+                                ),
+                              ),
+                              // Frosted Glass اسم الفئة
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    bottom: Radius.circular(16),
+                                  ),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                        sigmaX: 8, sigmaY: 8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 6),
+                                      color: Colors.black
+                                          .withValues(alpha: 0.5),
+                                      child: Text(
+                                        name,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),

@@ -1,5 +1,8 @@
+import 'dart:ui';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/screens/product_listing_page.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
@@ -34,17 +37,40 @@ class CategoriesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-    const double cardHeight = 130.0;
-
     return Scaffold(
       backgroundColor: _bg,
       body: CustomScrollView(
         slivers: [
           AppSliverBar(
-            title: 'الأقسام',
+            title: 'التصنيفات',
             backgroundColor: _bg,
             actions: const [NotificationBellAction()],
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: const [
+                  Text(
+                    'الأقسام',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'تصفح جميع أقسام المنتجات',
+                    style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           StreamBuilder<Map<String, int>>(
             stream: _categoryCounts(),
@@ -52,30 +78,31 @@ class CategoriesScreen extends StatelessWidget {
               final counts = snapshot.data ?? {};
 
               return SliverPadding(
-                padding: EdgeInsets.symmetric(
-                    horizontal: w * 0.035, vertical: 12),
-                sliver: SliverGrid(
-                  gridDelegate:
-                      SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    mainAxisExtent: cardHeight,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final category = kProductCategories[index];
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                sliver: SliverToBoxAdapter(
+                  child: MasonryGridView.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: kCategoryData.length,
+                    itemBuilder: (context, index) {
+                      final data = kCategoryData[index];
+                      final category = data['name'] as String;
+                      final height = data['height'] as double;
+                      final image = data['image'] as String;
                       final count = counts[category] ?? 0;
 
-                      return _CategoryCard(
+                      return _MasonryCategoryCard(
                         category: category,
                         count: count,
-                        icon: Icons.shopping_bag_rounded,
-                        onTap: () =>
-                            _navigateToCategory(context, category),
+                        image: image,
+                        height: height,
+                        onTap: () => _navigateToCategory(context, category),
                       );
                     },
-                    childCount: kProductCategories.length,
                   ),
                 ),
               );
@@ -88,80 +115,116 @@ class CategoriesScreen extends StatelessWidget {
   }
 }
 
-class _CategoryCard extends StatelessWidget {
+class _MasonryCategoryCard extends StatelessWidget {
   final String category;
   final int count;
-  final IconData icon;
+  final String image;
+  final double height;
   final VoidCallback onTap;
 
-  const _CategoryCard({
+  const _MasonryCategoryCard({
     required this.category,
     required this.count,
-    required this.icon,
+    required this.image,
+    required this.height,
     required this.onTap,
   });
 
-  static const Color _gold = Color(0xFFD4AF37);
-  static const Color _cardBg = Color(0xFF161B22);
-
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: _cardBg,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        splashColor: _gold.withValues(alpha: 0.12),
-        highlightColor: _gold.withValues(alpha: 0.06),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.07),
-            ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  color: _gold.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: _gold.withValues(alpha: 0.3),
-                    width: 1,
+    return SizedBox(
+      height: height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(24),
+            splashColor: Colors.white.withValues(alpha: 0.1),
+            highlightColor: Colors.white.withValues(alpha: 0.05),
+            onTap: onTap,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // صورة الخلفية
+                Image.asset(
+                  image,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    color: const Color(0xFF161B22),
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      color: Colors.white54,
+                      size: 40,
+                    ),
                   ),
                 ),
-                child: Icon(icon, color: _gold, size: 22),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                category,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  height: 1.25,
+                // طبقة تعتيم خفيفة
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.25),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$count منتج',
-                style: TextStyle(
-                  color: count > 0 ? _gold : Colors.white30,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
+                // شريط Frosted Glass في الأسفل
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(24),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.45),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              category,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.right,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$count منتج',
+                              style: TextStyle(
+                                color: count > 0
+                                    ? const Color(0xFFD4AF37)
+                                    : Colors.white60,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
