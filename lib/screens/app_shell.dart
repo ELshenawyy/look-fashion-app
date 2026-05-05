@@ -10,7 +10,6 @@ import 'package:my_fashion_app/screens/favorites_screen.dart';
 import 'package:my_fashion_app/screens/profile_screen.dart';
 import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:my_fashion_app/screens/cart.dart';
-import 'package:my_fashion_app/screens/notifications_screen.dart';
 import 'package:my_fashion_app/services/cart_provider.dart';
 
 class AppShell extends StatefulWidget {
@@ -22,52 +21,11 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
-  bool _isSigningOut = false;
-
-  static const List<String> _titles = <String>[
-    'الرئيسية',
-    'التصنيفات',
-    'السلة',
-    'المفضلة',
-    'الملف الشخصي',
-  ];
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-  }
-
-  Future<void> _signOut() async {
-    if (_isSigningOut) return;
-
-    setState(() {
-      _isSigningOut = true;
-      _selectedIndex = 0;
-    });
-
-    try {
-      await FirebaseAuth.instance.signOut();
-      if (!mounted) return;
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => LoginPage()),
-        (route) => false,
-      );
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _isSigningOut = false;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل تسجيل الخروج: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   @override
@@ -98,9 +56,7 @@ class _AppShellState extends State<AppShell> {
         if (snapshot.hasData) {
           final userData = snapshot.data?.data();
           rawRole = userData?['role'];
-          isAdmin = !_isSigningOut &&
-              rawRole is String &&
-              rawRole.toLowerCase() == 'admin';
+          isAdmin = rawRole is String && rawRole.toLowerCase() == 'admin';
 
           print('DEBUG: Firestore data received: $userData');
           print(
@@ -125,79 +81,6 @@ class _AppShellState extends State<AppShell> {
 
         return Scaffold(
           backgroundColor: Colors.black,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            elevation: 0,
-            title: Text(
-              _titles[_selectedIndex],
-              style: const TextStyle(color: Colors.white),
-            ),
-            actions: [
-              // Notification bell with unread count
-              StreamBuilder<int>(
-                stream: NotificationsScreen.getUnreadCount(
-                  userId: user.uid,
-                  isAdmin: isAdmin,
-                ),
-                builder: (context, notifSnap) {
-                  final unread = notifSnap.data ?? 0;
-                  return IconButton(
-                    icon: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Icon(Icons.notifications_outlined, color: Color(0xFFD4AF37)),
-                        if (unread > 0)
-                          Positioned(
-                            right: -4,
-                            top: -4,
-                            child: Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Text(
-                                unread > 9 ? '9+' : '$unread',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                      );
-                    },
-                    tooltip: 'الإشعارات',
-                  );
-                },
-              ),
-              if (isAdmin)
-                IconButton(
-                  icon: const Icon(Icons.dashboard, color: Colors.blue),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AdminDashboard(),
-                      ),
-                    );
-                  },
-                  tooltip: 'لوحة الإدارة',
-                ),
-              IconButton(
-                icon: const Icon(Icons.logout, color: Colors.white),
-                onPressed: _isSigningOut ? null : _signOut,
-                tooltip: 'تسجيل الخروج',
-              ),
-            ],
-          ),
           body: pages[_selectedIndex],
           floatingActionButton: isAdmin
               ? Column(

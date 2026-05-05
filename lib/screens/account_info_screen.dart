@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AccountInfoScreen extends StatelessWidget {
   const AccountInfoScreen({Key? key}) : super(key: key);
@@ -12,52 +13,59 @@ class AccountInfoScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('معلومات الحساب'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Center(
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: const BoxDecoration(
-                color: Color(0xFF121212),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.person, color: _gold, size: 40),
+      body: CustomScrollView(
+        slivers: [
+          AppSliverBar(
+            title: 'معلومات الحساب',
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+              onPressed: () => Navigator.pop(context),
             ),
+            automaticallyImplyLeading: false,
           ),
-          const SizedBox(height: 24),
-          _InfoTile(
-            icon: Icons.email_outlined,
-            label: 'البريد الإلكتروني',
-            value: user?.email ?? 'غير متاح',
-          ),
-          const SizedBox(height: 12),
-          _InfoTile(
-            icon: Icons.badge_outlined,
-            label: 'المعرف (UID)',
-            value: user?.uid ?? 'غير متاح',
-          ),
-          const SizedBox(height: 12),
-          _InfoTile(
-            icon: Icons.verified_user_outlined,
-            label: 'حالة التحقق',
-            value: (user?.emailVerified ?? false) ? 'تم التحقق' : 'لم يتم التحقق',
-            valueColor: (user?.emailVerified ?? false) ? Colors.green : Colors.orange,
-          ),
-          const SizedBox(height: 12),
-          _InfoTile(
-            icon: Icons.phone_outlined,
-            label: 'رقم الهاتف',
-            value: user?.phoneNumber ?? 'غير مضاف',
+          SliverPadding(
+            padding: const EdgeInsets.all(20),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                Center(
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF121212),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person, color: _gold, size: 40),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _InfoTile(
+                  icon: Icons.email_outlined,
+                  label: 'البريد الإلكتروني',
+                  value: user?.email ?? 'غير متاح',
+                ),
+                const SizedBox(height: 12),
+                _InfoTile(
+                  icon: Icons.badge_outlined,
+                  label: 'المعرف (UID)',
+                  value: user?.uid ?? 'غير متاح',
+                ),
+                const SizedBox(height: 12),
+                _InfoTile(
+                  icon: Icons.verified_user_outlined,
+                  label: 'حالة التحقق',
+                  value: (user?.emailVerified ?? false) ? 'تم التحقق' : 'لم يتم التحقق',
+                  valueColor: (user?.emailVerified ?? false) ? Colors.green : Colors.orange,
+                ),
+                const SizedBox(height: 12),
+                _InfoTile(
+                  icon: Icons.phone_outlined,
+                  label: 'رقم الهاتف',
+                  value: user?.phoneNumber ?? 'غير مضاف',
+                ),
+                const SizedBox(height: 24),
+              ]),
+            ),
           ),
         ],
       ),

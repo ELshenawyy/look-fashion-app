@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -97,90 +98,94 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final backButton = IconButton(
+      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+      onPressed: () => Navigator.pop(context),
+    );
+
     if (user == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(
-          child: Text('يرجى تسجيل الدخول',
-              style: TextStyle(color: Colors.white54)),
-        ),
+        body: CustomScrollView(slivers: [
+          AppSliverBar(title: 'الإشعارات', leading: backButton, automaticallyImplyLeading: false),
+          const SliverFillRemaining(
+            child: Center(child: Text('يرجى تسجيل الدخول', style: TextStyle(color: Colors.white54))),
+          ),
+        ]),
       );
     }
 
     if (_loadingRole) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.black,
-        body: Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+        body: CustomScrollView(slivers: [
+          AppSliverBar(title: 'الإشعارات', leading: backButton, automaticallyImplyLeading: false),
+          const SliverFillRemaining(
+            child: Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+          ),
+        ]),
       );
     }
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('الإشعارات'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
-          onPressed: () => Navigator.pop(context),
+      body: CustomScrollView(slivers: [
+        AppSliverBar(
+          title: 'الإشعارات',
+          leading: backButton,
+          automaticallyImplyLeading: false,
+          actions: [
+            TextButton(
+              onPressed: _markAllRead,
+              child: const Text('قراءة الكل', style: TextStyle(color: _gold, fontSize: 13)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: _markAllRead,
-            child: const Text('قراءة الكل',
-                style: TextStyle(color: _gold, fontSize: 13)),
-          ),
-        ],
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: NotificationsScreen.getNotificationsStream(
-          userId: _userId,
-          isAdmin: _isAdmin,
-        ),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: _gold));
-          }
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: NotificationsScreen.getNotificationsStream(userId: _userId, isAdmin: _isAdmin),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator(color: _gold));
+              }
 
-          final docs = snapshot.data?.docs ?? [];
+              final docs = snapshot.data?.docs ?? [];
+              final sorted = List.of(docs)
+                ..sort((a, b) {
+                  final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
+                  final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
+                  if (aTime == null || bTime == null) return 0;
+                  return bTime.compareTo(aTime);
+                });
 
-          // Sort newest first (client-side, no composite index needed)
-          final sorted = List.of(docs)
-            ..sort((a, b) {
-              final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
-              final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
-              if (aTime == null || bTime == null) return 0;
-              return bTime.compareTo(aTime);
-            });
+              if (sorted.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.notifications_none, color: Colors.white24, size: 72),
+                      SizedBox(height: 16),
+                      Text('لا توجد إشعارات', style: TextStyle(color: Colors.white54, fontSize: 18)),
+                    ],
+                  ),
+                );
+              }
 
-          if (sorted.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.notifications_none,
-                      color: Colors.white24, size: 72),
-                  SizedBox(height: 16),
-                  Text('لا توجد إشعارات',
-                      style:
-                          TextStyle(color: Colors.white54, fontSize: 18)),
-                ],
-              ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: sorted.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final doc = sorted[index];
-              final data = doc.data() as Map<String, dynamic>;
-              return _NotificationTile(docId: doc.id, data: data);
+              return ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: sorted.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final doc = sorted[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  return _NotificationTile(docId: doc.id, data: data);
+                },
+              );
             },
-          );
-        },
-      ),
+          ),
+        ),
+      ]),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/services/product_service.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class ProductListingPage extends StatefulWidget {
   final String? categoryName;
@@ -309,39 +310,46 @@ class _ProductListingPageState extends State<ProductListingPage> {
     final user = FirebaseAuth.instance.currentUser;
     final title = widget.categoryName ?? 'كل المنتجات';
 
+    final sliverBar = AppSliverBar(
+      title: title,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios, color: _gold),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      automaticallyImplyLeading: false,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF000000),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: _gold),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: _gold,
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
       body: StreamBuilder<List<Product>>(
         stream: _productService.getProductsStream(category: widget.categoryName),
         builder: (context, productSnapshot) {
           if (productSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: _gold),
+            return CustomScrollView(
+              slivers: [
+                sliverBar,
+                const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(color: _gold),
+                  ),
+                ),
+              ],
             );
           }
 
           if (productSnapshot.hasError) {
-            return Center(
-              child: Text(
-                'حدث خطأ: ${productSnapshot.error}',
-                style: const TextStyle(color: Colors.redAccent),
-              ),
+            return CustomScrollView(
+              slivers: [
+                sliverBar,
+                SliverFillRemaining(
+                  child: Center(
+                    child: Text(
+                      'حدث خطأ: ${productSnapshot.error}',
+                      style: const TextStyle(color: Colors.redAccent),
+                    ),
+                  ),
+                ),
+              ],
             );
           }
 
@@ -355,38 +363,42 @@ class _ProductListingPageState extends State<ProductListingPage> {
             builder: (context, favoritesSnapshot) {
               final favoriteIds = favoritesSnapshot.data ?? <String>{};
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 36, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.only(top: 14, bottom: 10),
-                      child: const Text(
-                        'اختر القطعة التي تناسبك من بين منتجاتنا المتاحة.',
-                        textAlign: TextAlign.start,
-                        style: TextStyle(
-                          color: _gold,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          fontFamily: 'times new roman',
+              return CustomScrollView(
+                slivers: [
+                  sliverBar,
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        const Padding(
+                          padding: EdgeInsets.only(top: 14, bottom: 10),
+                          child: Text(
+                            'اختر القطعة التي تناسبك من بين منتجاتنا المتاحة.',
+                            textAlign: TextAlign.start,
+                            style: TextStyle(
+                              color: _gold,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'times new roman',
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: const Text(
-                        'هذه قائمة المنتجات المتوفرة لدينا',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 10),
+                          child: Text(
+                            'هذه قائمة المنتجات المتوفرة لدينا',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                            ),
+                          ),
                         ),
-                      ),
+                        _buildProductList(products, favoriteIds),
+                      ]),
                     ),
-                    _buildProductList(products, favoriteIds),
-                  ],
-                ),
+                  ),
+                ],
               );
             },
           );

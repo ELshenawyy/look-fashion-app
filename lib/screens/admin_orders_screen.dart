@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({Key? key}) : super(key: key);
@@ -148,90 +149,92 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('إدارة الطلبات'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Column(
-        children: [
-          // Status filter chips
-          SizedBox(
-            height: 48,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: _statusOptions.map((opt) {
-                final isSelected = _statusFilter == opt['value'];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ChoiceChip(
-                    label: Text(opt['label']!),
-                    selected: isSelected,
-                    selectedColor: _gold,
-                    backgroundColor: _panel,
-                    labelStyle: TextStyle(
-                      color: isSelected ? Colors.black : Colors.white70,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    side: BorderSide(color: isSelected ? _gold : Colors.white24),
-                    onSelected: (_) {
-                      setState(() => _statusFilter = opt['value']!);
+      body: CustomScrollView(
+        slivers: [
+          AppSliverBar(
+            title: 'إدارة الطلبات',
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+              onPressed: () => Navigator.pop(context),
+            ),
+            automaticallyImplyLeading: false,
+          ),
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 48,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    children: _statusOptions.map((opt) {
+                      final isSelected = _statusFilter == opt['value'];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: ChoiceChip(
+                          label: Text(opt['label']!),
+                          selected: isSelected,
+                          selectedColor: _gold,
+                          backgroundColor: _panel,
+                          labelStyle: TextStyle(
+                            color: isSelected ? Colors.black : Colors.white70,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          side: BorderSide(color: isSelected ? _gold : Colors.white24),
+                          onSelected: (_) => setState(() => _statusFilter = opt['value']!),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: _getOrdersStream(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator(color: _gold));
+                      }
+                      if (snapshot.hasError) {
+                        return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+                      }
+
+                      final docs = snapshot.data?.docs ?? [];
+                      docs.sort((a, b) {
+                        final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
+                        final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
+                        if (aTime == null || bTime == null) return 0;
+                        return bTime.compareTo(aTime);
+                      });
+
+                      if (docs.isEmpty) {
+                        return const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.receipt_long_outlined, color: Colors.white24, size: 72),
+                              SizedBox(height: 16),
+                              Text('لا توجد طلبات', style: TextStyle(color: Colors.white54, fontSize: 18)),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: docs.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (context, index) {
+                          final doc = docs[index];
+                          final data = doc.data() as Map<String, dynamic>;
+                          return _buildOrderCard(doc.id, data);
+                        },
+                      );
                     },
                   ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Orders list
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _getOrdersStream(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: _gold));
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
-                }
-
-                final docs = snapshot.data?.docs ?? [];
-                // Sort client-side (newest first)
-                docs.sort((a, b) {
-                  final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
-                  final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
-                  if (aTime == null || bTime == null) return 0;
-                  return bTime.compareTo(aTime);
-                });
-
-                if (docs.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.receipt_long_outlined, color: Colors.white24, size: 72),
-                        SizedBox(height: 16),
-                        Text('لا توجد طلبات', style: TextStyle(color: Colors.white54, fontSize: 18)),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final doc = docs[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    return _buildOrderCard(doc.id, data);
-                  },
-                );
-              },
+                ),
+              ],
             ),
           ),
         ],
@@ -309,6 +312,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           _infoRow(Icons.email_outlined, userEmail),
           if (phone.isNotEmpty) _infoRow(Icons.phone_outlined, phone),
           if (address.isNotEmpty) _infoRow(Icons.location_on_outlined, address),
+          _infoRow(Icons.schedule_rounded, 'مدة التوصيل: من 1 إلى 15 يوم'),
           const Divider(color: Colors.white10, height: 20),
           // Order items
           ...items.map((item) {

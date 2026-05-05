@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/services/product_service.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 class ProductListScreen extends StatefulWidget {
@@ -156,8 +158,18 @@ class _ProductListScreenState extends State<ProductListScreen> {
         .toList();
   }
 
+  AppSliverBar _buildSliverAppBar(User? user) {
+    return AppSliverBar(
+      titleWidget: const TalaAppBarTitle(),
+      actions: user != null ? const [NotificationBellAction()] : const [],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final h = MediaQuery.of(context).size.height;
+
     return GestureDetector(
       onTap: () {
         if (_isSearchFocused) {
@@ -170,44 +182,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: Color.fromARGB(255, 0, 0, 0),
-        appBar: AppBar(
-          backgroundColor: Color.fromARGB(255, 0, 0, 0),
-          elevation: 0,
-          toolbarHeight: 50,
-          automaticallyImplyLeading: false,
-          title: Text(
-            'تطبيق الأزياء',
-            style: TextStyle(
-              color: Colors.white,
-            ),
-          ),
-          actions: [
-            Container(
-              margin: EdgeInsets.only(right: 15),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(50),
-                border: Border.all(
-                    color: Color.fromARGB(255, 141, 71, 71), width: 2),
-              ),
-              child: IconButton(
-                icon: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(50),
-                    child: Image.asset('assets/icon.png'),
-                  ),
-                ),
-                onPressed: () {},
-              ),
-            ),
-          ],
-        ),
-        body: SingleChildScrollView(
-          child: Column(
-            children: [
+        backgroundColor: const Color(0xFF000000),
+        body: CustomScrollView(
+          slivers: [
+            _buildSliverAppBar(user),
+            SliverToBoxAdapter(
+              child: Column(
+                children: [
               Text(
                 'اكتشف أفضل تجربة تسوق',
                 textAlign: TextAlign.left,
@@ -315,7 +296,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
               Container(
                 margin: EdgeInsets.only(top: 20),
-                height: 240,
+                height: h * 0.27,
                 width: 360,
                 child: PageView.builder(
                   itemCount: allimages.length,
@@ -451,7 +432,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     ),
                     Container(
                       margin: EdgeInsets.only(top: 20),
-                      height: 220,
+                      height: h * 0.26,
                       width: 380,
                       child: StreamBuilder<List<Product>>(
                         stream: productService.getProductsStream(),
@@ -790,7 +771,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ],
           ),
         ),
+        ],
       ),
-    );
+    ),
+  );
   }
 }

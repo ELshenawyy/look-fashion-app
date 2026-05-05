@@ -3,12 +3,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({Key? key}) : super(key: key);
 
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _maroon = Color(0xFF800000);
+
+  static const AppSliverBar _appBar = AppSliverBar(
+    title: 'المفضلة',
+    actions: [NotificationBellAction()],
+  );
 
   Stream<List<Product>> _favoritesStream(String userId) {
     return FirebaseFirestore.instance
@@ -225,124 +231,145 @@ class FavoritesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    return Container(
-      color: Colors.black,
-      child: SafeArea(
-        top: false,
-        child: user == null
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'يرجى تسجيل الدخول لعرض المفضلة',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+    if (user == null) {
+      return CustomScrollView(
+        slivers: [
+          _appBar,
+          const SliverFillRemaining(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'يرجى تسجيل الدخول لعرض المفضلة',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return StreamBuilder<List<Product>>(
+      stream: _favoritesStream(user.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CustomScrollView(
+            slivers: [
+              _appBar,
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(color: _gold),
+                ),
+              ),
+            ],
+          );
+        }
+
+        if (snapshot.hasError) {
+          return CustomScrollView(
+            slivers: [
+              _appBar,
+              SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'حدث خطأ أثناء تحميل المفضلة: ${snapshot.error}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.redAccent),
                     ),
                   ),
                 ),
-              )
-            : StreamBuilder<List<Product>>(
-                stream: _favoritesStream(user.uid),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: _gold),
-                    );
-                  }
+              ),
+            ],
+          );
+        }
 
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'حدث خطأ أثناء تحميل المفضلة: ${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.redAccent),
-                        ),
-                      ),
-                    );
-                  }
+        final products = snapshot.data ?? const <Product>[];
 
-                  final products = snapshot.data ?? const <Product>[];
-
-                  if (products.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.favorite_border_rounded,
-                              color: _gold,
-                              size: 72,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'ستظهر منتجاتك المفضلة هنا',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'احفظ القطع التي تعجبك وارجع إليها في أي وقت.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white60,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 36, 16, 24),
+        if (products.isEmpty) {
+          return CustomScrollView(
+            slivers: [
+              _appBar,
+              const SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.only(top: 14, bottom: 10),
-                          child: Text(
-                            'منتجاتك المفضلة، مجمعة لك في مكان واحد.',
-                            style: TextStyle(
-                              color: _gold,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        Icon(
+                          Icons.favorite_border_rounded,
+                          color: _gold,
+                          size: 72,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'ستظهر منتجاتك المفضلة هنا',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
+                        SizedBox(height: 8),
                         Text(
-                          '${products.length} منتج محفوظ',
-                          style: const TextStyle(
+                          'احفظ القطع التي تعجبك وارجع إليها في أي وقت.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
                             color: Colors.white60,
                             fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 14),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: products.length,
-                          itemBuilder: (context, index) {
-                            return _buildProductCard(context, products[index]);
-                          },
-                        ),
                       ],
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
-      ),
+            ],
+          );
+        }
+
+        return CustomScrollView(
+          slivers: [
+            _appBar,
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  const Padding(
+                    padding: EdgeInsets.only(top: 14, bottom: 10),
+                    child: Text(
+                      'منتجاتك المفضلة، مجمعة لك في مكان واحد.',
+                      style: TextStyle(
+                        color: _gold,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${products.length} منتج محفوظ',
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  ...products.map((p) => _buildProductCard(context, p)),
+                ]),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

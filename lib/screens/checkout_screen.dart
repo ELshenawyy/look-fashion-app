@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/services/cart_provider.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({Key? key}) : super(key: key);
@@ -16,13 +17,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   static const Color _maroon = Color(0xFF5A1010);
   static const Color _panel = Color(0xFF180808);
 
+  final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _isPlacingOrder = false;
   String? _selectedState;
 
-  static const double _khartoumDelivery = 7000;
-  static const double _otherStateDelivery = 1000;
+  static const double _localDelivery = 8000;      // نفس ولاية المنتج
+  static const double _interStateDelivery = 11000; // ولاية مختلفة
 
   static const List<String> _sudanStates = [
     'الخرطوم', 'الجزيرة', 'النيل الأبيض', 'النيل الأزرق', 'نهر النيل',
@@ -31,9 +33,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     'شمال دارفور', 'جنوب دارفور', 'وسط دارفور', 'شرق دارفور', 'غرب دارفور',
   ];
 
-  double get _deliveryCost {
+  @override
+  void initState() {
+    super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user?.displayName != null && user!.displayName!.isNotEmpty) {
+      _nameController.text = user.displayName!;
+    }
+  }
+
+  double _calculateDeliveryCost(Cart cart) {
     if (_selectedState == null) return 0;
-    return _selectedState == 'الخرطوم' ? _khartoumDelivery : _otherStateDelivery;
+    // توصيل محلي فقط لو كل منتجات السلة من نفس ولاية العميل
+    final allLocal = cart.items.isNotEmpty &&
+        cart.items.every(
+          (item) =>
+              item.productState.isNotEmpty &&
+              item.productState == _selectedState,
+        );
+    return allLocal ? _localDelivery : _interStateDelivery;
   }
 
   /// Validates Sudanese phone number: 09XXXXXXXX (10 digits) or +249XXXXXXXXX
@@ -50,6 +68,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
     super.dispose();
@@ -113,6 +132,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _placeOrder(Cart cart) async {
+    final enteredName = _nameController.text.trim();
+    if (enteredName.isEmpty) {
+      _showSnack('يرجى إدخال اسمك', Colors.orange);
+      return;
+    }
+    if (enteredName.length < 3) {
+      _showSnack('الاسم قصير جداً — يجب أن يكون 3 أحرف على الأقل', Colors.orange);
+      return;
+    }
     if (_addressController.text.trim().isEmpty) {
       _showSnack('يرجى إدخال عنوان التوصيل', Colors.orange);
       return;
@@ -144,7 +172,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       // 2) Create order
       final user = FirebaseAuth.instance.currentUser;
-      final userName = user?.displayName ?? user?.email ?? 'مستخدم';
+      final userName = enteredName;
       final orderItems = cart.items
           .map((item) => {
                 'productId': item.productId,
@@ -157,7 +185,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               })
           .toList();
 
-      final deliveryCost = _deliveryCost;
+      final deliveryCost = _calculateDeliveryCost(cart);
       final grandTotal = cart.totalPrice + deliveryCost;
 
       final orderRef = await FirebaseFirestore.instance.collection('orders').add({
@@ -172,6 +200,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'state': _selectedState,
         'phone': _phoneController.text.trim(),
         'status': 'pending',
+        'productStates': cart.items.map((i) => i.productState).toSet().toList(),
+        'deliveryDays': '1-15',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -253,19 +283,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('إتمام الطلب'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: CustomScrollView(
+          slivers: [
+            AppSliverBar(
+              title: 'إتمام الطلب',
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+                onPressed: () => Navigator.pop(context),
+              ),
+              automaticallyImplyLeading: false,
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.all(20),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
             _sectionTitle('ملخص الطلب'),
             const SizedBox(height: 12),
             ...cart.items.map(
@@ -351,7 +384,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       Text(
                         _selectedState == null
                             ? 'اختر الولاية أولاً'
-                            : '${_deliveryCost.toStringAsFixed(0)} ج.س',
+                            : '${_calculateDeliveryCost(cart).toStringAsFixed(0)} ج.س',
                         style: TextStyle(
                           color: _selectedState == null ? Colors.white38 : Colors.white70,
                           fontSize: 14,
@@ -367,7 +400,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           style: TextStyle(
                               color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                       Text(
-                        '${(cart.totalPrice + _deliveryCost).toStringAsFixed(0)} ج.س',
+                        '${(cart.totalPrice + _calculateDeliveryCost(cart)).toStringAsFixed(0)} ج.س',
                         style: const TextStyle(
                             color: _gold, fontSize: 20, fontWeight: FontWeight.w700),
                       ),
@@ -378,6 +411,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             const SizedBox(height: 28),
             _sectionTitle('بيانات التوصيل'),
+            const SizedBox(height: 12),
+            _inputField(
+              controller: _nameController,
+              label: 'الاسم الكامل',
+              icon: Icons.person_outline_rounded,
+            ),
             const SizedBox(height: 12),
             _inputField(
               controller: _addressController,
@@ -430,9 +469,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   children: [
                     const Icon(Icons.local_shipping_outlined, color: _gold, size: 16),
                     const SizedBox(width: 8),
-                    Text(
-                      'تكلفة التوصيل إلى $_selectedState: ${_deliveryCost.toStringAsFixed(0)} ج.س',
-                      style: const TextStyle(color: _gold, fontSize: 13),
+                    Expanded(
+                      child: Text(
+                        'تكلفة التوصيل إلى $_selectedState: ${_calculateDeliveryCost(cart).toStringAsFixed(0)} ج.س',
+                        style: const TextStyle(color: _gold, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.schedule_rounded, color: Colors.white54, size: 16),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'مدة التوصيل المتوقعة: من 1 إلى 15 يوم',
+                      style: TextStyle(color: Colors.white54, fontSize: 13),
                     ),
                   ],
                 ),
@@ -479,6 +539,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
             const SizedBox(height: 20),
+                ]),
+              ),
+            ),
           ],
         ),
       ),

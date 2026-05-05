@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class OrdersScreen extends StatelessWidget {
   const OrdersScreen({Key? key}) : super(key: key);
@@ -12,21 +13,29 @@ class OrdersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
+    final backButton = IconButton(
+      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+      onPressed: () => Navigator.pop(context),
+    );
+
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: CustomScrollView(slivers: [
+          AppSliverBar(title: 'طلباتي', leading: backButton, automaticallyImplyLeading: false),
+          const SliverFillRemaining(
+            child: Center(child: Text('يرجى تسجيل الدخول', style: TextStyle(color: Colors.white54))),
+          ),
+        ]),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('طلباتي'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: user == null
-          ? const Center(
-              child: Text('يرجى تسجيل الدخول',
-                  style: TextStyle(color: Colors.white54)))
-          : _OrdersBody(userId: user.uid),
+      body: CustomScrollView(slivers: [
+        AppSliverBar(title: 'طلباتي', leading: backButton, automaticallyImplyLeading: false),
+        SliverFillRemaining(hasScrollBody: false, child: _OrdersBody(userId: user.uid)),
+      ]),
     );
   }
 }
@@ -228,6 +237,17 @@ class _OrderCard extends StatelessWidget {
                 Expanded(
                   child: Text(address,
                       style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Row(
+              children: [
+                Icon(Icons.schedule_rounded, color: Colors.white38, size: 16),
+                SizedBox(width: 6),
+                Text(
+                  'مدة التوصيل: من 1 إلى 15 يوم',
+                  style: TextStyle(color: Colors.white38, fontSize: 13),
                 ),
               ],
             ),

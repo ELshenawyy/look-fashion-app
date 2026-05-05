@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class OrderChatScreen extends StatefulWidget {
   final String orderId;
@@ -185,38 +186,38 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(chatTitle, style: const TextStyle(fontSize: 15)),
-            if (_isAdmin && _customerPhone.isNotEmpty)
-              Text(
-                _customerPhone,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              )
-            else if (_isAdmin && _customerEmail.isNotEmpty)
-              Text(
-                _customerEmail,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
+      body: CustomScrollView(slivers: [
+        AppSliverBar(
+          titleWidget: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(chatTitle, style: const TextStyle(fontSize: 15, color: Colors.white)),
+              if (_isAdmin && _customerPhone.isNotEmpty)
+                Text(_customerPhone, style: const TextStyle(color: Colors.white54, fontSize: 12))
+              else if (_isAdmin && _customerEmail.isNotEmpty)
+                Text(_customerEmail, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            ],
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+            onPressed: () => Navigator.pop(context),
+          ),
+          automaticallyImplyLeading: false,
+          pinned: true,
+          floating: false,
+          snap: false,
+          actions: [
+            IconButton(
+              onPressed: _openWhatsApp,
+              icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 26),
+              tooltip: 'تواصل عبر واتساب',
+            ),
           ],
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          // WhatsApp button
-          IconButton(
-            onPressed: _openWhatsApp,
-            icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 26),
-            tooltip: 'تواصل عبر واتساب',
-          ),
-        ],
-      ),
-      body: Column(
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Column(
         children: [
           // Admin info banner for customer phone
           if (_isAdmin && _customerPhone.isNotEmpty)
@@ -372,7 +373,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ),
           ),
         ],
-      ),
+          ),
+        ),
+      ]),
     );
   }
 }
