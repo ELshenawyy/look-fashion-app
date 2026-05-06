@@ -5,7 +5,7 @@ import 'package:my_fashion_app/screens/order_chat_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class OrdersScreen extends StatelessWidget {
-  const OrdersScreen({Key? key}) : super(key: key);
+  const OrdersScreen({super.key});
 
   static const Color _gold = Color(0xFFD4AF37);
 
@@ -32,10 +32,16 @@ class OrdersScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CustomScrollView(slivers: [
-        AppSliverBar(title: 'طلباتي', leading: backButton, automaticallyImplyLeading: false),
-        SliverFillRemaining(hasScrollBody: false, child: _OrdersBody(userId: user.uid)),
-      ]),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, _) => [
+          AppSliverBar(
+            title: 'طلباتي',
+            leading: backButton,
+            automaticallyImplyLeading: false,
+          ),
+        ],
+        body: _OrdersBody(userId: user.uid),
+      ),
     );
   }
 }
@@ -89,7 +95,7 @@ class _OrdersBodyState extends State<_OrdersBody> {
           );
         }
 
-        final docs = snapshot.data?.docs ?? []
+        final docs = List.of(snapshot.data?.docs ?? [])
           ..sort((a, b) {
             final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
             final bTime = (b.data() as Map)['createdAt'] as Timestamp?;

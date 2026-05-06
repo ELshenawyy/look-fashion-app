@@ -8,7 +8,7 @@ import 'package:my_fashion_app/screens/orders_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -73,7 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await FirebaseAuth.instance.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => LoginPage()),
+        MaterialPageRoute(builder: (_) => const LoginPage()),
         (route) => false,
       );
     } catch (e) {
@@ -82,6 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SnackBar(
           content: Text('فشل تسجيل الخروج: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }

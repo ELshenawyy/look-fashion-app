@@ -5,7 +5,7 @@ import 'package:my_fashion_app/screens/order_chat_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({Key? key}) : super(key: key);
+  const NotificationsScreen({super.key});
 
   /// Returns a stream of notifications filtered correctly by role.
   static Stream<QuerySnapshot> getNotificationsStream({
@@ -106,86 +106,106 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (user == null) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: CustomScrollView(slivers: [
-          AppSliverBar(title: 'الإشعارات', leading: backButton, automaticallyImplyLeading: false),
-          const SliverFillRemaining(
-            child: Center(child: Text('يرجى تسجيل الدخول', style: TextStyle(color: Colors.white54))),
+        body: NestedScrollView(
+          headerSliverBuilder: (context, _) => [
+            AppSliverBar(
+              title: 'الإشعارات',
+              leading: backButton,
+              automaticallyImplyLeading: false,
+            ),
+          ],
+          body: const Center(
+            child: Text('يرجى تسجيل الدخول',
+                style: TextStyle(color: Colors.white54)),
           ),
-        ]),
+        ),
       );
     }
 
     if (_loadingRole) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: CustomScrollView(slivers: [
-          AppSliverBar(title: 'الإشعارات', leading: backButton, automaticallyImplyLeading: false),
-          const SliverFillRemaining(
-            child: Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+        body: NestedScrollView(
+          headerSliverBuilder: (context, _) => [
+            AppSliverBar(
+              title: 'الإشعارات',
+              leading: backButton,
+              automaticallyImplyLeading: false,
+            ),
+          ],
+          body: const Center(
+            child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
           ),
-        ]),
+        ),
       );
     }
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CustomScrollView(slivers: [
-        AppSliverBar(
-          title: 'الإشعارات',
-          leading: backButton,
-          automaticallyImplyLeading: false,
-          actions: [
-            TextButton(
-              onPressed: _markAllRead,
-              child: const Text('قراءة الكل', style: TextStyle(color: _gold, fontSize: 13)),
-            ),
-          ],
-        ),
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: StreamBuilder<QuerySnapshot>(
-            stream: NotificationsScreen.getNotificationsStream(userId: _userId, isAdmin: _isAdmin),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator(color: _gold));
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-              final sorted = List.of(docs)
-                ..sort((a, b) {
-                  final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
-                  final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
-                  if (aTime == null || bTime == null) return 0;
-                  return bTime.compareTo(aTime);
-                });
-
-              if (sorted.isEmpty) {
-                return const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.notifications_none, color: Colors.white24, size: 72),
-                      SizedBox(height: 16),
-                      Text('لا توجد إشعارات', style: TextStyle(color: Colors.white54, fontSize: 18)),
-                    ],
-                  ),
-                );
-              }
-
-              return ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: sorted.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final doc = sorted[index];
-                  final data = doc.data() as Map<String, dynamic>;
-                  return _NotificationTile(docId: doc.id, data: data);
-                },
-              );
-            },
+      body: NestedScrollView(
+        headerSliverBuilder: (context, _) => [
+          AppSliverBar(
+            title: 'الإشعارات',
+            leading: backButton,
+            automaticallyImplyLeading: false,
+            actions: [
+              TextButton(
+                onPressed: _markAllRead,
+                child: const Text('قراءة الكل',
+                    style: TextStyle(color: _gold, fontSize: 13)),
+              ),
+            ],
           ),
+        ],
+        body: StreamBuilder<QuerySnapshot>(
+          stream: NotificationsScreen.getNotificationsStream(
+              userId: _userId, isAdmin: _isAdmin),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                  child: CircularProgressIndicator(color: _gold));
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+            final sorted = List.of(docs)
+              ..sort((a, b) {
+                final aTime =
+                    (a.data() as Map)['createdAt'] as Timestamp?;
+                final bTime =
+                    (b.data() as Map)['createdAt'] as Timestamp?;
+                if (aTime == null || bTime == null) return 0;
+                return bTime.compareTo(aTime);
+              });
+
+            if (sorted.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.notifications_none,
+                        color: Colors.white24, size: 72),
+                    SizedBox(height: 16),
+                    Text('لا توجد إشعارات',
+                        style:
+                            TextStyle(color: Colors.white54, fontSize: 18)),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: sorted.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (context, index) {
+                final doc = sorted[index];
+                final data = doc.data() as Map<String, dynamic>;
+                return _NotificationTile(docId: doc.id, data: data);
+              },
+            );
+          },
         ),
-      ]),
+      ),
     );
   }
 }
@@ -220,7 +240,8 @@ class _NotificationTile extends StatelessWidget {
     final body = data['body'] as String? ?? '';
     final orderId = data['orderId'] as String? ?? '';
     final createdAt = data['createdAt'] as Timestamp?;
-    final timeStr = createdAt != null ? _timeAgo(createdAt.toDate()) : '';
+    final timeStr =
+        createdAt != null ? _timeAgo(createdAt.toDate()) : '';
 
     return GestureDetector(
       onTap: () {
@@ -248,7 +269,8 @@ class _NotificationTile extends StatelessWidget {
           color: _panel,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isRead ? Colors.white10 : _gold.withValues(alpha: 0.35),
+            color:
+                isRead ? Colors.white10 : _gold.withValues(alpha: 0.35),
           ),
         ),
         child: Row(

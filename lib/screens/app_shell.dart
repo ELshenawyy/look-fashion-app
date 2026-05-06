@@ -13,7 +13,7 @@ import 'package:my_fashion_app/screens/cart.dart';
 import 'package:my_fashion_app/services/cart_provider.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({Key? key}) : super(key: key);
+  const AppShell({super.key});
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -34,11 +34,8 @@ class _AppShellState extends State<AppShell> {
 
     // If no user is logged in, return a login screen or splash
     if (user == null) {
-      print('DEBUG: No user logged in');
-      return LoginPage();
+      return const LoginPage();
     }
-
-    print('DEBUG: Current User UID: ${user.uid}');
 
     // Real-time StreamBuilder to listen to user role changes
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -47,9 +44,6 @@ class _AppShellState extends State<AppShell> {
           .doc(user.uid)
           .snapshots(),
       builder: (context, snapshot) {
-        print(
-            'DEBUG: StreamBuilder state - connectionState: ${snapshot.connectionState}');
-
         bool isAdmin = false;
         dynamic rawRole;
 
@@ -57,18 +51,6 @@ class _AppShellState extends State<AppShell> {
           final userData = snapshot.data?.data();
           rawRole = userData?['role'];
           isAdmin = rawRole is String && rawRole.toLowerCase() == 'admin';
-
-          print('DEBUG: Firestore data received: $userData');
-          print(
-              'DEBUG: Raw role value: $rawRole (type: ${rawRole.runtimeType})');
-          print(
-              'TERMINAL LOG: UID: ${user.uid} | IsAdmin: $isAdmin | RawRole: $rawRole');
-        } else if (snapshot.hasError) {
-          print('DEBUG: Error fetching user role: ${snapshot.error}');
-          print(
-              'TERMINAL LOG: UID: ${user.uid} | IsAdmin: false | RawRole: null');
-        } else if (snapshot.connectionState == ConnectionState.waiting) {
-          print('DEBUG: Waiting for Firestore data...');
         }
 
         final pages = <Widget>[
@@ -89,7 +71,6 @@ class _AppShellState extends State<AppShell> {
                     FloatingActionButton.small(
                       backgroundColor: Colors.blue,
                       heroTag: 'dashboard',
-                      child: const Icon(Icons.dashboard),
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -99,12 +80,12 @@ class _AppShellState extends State<AppShell> {
                         );
                       },
                       tooltip: 'لوحة الإدارة',
+                      child: const Icon(Icons.dashboard),
                     ),
                     const SizedBox(height: 12),
                     FloatingActionButton(
                       backgroundColor: const Color(0xFF800000),
                       heroTag: 'add',
-                      child: const Icon(Icons.add),
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -114,6 +95,7 @@ class _AppShellState extends State<AppShell> {
                         );
                       },
                       tooltip: 'إضافة منتج',
+                      child: const Icon(Icons.add),
                     ),
                   ],
                 )

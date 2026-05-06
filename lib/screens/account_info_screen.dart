@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AccountInfoScreen extends StatelessWidget {
-  const AccountInfoScreen({Key? key}) : super(key: key);
+  const AccountInfoScreen({super.key});
 
   static const Color _gold = Color(0xFFD4AF37);
 

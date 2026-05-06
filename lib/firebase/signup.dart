@@ -8,7 +8,10 @@ import 'auth_service.dart';
 import 'login.dart';
 
 class Signup extends StatefulWidget {
+  const Signup({super.key});
+
   @override
+  // ignore: library_private_types_in_public_api
   _SignupState createState() => _SignupState();
 }
 
@@ -28,7 +31,7 @@ class _SignupState extends State<Signup> {
 
     if (_password != _confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('كلمة المرور وتأكيدها غير متطابقين'),
           backgroundColor: Colors.red,
         ),
@@ -38,7 +41,7 @@ class _SignupState extends State<Signup> {
 
     if (_name.trim().isEmpty || _email.trim().isEmpty || _password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('الاسم والبريد الإلكتروني وكلمة المرور مطلوبة'),
           backgroundColor: Colors.red,
         ),
@@ -49,7 +52,7 @@ class _SignupState extends State<Signup> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
@@ -71,22 +74,22 @@ class _SignupState extends State<Signup> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      if (!mounted) return;
       Navigator.of(context).pop();
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('تم إنشاء الحساب بنجاح.'),
           backgroundColor: Colors.green,
         ),
       );
-
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const AppShell()),
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop();
-      print('Sign Up FirebaseAuthException: ${e.code} - ${e.message}');
+      debugPrint('Sign Up FirebaseAuthException: ${e.code} - ${e.message}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('حدث خطأ: ${e.message ?? e.code}'),
@@ -94,8 +97,9 @@ class _SignupState extends State<Signup> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       Navigator.of(context).pop();
-      print('Sign Up Error: $e');
+      debugPrint('Sign Up Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ غير متوقع: $e'),
@@ -109,7 +113,7 @@ class _SignupState extends State<Signup> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/backkk.png'),
             fit: BoxFit.cover,
@@ -117,19 +121,19 @@ class _SignupState extends State<Signup> {
         ),
         child: Center(
           child: Container(
-            padding: EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16.0),
             constraints: BoxConstraints(
               maxWidth: 600.0,
               maxHeight: MediaQuery.of(context).size.height,
             ),
             child: SingleChildScrollView(
-              physics: ClampingScrollPhysics(),
+              physics: const ClampingScrollPhysics(),
               child: Form(
                 key: _formKey,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    SizedBox(
+                    const SizedBox(
                       child: Text(
                         'إنشاء حساب',
                         style: TextStyle(
@@ -139,31 +143,31 @@ class _SignupState extends State<Signup> {
                             fontSize: 30),
                       ),
                     ),
-                    SizedBox(height: 40.0),
+                    const SizedBox(height: 40.0),
                     TextFormField(
                       decoration: InputDecoration(
-                        prefixIcon: Icon(
+                        prefixIcon: const Icon(
                           Icons.person,
                           color: Colors.white,
                         ),
                         labelText: 'الاسم الكامل',
-                        labelStyle: TextStyle(
+                        labelStyle: const TextStyle(
                           color: Colors.white,
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.white,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.white,
                           ),
                         ),
                       ),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                       ),
                       onChanged: (value) {
@@ -179,31 +183,31 @@ class _SignupState extends State<Signup> {
                       },
                       cursorColor: Colors.white,
                     ),
-                    SizedBox(height: 16.0),
+                    const SizedBox(height: 16.0),
                     TextFormField(
                       decoration: InputDecoration(
-                        prefixIcon: Icon(
+                        prefixIcon: const Icon(
                           Icons.email,
                           color: Colors.white,
                         ),
                         labelText: 'البريد الإلكتروني',
-                        labelStyle: TextStyle(
+                        labelStyle: const TextStyle(
                           color: Colors.white,
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.white,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.white,
                           ),
                         ),
                       ),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                       ),
                       onChanged: (value) {
@@ -223,26 +227,26 @@ class _SignupState extends State<Signup> {
                       },
                       cursorColor: Colors.white,
                     ),
-                    SizedBox(height: 16.0),
+                    const SizedBox(height: 16.0),
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'كلمة المرور',
-                        labelStyle: TextStyle(
+                        labelStyle: const TextStyle(
                           color: Colors.white,
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.white,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.white,
                           ),
                         ),
-                        prefixIcon: Icon(
+                        prefixIcon: const Icon(
                           Icons.lock,
                           color: Colors.white,
                         ),
@@ -261,10 +265,10 @@ class _SignupState extends State<Signup> {
                         ),
                       ),
                       obscureText: _obscureText,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Color.fromARGB(255, 255, 255, 255),
                       ),
-                      cursorColor: Color.fromARGB(255, 255, 255, 255),
+                      cursorColor: const Color.fromARGB(255, 255, 255, 255),
                       onChanged: (value) {
                         setState(() {
                           _password = value;
@@ -280,26 +284,26 @@ class _SignupState extends State<Signup> {
                         return null;
                       },
                     ),
-                    SizedBox(height: 16.0),
+                    const SizedBox(height: 16.0),
                     TextFormField(
                       decoration: InputDecoration(
                         labelText: 'تأكيد كلمة المرور',
-                        labelStyle: TextStyle(
+                        labelStyle: const TextStyle(
                           color: Colors.white,
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.white,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(25.0),
-                          borderSide: BorderSide(
+                          borderSide: const BorderSide(
                             color: Colors.white,
                           ),
                         ),
-                        prefixIcon: Icon(
+                        prefixIcon: const Icon(
                           Icons.lock,
                           color: Colors.white,
                         ),
@@ -318,10 +322,10 @@ class _SignupState extends State<Signup> {
                         ),
                       ),
                       obscureText: _obscureTextt,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Color.fromARGB(255, 255, 255, 255),
                       ),
-                      cursorColor: Color.fromARGB(255, 255, 255, 255),
+                      cursorColor: const Color.fromARGB(255, 255, 255, 255),
                       onChanged: (value) {
                         setState(() {
                           _confirmPassword = value;
@@ -337,41 +341,41 @@ class _SignupState extends State<Signup> {
                         return null;
                       },
                     ),
-                    SizedBox(height: 40.0),
+                    const SizedBox(height: 40.0),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color.fromARGB(255, 87, 7, 7),
+                        backgroundColor: const Color.fromARGB(255, 87, 7, 7),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20.0),
                         ),
-                        padding: EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           vertical: 16.0,
                           horizontal: 120.0,
                         ),
                       ),
-                      child: Text(
+                      onPressed: _submitSignUp,
+                      child: const Text(
                         'إنشاء حساب',
                         style: TextStyle(
                             fontSize: 18.0,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'Arimo'),
                       ),
-                      onPressed: _submitSignUp,
                     ),
-                    SizedBox(height: 30),
+                    const SizedBox(height: 30),
                     Center(
                       child: RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
                           text: 'لديك حساب بالفعل؟ ',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Color.fromARGB(255, 255, 255, 255),
                             fontSize: 16.0,
                           ),
                           children: <TextSpan>[
                             TextSpan(
                               text: ' Log in',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 20.0,
                                 fontWeight: FontWeight.bold,
                                 color: Color.fromARGB(255, 87, 7, 7),
@@ -381,7 +385,7 @@ class _SignupState extends State<Signup> {
                                   Navigator.pushReplacement(
                                     context,
                                     MaterialPageRoute(
-                                        builder: (context) => LoginPage()),
+                                        builder: (context) => const LoginPage()),
                                   );
                                 },
                             ),

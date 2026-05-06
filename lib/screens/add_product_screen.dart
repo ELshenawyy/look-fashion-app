@@ -11,10 +11,10 @@ class AddProductScreen extends StatefulWidget {
   final String? productId;
 
   const AddProductScreen({
-    Key? key,
+    super.key,
     this.productData,
     this.productId,
-  }) : super(key: key);
+  });
 
   @override
   State<AddProductScreen> createState() => _AddProductScreenState();
@@ -119,10 +119,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل اختيار الصورة: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -295,6 +297,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         const SnackBar(
           content: Text('يرجى اختيار صورة للمنتج.'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -304,6 +307,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         const SnackBar(
           content: Text('يرجى اختيار مقاس واحد على الأقل.'),
           backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -313,6 +317,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         const SnackBar(
           content: Text('يرجى اختيار لون واحد على الأقل.'),
           backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -342,7 +347,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         final UploadTask uploadTask = storageRef.putFile(imageFile);
 
         await uploadTask.whenComplete(() {
-          print('Upload task completed successfully');
+          debugPrint('Upload task completed successfully');
         });
 
         imageUrl = await storageRef.getDownloadURL();
@@ -375,6 +380,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           const SnackBar(
             content: Text('تم تحديث المنتج بنجاح!'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       } else {
@@ -388,6 +394,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           const SnackBar(
             content: Text('تمت إضافة المنتج بنجاح!'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -395,13 +402,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e, stackTrace) {
-      print('Error saving product: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('Error saving product: $e');
+      debugPrint('Stack trace: $stackTrace');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر حفظ المنتج: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } finally {

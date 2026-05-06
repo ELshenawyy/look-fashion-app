@@ -6,7 +6,7 @@ import 'package:my_fashion_app/screens/notifications_screen.dart';
 /// AppBar موحد لكل صفحات التطبيق — يدعم تأثير الـ Sliver
 class AppSliverBar extends StatelessWidget {
   const AppSliverBar({
-    Key? key,
+    super.key,
     this.title,
     this.titleWidget,
     this.actions = const [],
@@ -17,7 +17,7 @@ class AppSliverBar extends StatelessWidget {
     this.backgroundColor = Colors.black,
     this.toolbarHeight = 56.0,
     this.automaticallyImplyLeading = false,
-  }) : super(key: key);
+  });
 
   final String? title;
   final Widget? titleWidget;
@@ -60,7 +60,7 @@ class AppSliverBar extends StatelessWidget {
 
 /// عنوان "طَلّة" — حرف الطاء ذهبي، الباقي أبيض
 class TalaAppBarTitle extends StatelessWidget {
-  const TalaAppBarTitle({Key? key}) : super(key: key);
+  const TalaAppBarTitle({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +92,7 @@ class TalaAppBarTitle extends StatelessWidget {
 
 /// زر الجرس مع badge لعدد الإشعارات غير المقروءة
 class NotificationBellAction extends StatelessWidget {
-  const NotificationBellAction({Key? key}) : super(key: key);
+  const NotificationBellAction({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -123,9 +123,11 @@ class NotificationBellAction extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.notifications_outlined,
                       color: Colors.white, size: 26),
-                  onPressed: () => Navigator.pushNamed(
+                  onPressed: () => Navigator.push(
                     context,
-                    '/notifications',
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen(),
+                    ),
                   ),
                 ),
                 if (count > 0)

@@ -2,17 +2,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class OrderChatScreen extends StatefulWidget {
   final String orderId;
   final String otherUserName;
 
   const OrderChatScreen({
-    Key? key,
+    super.key,
     required this.orderId,
     required this.otherUserName,
-  }) : super(key: key);
+  });
 
   @override
   State<OrderChatScreen> createState() => _OrderChatScreenState();
@@ -142,6 +141,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         const SnackBar(
           content: Text('رقم الهاتف غير متاح'),
           backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -156,6 +156,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         const SnackBar(
           content: Text('تعذر فتح واتساب'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -186,44 +187,46 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CustomScrollView(slivers: [
-        AppSliverBar(
-          titleWidget: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(chatTitle, style: const TextStyle(fontSize: 15, color: Colors.white)),
-              if (_isAdmin && _customerPhone.isNotEmpty)
-                Text(_customerPhone, style: const TextStyle(color: Colors.white54, fontSize: 12))
-              else if (_isAdmin && _customerEmail.isNotEmpty)
-                Text(_customerEmail, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-            ],
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
-            onPressed: () => Navigator.pop(context),
-          ),
-          automaticallyImplyLeading: false,
-          pinned: true,
-          floating: false,
-          snap: false,
-          actions: [
-            IconButton(
-              onPressed: _openWhatsApp,
-              icon: const Icon(Icons.chat, color: Color(0xFF25D366), size: 26),
-              tooltip: 'تواصل عبر واتساب',
-            ),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(chatTitle,
+                style: const TextStyle(fontSize: 15, color: Colors.white)),
+            if (_isAdmin && _customerPhone.isNotEmpty)
+              Text(_customerPhone,
+                  style:
+                      const TextStyle(color: Colors.white54, fontSize: 12))
+            else if (_isAdmin && _customerEmail.isNotEmpty)
+              Text(_customerEmail,
+                  style:
+                      const TextStyle(color: Colors.white54, fontSize: 12)),
           ],
         ),
-        SliverFillRemaining(
-          hasScrollBody: false,
-          child: Column(
+        actions: [
+          IconButton(
+            onPressed: _openWhatsApp,
+            icon:
+                const Icon(Icons.chat, color: Color(0xFF25D366), size: 26),
+            tooltip: 'تواصل عبر واتساب',
+          ),
+        ],
+      ),
+      body: Column(
         children: [
-          // Admin info banner for customer phone
+          // Admin info banner showing customer phone
           if (_isAdmin && _customerPhone.isNotEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: _panel,
               child: Row(
                 children: [
@@ -231,24 +234,32 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   const SizedBox(width: 8),
                   Text(
                     'رقم العميل: $_customerPhone',
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 13),
                   ),
                   const Spacer(),
                   GestureDetector(
                     onTap: _openWhatsApp,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                        color: const Color(0xFF25D366)
+                            .withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.4)),
+                        border: Border.all(
+                            color: const Color(0xFF25D366)
+                                .withValues(alpha: 0.4)),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.chat, color: Color(0xFF25D366), size: 14),
+                          Icon(Icons.chat,
+                              color: Color(0xFF25D366), size: 14),
                           SizedBox(width: 4),
-                          Text('واتساب', style: TextStyle(color: Color(0xFF25D366), fontSize: 12)),
+                          Text('واتساب',
+                              style: TextStyle(
+                                  color: Color(0xFF25D366), fontSize: 12)),
                         ],
                       ),
                     ),
@@ -256,13 +267,15 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                 ],
               ),
             ),
-          // Messages list
+
+          // Messages list — Expanded so it fills remaining space
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _messagesRef.orderBy('createdAt').snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: _gold));
+                  return const Center(
+                      child: CircularProgressIndicator(color: _gold));
                 }
 
                 final docs = snapshot.data?.docs ?? [];
@@ -272,36 +285,46 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.chat_bubble_outline, color: Colors.white24, size: 64),
+                        const Icon(Icons.chat_bubble_outline,
+                            color: Colors.white24, size: 64),
                         const SizedBox(height: 12),
                         const Text('ابدأ المحادثة',
-                            style: TextStyle(color: Colors.white54, fontSize: 16)),
+                            style: TextStyle(
+                                color: Colors.white54, fontSize: 16)),
                         const SizedBox(height: 4),
                         Text(
                             _isAdmin
                                 ? 'أرسل رسالة للعميل بخصوص هذا الطلب'
                                 : 'أرسل رسالة للتواصل بخصوص هذا الطلب',
-                            style: const TextStyle(color: Colors.white30, fontSize: 13)),
+                            style: const TextStyle(
+                                color: Colors.white30, fontSize: 13)),
                         const SizedBox(height: 16),
                         GestureDetector(
                           onTap: _openWhatsApp,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                              color: const Color(0xFF25D366)
+                                  .withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.4)),
+                              border: Border.all(
+                                  color: const Color(0xFF25D366)
+                                      .withValues(alpha: 0.4)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.chat, color: Color(0xFF25D366), size: 20),
+                                const Icon(Icons.chat,
+                                    color: Color(0xFF25D366), size: 20),
                                 const SizedBox(width: 8),
                                 Text(
                                     _isAdmin
                                         ? 'تواصل مع العميل عبر واتساب'
                                         : 'أو تواصل عبر واتساب',
-                                    style: const TextStyle(color: Color(0xFF25D366), fontSize: 14)),
+                                    style: const TextStyle(
+                                        color: Color(0xFF25D366),
+                                        fontSize: 14)),
                               ],
                             ),
                           ),
@@ -311,14 +334,16 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                   );
                 }
 
-                WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                WidgetsBinding.instance
+                    .addPostFrameCallback((_) => _scrollToBottom());
 
                 return ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                   itemCount: docs.length,
                   itemBuilder: (context, index) {
-                    final data = docs[index].data() as Map<String, dynamic>;
+                    final data =
+                        docs[index].data() as Map<String, dynamic>;
                     final isMe = data['senderId'] == user?.uid;
                     return _MessageBubble(data: data, isMe: isMe);
                   },
@@ -326,7 +351,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
               },
             ),
           ),
-          // Input bar
+
+          // Input bar — pinned at the bottom
           Container(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
             decoration: const BoxDecoration(
@@ -344,11 +370,13 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                       maxLines: null,
                       decoration: InputDecoration(
                         hintText: 'اكتب رسالة...',
-                        hintStyle: const TextStyle(color: Colors.white38),
+                        hintStyle:
+                            const TextStyle(color: Colors.white38),
                         filled: true,
-                        fillColor: Colors.white.withValues(alpha: 0.06),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        fillColor:
+                            Colors.white.withValues(alpha: 0.06),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
@@ -364,7 +392,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.send_rounded, color: Colors.black, size: 20),
+                      icon: const Icon(Icons.send_rounded,
+                          color: Colors.black, size: 20),
                       onPressed: _sendMessage,
                     ),
                   ),
@@ -373,9 +402,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ),
           ),
         ],
-          ),
-        ),
-      ]),
+      ),
     );
   }
 }
@@ -400,23 +427,31 @@ class _MessageBubble extends StatelessWidget {
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        constraints: BoxConstraints(
+            maxWidth: MediaQuery.of(context).size.width * 0.75),
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
         decoration: BoxDecoration(
-          color: isMe ? _gold.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.08),
+          color: isMe
+              ? _gold.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-            bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
+            bottomLeft:
+                isMe ? const Radius.circular(16) : const Radius.circular(4),
+            bottomRight:
+                isMe ? const Radius.circular(4) : const Radius.circular(16),
           ),
           border: Border.all(
-            color: isMe ? _gold.withValues(alpha: 0.3) : Colors.white12,
+            color: isMe
+                ? _gold.withValues(alpha: 0.3)
+                : Colors.white12,
           ),
         ),
         child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             if (!isMe)
               Padding(
@@ -432,7 +467,8 @@ class _MessageBubble extends StatelessWidget {
               ),
             Text(
               text,
-              style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4),
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 14, height: 1.4),
             ),
             const SizedBox(height: 4),
             Text(

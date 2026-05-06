@@ -23,16 +23,16 @@ void main() async {
     persistenceEnabled: true,
   );
 
-  print('✅ Firebase initialized successfully');
-  print('📱 Firestore configured for development (App Check not enforced)');
-  print('🔗 Project ID: ${FirebaseFirestore.instance.app.options.projectId}');
+  debugPrint('✅ Firebase initialized successfully');
+  debugPrint('📱 Firestore configured for development');
+  debugPrint('🔗 Project ID: ${FirebaseFirestore.instance.app.options.projectId}');
 
   runApp(
     ChangeNotifierProvider(
       create: (_) => Cart(),
       child: DevicePreview(
-        enabled: true,
-        builder: (context) => MyApp(),
+        enabled: false,
+        builder: (context) => const MyApp(),
       ),
     ),
   );
@@ -40,6 +40,8 @@ void main() async {
 
 class MyApp extends StatelessWidget {
   static const Color _gold = Color(0xFFD4AF37);
+
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -74,15 +76,16 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: MainScreen(),
+      home: const MainScreen(),
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({Key? key}) : super(key: key);
+  const MainScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _MainScreen createState() => _MainScreen();
 }
 
@@ -98,13 +101,13 @@ class _MainScreen extends State<MainScreen>
     super.initState();
 
     _animationController =
-        AnimationController(vsync: this, duration: Duration(seconds: 1));
+        AnimationController(vsync: this, duration: const Duration(seconds: 1));
 
     _buttonOffsetAnimation =
-        Tween<Offset>(begin: Offset(0, 1), end: Offset.zero).animate(
+        Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
             CurvedAnimation(parent: _animationController, curve: Curves.ease));
 
-    _textOffsetAnimation = Tween<Offset>(begin: Offset(0, 1), end: Offset.zero)
+    _textOffsetAnimation = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
         .animate(
             CurvedAnimation(parent: _animationController, curve: Curves.ease));
 
@@ -132,13 +135,13 @@ class _MainScreen extends State<MainScreen>
 
     // If user is logged in, go to AppShell (with admin check)
     if (user != null) {
-      return AppShell();
+      return const AppShell();
     }
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/back.png'),
             fit: BoxFit.cover,
@@ -150,7 +153,7 @@ class _MainScreen extends State<MainScreen>
             children: [
               SlideTransition(
                 position: _textOffsetAnimation,
-                child: Padding(
+                child: const Padding(
                   padding: EdgeInsets.only(left: 30.0),
                   child: Text(
                     'ماركات وإطلالات جديدة',
@@ -164,7 +167,7 @@ class _MainScreen extends State<MainScreen>
                   ),
                 ),
               ),
-              SizedBox(height: 50),
+              const SizedBox(height: 50),
               SlideTransition(
                 position: _textOffsetAnimation,
                 child: Text(
@@ -172,14 +175,14 @@ class _MainScreen extends State<MainScreen>
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _isTextAnimated
-                        ? Color.fromARGB(255, 255, 255, 255)
-                        : Color.fromARGB(255, 255, 255, 255),
+                        ? const Color.fromARGB(255, 255, 255, 255)
+                        : const Color.fromARGB(255, 255, 255, 255),
                     fontSize: 20,
                     fontFamily: 'arial',
                   ),
                 ),
               ),
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
               SlideTransition(
                 position: _buttonOffsetAnimation,
                 child: ElevatedButton(
@@ -187,22 +190,22 @@ class _MainScreen extends State<MainScreen>
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => AppShell()),
+                          builder: (context) => const AppShell()),
                     );
                   },
                   style: ElevatedButton.styleFrom(
                     foregroundColor: Colors.black,
-                    backgroundColor: Color.fromARGB(255, 255, 255, 255),
+                    backgroundColor: const Color.fromARGB(255, 255, 255, 255),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50.0),
-                      side: BorderSide(color: Color.fromARGB(255, 0, 0, 0)),
+                      side: const BorderSide(color: Color.fromARGB(255, 0, 0, 0)),
                     ),
                     padding:
-                        EdgeInsets.symmetric(vertical: 16.0, horizontal: 32.0),
-                    textStyle: TextStyle(fontSize: 20.0),
-                    minimumSize: Size(300.0, 60.0),
+                        const EdgeInsets.symmetric(vertical: 16.0, horizontal: 32.0),
+                    textStyle: const TextStyle(fontSize: 20.0),
+                    minimumSize: const Size(300.0, 60.0),
                   ),
-                  child: Text(
+                  child: const Text(
                     'ابدأ الآن',
                     style: TextStyle(
                         color: Color.fromARGB(255, 0, 0, 0),
@@ -212,30 +215,30 @@ class _MainScreen extends State<MainScreen>
                   ),
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               SlideTransition(
                 position: _buttonOffsetAnimation,
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => LoginPage()),
+                      MaterialPageRoute(builder: (context) => const LoginPage()),
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    foregroundColor: Color.fromARGB(255, 255, 255, 255),
-                    backgroundColor: Color.fromARGB(0, 255, 255, 255),
+                    foregroundColor: const Color.fromARGB(255, 255, 255, 255),
+                    backgroundColor: const Color.fromARGB(0, 255, 255, 255),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(50.0),
                       side:
-                          BorderSide(color: Color.fromARGB(255, 255, 255, 255)),
+                          const BorderSide(color: Color.fromARGB(255, 255, 255, 255)),
                     ),
                     padding:
-                        EdgeInsets.symmetric(vertical: 16.0, horizontal: 32.0),
-                    textStyle: TextStyle(fontSize: 20.0),
-                    minimumSize: Size(300.0, 60.0),
+                        const EdgeInsets.symmetric(vertical: 16.0, horizontal: 32.0),
+                    textStyle: const TextStyle(fontSize: 20.0),
+                    minimumSize: const Size(300.0, 60.0),
                   ),
-                  child: Text(
+                  child: const Text(
                     'تسجيل الدخول',
                     style: TextStyle(
                         color: Color.fromARGB(255, 255, 255, 255),
@@ -245,7 +248,7 @@ class _MainScreen extends State<MainScreen>
                   ),
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
             ],
           ),
         ),

@@ -6,7 +6,7 @@ import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class FavoritesScreen extends StatelessWidget {
-  const FavoritesScreen({Key? key}) : super(key: key);
+  const FavoritesScreen({super.key});
 
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _maroon = Color(0xFF800000);
@@ -48,10 +48,12 @@ class FavoritesScreen extends StatelessWidget {
           .doc(favoriteId)
           .delete();
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر إزالة المنتج من المفضلة: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -232,10 +234,10 @@ class FavoritesScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return CustomScrollView(
+      return const CustomScrollView(
         slivers: [
           _appBar,
-          const SliverFillRemaining(
+          SliverFillRemaining(
             child: Center(
               child: Padding(
                 padding: EdgeInsets.all(24),
@@ -259,10 +261,10 @@ class FavoritesScreen extends StatelessWidget {
       stream: _favoritesStream(user.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return CustomScrollView(
+          return const CustomScrollView(
             slivers: [
               _appBar,
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 child: Center(
                   child: CircularProgressIndicator(color: _gold),
                 ),
@@ -294,10 +296,10 @@ class FavoritesScreen extends StatelessWidget {
         final products = snapshot.data ?? const <Product>[];
 
         if (products.isEmpty) {
-          return CustomScrollView(
+          return const CustomScrollView(
             slivers: [
               _appBar,
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 child: Center(
                   child: Padding(
                     padding: EdgeInsets.all(24),

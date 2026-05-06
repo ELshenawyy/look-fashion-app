@@ -4,7 +4,7 @@ import 'package:my_fashion_app/screens/order_chat_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
-  const AdminOrdersScreen({Key? key}) : super(key: key);
+  const AdminOrdersScreen({super.key});
 
   @override
   State<AdminOrdersScreen> createState() => _AdminOrdersScreenState();
@@ -56,12 +56,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         SnackBar(
           content: Text('تم تحديث الحالة إلى: ${_statusLabel(newStatus)}'),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('خطأ: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -149,8 +154,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CustomScrollView(
-        slivers: [
+      body: NestedScrollView(
+        headerSliverBuilder: (context, _) => [
           AppSliverBar(
             title: 'إدارة الطلبات',
             leading: IconButton(
@@ -159,85 +164,77 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             ),
             automaticallyImplyLeading: false,
           ),
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Column(
-              children: [
-                SizedBox(
-                  height: 48,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: _statusOptions.map((opt) {
-                      final isSelected = _statusFilter == opt['value'];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: ChoiceChip(
-                          label: Text(opt['label']!),
-                          selected: isSelected,
-                          selectedColor: _gold,
-                          backgroundColor: _panel,
-                          labelStyle: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white70,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          side: BorderSide(color: isSelected ? _gold : Colors.white24),
-                          onSelected: (_) => setState(() => _statusFilter = opt['value']!),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: StreamBuilder<QuerySnapshot>(
-                    stream: _getOrdersStream(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator(color: _gold));
-                      }
-                      if (snapshot.hasError) {
-                        return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
-                      }
-
-                      final docs = snapshot.data?.docs ?? [];
-                      docs.sort((a, b) {
-                        final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
-                        final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
-                        if (aTime == null || bTime == null) return 0;
-                        return bTime.compareTo(aTime);
-                      });
-
-                      if (docs.isEmpty) {
-                        return const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.receipt_long_outlined, color: Colors.white24, size: 72),
-                              SizedBox(height: 16),
-                              Text('لا توجد طلبات', style: TextStyle(color: Colors.white54, fontSize: 18)),
-                            ],
-                          ),
-                        );
-                      }
-
-                      return ListView.separated(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: docs.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final doc = docs[index];
-                          final data = doc.data() as Map<String, dynamic>;
-                          return _buildOrderCard(doc.id, data);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 56,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                children: _statusOptions.map((opt) {
+                  final isSelected = _statusFilter == opt['value'];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ChoiceChip(
+                      label: Text(opt['label']!),
+                      selected: isSelected,
+                      selectedColor: _gold,
+                      backgroundColor: _panel,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.black : Colors.white70,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      side: BorderSide(color: isSelected ? _gold : Colors.white24),
+                      onSelected: (_) => setState(() => _statusFilter = opt['value']!),
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ],
+        body: StreamBuilder<QuerySnapshot>(
+          stream: _getOrdersStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: _gold));
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('خطأ: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+            }
+
+            final docs = List.of(snapshot.data?.docs ?? [])
+              ..sort((a, b) {
+                final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
+                final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
+                if (aTime == null || bTime == null) return 0;
+                return bTime.compareTo(aTime);
+              });
+
+            if (docs.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.receipt_long_outlined, color: Colors.white24, size: 72),
+                    SizedBox(height: 16),
+                    Text('لا توجد طلبات', style: TextStyle(color: Colors.white54, fontSize: 18)),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(12),
+              itemCount: docs.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final doc = docs[index];
+                final data = doc.data() as Map<String, dynamic>;
+                return _buildOrderCard(doc.id, data);
+              },
+            );
+          },
+        ),
       ),
     );
   }

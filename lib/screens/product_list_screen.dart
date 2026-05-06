@@ -12,9 +12,10 @@ import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 class ProductListScreen extends StatefulWidget {
-  const ProductListScreen({Key? key}) : super(key: key);
+  const ProductListScreen({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _ProductListScreenState createState() => _ProductListScreenState();
 }
 
@@ -64,9 +65,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
           _speechAvailable = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text(
                 'عذراً، حدث خطأ في التعرف على الصوت. تحقق من صلاحيات الميكروفون.'),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       },
@@ -82,9 +84,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
           _speechAvailable = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
               content: Text(
-                  'التعرف الصوتي غير مفعل. يرجى السماح بالوصول إلى الميكروفون من إعدادات الجهاز.')),
+                  'التعرف الصوتي غير مفعل. يرجى السماح بالوصول إلى الميكروفون من إعدادات الجهاز.'),
+              behavior: SnackBarBehavior.floating,
+          ),
         );
         await _showSpeechPermissionDialog();
       }
@@ -114,8 +118,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('ترخيص الميكروفون مطلوب'),
-        content: Text(
+        title: const Text('ترخيص الميكروفون مطلوب'),
+        content: const Text(
             'التعرف الصوتي غير مفعل. الرجاء السماح بالوصول إلى الميكروفون من إعدادات التطبيق ثم إعادة المحاولة.'),
         actions: [
           TextButton(
@@ -123,11 +127,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
               Navigator.of(context).pop();
               _startListening();
             },
-            child: Text('إعادة المحاولة'),
+            child: const Text('إعادة المحاولة'),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('إغلاق'),
+            child: const Text('إغلاق'),
           ),
         ],
       ),
@@ -138,7 +142,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   void initState() {
     super.initState();
     // start the timer when the widget is initialized
-    _timer = Timer.periodic(Duration(seconds: 4), (timer) {
+    _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
       setState(() {
         currentIndex = (currentIndex + 1) % allimages.length;
       });
@@ -184,15 +188,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
           _stopListening();
         }
       },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF000000),
-        body: CustomScrollView(
+      child: CustomScrollView(
           slivers: [
             _buildSliverAppBar(user),
             SliverToBoxAdapter(
               child: Column(
                 children: [
-              Text(
+              const Text(
                 'اكتشف أفضل تجربة تسوق',
                 textAlign: TextAlign.left,
                 style: TextStyle(
@@ -200,7 +202,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   fontSize: 25,
                 ),
               ),
-              Align(
+              const Align(
                 alignment: Alignment.topCenter,
                 child: Text(
                   'لاختيار الملابس وشرائها بسهولة',
@@ -211,14 +213,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
                 width: _isSearchFocused ? 350 : 350,
                 decoration: BoxDecoration(
-                  color: Color.fromARGB(255, 87, 7, 7),
+                  color: const Color.fromARGB(255, 87, 7, 7),
                   border: Border.all(
-                    color: Color.fromARGB(255, 255, 255, 255),
+                    color: const Color.fromARGB(255, 255, 255, 255),
                   ),
                   borderRadius: BorderRadius.circular(50),
                 ),
@@ -227,19 +229,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     Expanded(
                         child: TextField(
                       controller: _searchController,
-                      decoration: InputDecoration(
+                      decoration: const InputDecoration(
                         hintText: 'ابحث عن المنتجات أو اضغط على الميكروفون',
                         border: InputBorder.none,
                         hintStyle: TextStyle(
                           color: Color.fromARGB(255, 255, 255, 255),
                         ),
                       ),
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Color.fromARGB(255, 255, 255, 255),
                       ),
                       cursorHeight: 20,
                       cursorWidth: 2,
-                      cursorColor: Color.fromARGB(255, 255, 255, 255),
+                      cursorColor: const Color.fromARGB(255, 255, 255, 255),
                       textInputAction: TextInputAction.search,
                       maxLines: 1,
                       textAlignVertical: TextAlignVertical.center,
@@ -252,13 +254,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         // Perform search
                       },
                     )),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     IconButton(
                       icon: Icon(
                         _isListening ? Icons.mic : Icons.mic_none,
                         color: _isListening
                             ? Colors.yellow
-                            : Color.fromARGB(255, 255, 255, 255),
+                            : const Color.fromARGB(255, 255, 255, 255),
                       ),
                       onPressed: () async {
                         if (_isListening) {
@@ -269,7 +271,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       },
                     ),
                     IconButton(
-                      icon: Icon(
+                      icon: const Icon(
                         Icons.search,
                         color: Color.fromARGB(255, 255, 255, 255),
                       ),
@@ -288,7 +290,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
               ),
               if (!_speechAvailable && !_isListening)
-                Padding(
+                const Padding(
                   padding:
                       EdgeInsets.only(top: 6, bottom: 6, left: 20, right: 20),
                   child: Text(
@@ -298,7 +300,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ),
                 ),
               Container(
-                margin: EdgeInsets.only(top: 20),
+                margin: const EdgeInsets.only(top: 20),
                 height: h * 0.27,
                 width: 360,
                 child: PageView.builder(
@@ -338,7 +340,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 ],
                               ),
                             ),
-                            padding: EdgeInsets.all(16.0),
+                            padding: const EdgeInsets.all(16.0),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -349,13 +351,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   child: Container(
                                     decoration: BoxDecoration(
                                       border: Border.all(
-                                          color: Color.fromARGB(255, 0, 0, 0)),
+                                          color: const Color.fromARGB(255, 0, 0, 0)),
                                       borderRadius: BorderRadius.circular(12),
                                       color: Colors.grey,
                                     ),
-                                    padding: EdgeInsets.symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                         horizontal: 6.0, vertical: 2.0),
-                                    child: Text(
+                                    child: const Text(
                                       'استكشف',
                                       style: TextStyle(
                                         color: Color.fromARGB(255, 87, 7, 7),
@@ -366,7 +368,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     ),
                                   ),
                                 ),
-                                Row(
+                                const Row(
                                   children: [
                                     Icon(
                                       Icons.circle,
@@ -396,10 +398,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   },
                 ),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               // ── قسم تسوق حسب الفئة ──
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -416,12 +418,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ],
                 ),
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               SizedBox(
                 height: 110,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: kCategoryData.length,
                   itemBuilder: (context, index) {
                     final data = kCategoryData[index];
@@ -492,9 +495,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   },
                 ),
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: Color.fromARGB(255, 87, 7, 7),
                   borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(20),
@@ -504,8 +507,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -530,7 +533,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       ),
                     ),
                     Container(
-                      margin: EdgeInsets.only(top: 20),
+                      margin: const EdgeInsets.only(top: 20),
                       height: h * 0.26,
                       width: 380,
                       child: StreamBuilder<List<Product>>(
@@ -543,7 +546,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
                             // Check if products list is empty
                             if (products.isEmpty) {
-                              return Center(
+                              return const Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -576,6 +579,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
                             return ListView.builder(
                               scrollDirection: Axis.horizontal,
+                              physics: const AlwaysScrollableScrollPhysics(),
                               itemCount: products.length,
                               itemBuilder: (BuildContext context, int index) {
                                 Product product = products[index];
@@ -590,7 +594,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                       ),
                                     );
                                   },
-                                  child: Container(
+                                  child: SizedBox(
                                     width: 190,
                                     child: Column(
                                       crossAxisAlignment:
@@ -607,8 +611,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                               width: 150,
                                               loadingBuilder: (context, child,
                                                   loadingProgress) {
-                                                if (loadingProgress == null)
+                                                if (loadingProgress == null) {
                                                   return child;
+                                                }
                                                 return Container(
                                                   width: 150,
                                                   height: 150,
@@ -644,20 +649,20 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                             ),
                                           ),
                                         ),
-                                        SizedBox(height: 10),
+                                        const SizedBox(height: 10),
                                         Text(
                                           product.title,
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 20,
                                             fontFamily: 'times new roman',
                                           ),
                                           textAlign: TextAlign.center,
                                         ),
-                                        SizedBox(height: 10),
+                                        const SizedBox(height: 10),
                                         Text(
                                           'السعر: ${product.price.toString()} ج.م',
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: Color.fromARGB(
                                                 255, 255, 238, 0),
                                             fontSize: 16,
@@ -675,7 +680,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             return Text("حدث خطأ: ${snapshot.error}");
                           }
                           // By default, show a loading spinner.
-                          return Center(
+                          return const Center(
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: <Widget>[
@@ -693,9 +698,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         },
                       ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     Container(
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: Color.fromARGB(255, 255, 255, 255),
                         borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(20),
@@ -708,11 +713,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           Container(
                             height: 4,
                             width: 100,
-                            color: Color.fromARGB(255, 0, 0, 0),
-                            margin: EdgeInsets.only(top: 10, left: 20),
+                            color: const Color.fromARGB(255, 0, 0, 0),
+                            margin: const EdgeInsets.only(top: 10, left: 20),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.all(16.0),
+                          const Padding(
+                            padding: EdgeInsets.all(16.0),
                             child: Text(
                               'مقترح لك',
                               style: TextStyle(
@@ -724,7 +729,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             ),
                           ),
                           Container(
-                            margin: EdgeInsets.symmetric(horizontal: 16),
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
                             height: 350,
                             child: StreamBuilder<List<Product>>(
                               stream: productService.getProductsStream(),
@@ -736,7 +741,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
                                   // Check if products list is empty
                                   if (products.isEmpty) {
-                                    return Center(
+                                    return const Center(
                                       child: Column(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
@@ -761,8 +766,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   }
 
                                   return GridView.builder(
+                                    physics: const NeverScrollableScrollPhysics(),
                                     gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 2,
                                       crossAxisSpacing: 12,
                                       mainAxisSpacing: 12,
@@ -796,11 +802,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                                   fit: BoxFit.cover,
                                                   loadingBuilder: (context,
                                                       child, loadingProgress) {
-                                                    if (loadingProgress == null)
+                                                    if (loadingProgress == null) {
                                                       return child;
+                                                    }
                                                     return Container(
                                                       color: Colors.grey[200],
-                                                      child: Center(
+                                                      child: const Center(
                                                         child:
                                                             CircularProgressIndicator(),
                                                       ),
@@ -820,10 +827,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                                 ),
                                               ),
                                             ),
-                                            SizedBox(height: 8),
+                                            const SizedBox(height: 8),
                                             Text(
                                               product.title,
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 color: Colors.black87,
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
@@ -831,10 +838,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
-                                            SizedBox(height: 4),
+                                            const SizedBox(height: 4),
                                             Text(
                                               '${product.price.toStringAsFixed(2)} ج.م',
-                                              style: TextStyle(
+                                              style: const TextStyle(
                                                 color: Color.fromARGB(
                                                     255, 200, 100, 0),
                                                 fontSize: 14,
@@ -850,17 +857,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   return Center(
                                     child: Text(
                                       'حدث خطأ: ${snapshot.error}',
-                                      style: TextStyle(color: Colors.red),
+                                      style: const TextStyle(color: Colors.red),
                                     ),
                                   );
                                 }
-                                return Center(
+                                return const Center(
                                   child: CircularProgressIndicator(),
                                 );
                               },
                             ),
                           ),
-                          SizedBox(height: 20),
+                          const SizedBox(height: 20),
                         ],
                       ),
                     ),
@@ -872,7 +879,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ),
         ],
       ),
-    ),
-  );
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -11,10 +12,10 @@ class AuthService {
         email: email,
         password: password,
       );
-      print('User registered: ${userCredential.user?.email}');
+      debugPrint('User registered: ${userCredential.user?.email}');
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      print('Firebase Error: ${e.code} - ${e.message}');
+      debugPrint('Firebase Error: ${e.code} - ${e.message}');
       rethrow;
     }
   }
@@ -26,10 +27,10 @@ class AuthService {
         email: email,
         password: password,
       );
-      print('User signed in: ${userCredential.user?.email}');
+      debugPrint('User signed in: ${userCredential.user?.email}');
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      print('Firebase Error: ${e.code} - ${e.message}');
+      debugPrint('Firebase Error: ${e.code} - ${e.message}');
       rethrow;
     }
   }
@@ -71,10 +72,10 @@ class AuthService {
         smsCode: smsCode,
       );
       UserCredential userCredential = await _auth.signInWithCredential(credential);
-      print('User signed in with phone: ${userCredential.user?.phoneNumber}');
+      debugPrint('User signed in with phone: ${userCredential.user?.phoneNumber}');
       return userCredential;
     } on FirebaseAuthException catch (e) {
-      print('Firebase Error: ${e.code} - ${e.message}');
+      debugPrint('Firebase Error: ${e.code} - ${e.message}');
       rethrow;
     }
   }

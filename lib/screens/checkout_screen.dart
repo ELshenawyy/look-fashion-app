@@ -6,7 +6,7 @@ import 'package:my_fashion_app/services/cart_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({Key? key}) : super(key: key);
+  const CheckoutScreen({super.key});
 
   @override
   State<CheckoutScreen> createState() => _CheckoutScreenState();
@@ -226,7 +226,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _showSnack(String msg, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -439,11 +443,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   isExpanded: true,
                   dropdownColor: const Color(0xFF1E1010),
                   icon: const Icon(Icons.keyboard_arrow_down_rounded, color: _gold),
-                  hint: Row(
+                  hint: const Row(
                     children: [
-                      const Icon(Icons.map_outlined, color: _gold, size: 20),
-                      const SizedBox(width: 12),
-                      const Text('اختر الولاية', style: TextStyle(color: Colors.white54)),
+                      Icon(Icons.map_outlined, color: _gold, size: 20),
+                      SizedBox(width: 12),
+                      Text('اختر الولاية', style: TextStyle(color: Colors.white54)),
                     ],
                   ),
                   items: _sudanStates.map((state) {
@@ -486,11 +490,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white12),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.schedule_rounded, color: Colors.white54, size: 16),
-                    const SizedBox(width: 8),
-                    const Text(
+                    Icon(Icons.schedule_rounded, color: Colors.white54, size: 16),
+                    SizedBox(width: 8),
+                    Text(
                       'مدة التوصيل المتوقعة: من 1 إلى 15 يوم',
                       style: TextStyle(color: Colors.white54, fontSize: 13),
                     ),

@@ -12,12 +12,13 @@ class OTPScreen extends StatefulWidget {
   final String phoneNumber;
 
   const OTPScreen({
-    Key? key,
+    super.key,
     required this.verificationId,
     required this.phoneNumber,
-  }) : super(key: key);
+  });
 
   @override
+  // ignore: library_private_types_in_public_api
   _OTPScreenState createState() => _OTPScreenState();
 }
 
@@ -51,7 +52,7 @@ class _OTPScreenState extends State<OTPScreen> {
       _remainingSeconds = 60;
       _isResendAvailable = false;
     });
-    _countdownTimer = Timer.periodic(Duration(seconds: 1), (timer) {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
       if (_remainingSeconds <= 1) {
         timer.cancel();
@@ -83,7 +84,7 @@ class _OTPScreenState extends State<OTPScreen> {
         });
         _startCountdown();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم إرسال رمز جديد.')),
+          const SnackBar(content: Text('تم إرسال رمز جديد.')),
         );
       },
       (FirebaseAuthException e) {
@@ -102,21 +103,21 @@ class _OTPScreenState extends State<OTPScreen> {
     final smsCode = _otpController.text.trim();
     if (smsCode.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('يرجى إدخال رمز تحقق صحيح مكوّن من 6 أرقام')),
+        const SnackBar(content: Text('يرجى إدخال رمز تحقق صحيح مكوّن من 6 أرقام')),
       );
       return;
     }
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
     try {
       await AuthService.signInWithPhone(_verificationId, smsCode);
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم تسجيل الدخول بنجاح!')),
+        const SnackBar(content: Text('تم تسجيل الدخول بنجاح!')),
       );
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const AppShell()),
@@ -145,11 +146,11 @@ class _OTPScreenState extends State<OTPScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = Color(0xFF9B0B19);
+    const themeColor = Color(0xFF9B0B19);
     final defaultPinTheme = PinTheme(
       width: 60,
       height: 60,
-      textStyle: TextStyle(
+      textStyle: const TextStyle(
         fontSize: 22,
         color: Colors.white,
         fontWeight: FontWeight.w700,
@@ -164,7 +165,7 @@ class _OTPScreenState extends State<OTPScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           image: DecorationImage(
             image: AssetImage('assets/backc.png'),
             fit: BoxFit.cover,
@@ -173,9 +174,9 @@ class _OTPScreenState extends State<OTPScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
                 decoration: BoxDecoration(
                   color: Colors.black.withAlpha((0.42 * 255).round()),
                   borderRadius: BorderRadius.circular(34),
@@ -183,7 +184,7 @@ class _OTPScreenState extends State<OTPScreen> {
                 ),
                 child: Column(
                   children: [
-                    Text(
+                    const Text(
                       'رمز التحقق',
                       style: TextStyle(
                         color: Colors.white,
@@ -192,17 +193,17 @@ class _OTPScreenState extends State<OTPScreen> {
                         fontFamily: 'arimo',
                       ),
                     ),
-                    SizedBox(height: 12),
+                    const SizedBox(height: 12),
                     Text(
                       'أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى ${widget.phoneNumber}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 16,
                         fontFamily: 'arial',
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 28),
+                    const SizedBox(height: 28),
                     Pinput(
                       length: 6,
                       controller: _otpController,
@@ -222,18 +223,18 @@ class _OTPScreenState extends State<OTPScreen> {
                       pinAnimationType: PinAnimationType.scale,
                       keyboardType: TextInputType.number,
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
+                        const Text(
                           'Resend available in ',
                           style: TextStyle(
                               color: Colors.white70, fontFamily: 'arial'),
                         ),
                         Text(
                           _timerText,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontFamily: 'arial',
@@ -241,7 +242,7 @@ class _OTPScreenState extends State<OTPScreen> {
                         ),
                       ],
                     ),
-                    SizedBox(height: 18),
+                    const SizedBox(height: 18),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor:
@@ -250,13 +251,13 @@ class _OTPScreenState extends State<OTPScreen> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
                         padding:
-                            EdgeInsets.symmetric(vertical: 14, horizontal: 48),
+                            const EdgeInsets.symmetric(vertical: 14, horizontal: 48),
                       ),
                       onPressed: _isResendAvailable && !_isSending
                           ? _resendCode
                           : null,
                       child: _isSending
-                          ? SizedBox(
+                          ? const SizedBox(
                               height: 18,
                               width: 18,
                               child: CircularProgressIndicator(
@@ -264,7 +265,7 @@ class _OTPScreenState extends State<OTPScreen> {
                                 strokeWidth: 2,
                               ),
                             )
-                          : Text(
+                          : const Text(
                               'Resend',
                               style: TextStyle(
                                   fontSize: 16,
@@ -272,7 +273,7 @@ class _OTPScreenState extends State<OTPScreen> {
                                   fontFamily: 'arial'),
                             ),
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themeColor,
@@ -280,10 +281,10 @@ class _OTPScreenState extends State<OTPScreen> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
                         padding:
-                            EdgeInsets.symmetric(vertical: 16, horizontal: 90),
+                            const EdgeInsets.symmetric(vertical: 16, horizontal: 90),
                       ),
                       onPressed: _verifyOTP,
-                      child: Text(
+                      child: const Text(
                         'تأكيد الرمز',
                         style: TextStyle(
                             fontSize: 18,

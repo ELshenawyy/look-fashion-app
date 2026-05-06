@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class About extends StatefulWidget {
-  const About({Key? key}) : super(key: key);
+  const About({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _About createState() => _About();
 }
 
@@ -29,13 +30,13 @@ class _About extends State<About> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             ClipRRect(
               borderRadius: BorderRadius.circular(100),
               child: Image.asset('assets/icon.png', height: 200),
             ),
-            SizedBox(height: 30),
-            Text(
+            const SizedBox(height: 30),
+            const Text(
               'تطبيق الأزياء',
               style: TextStyle(
                   fontSize: 36,
@@ -43,33 +44,33 @@ class _About extends State<About> {
                   color: Color.fromARGB(255, 251, 255, 0),
                   fontFamily: 'times new roman'),
             ),
-            SizedBox(height: 10),
-            Text(
+            const SizedBox(height: 10),
+            const Text(
               'الإصدار 1.0.0',
               style: TextStyle(
                 fontSize: 18,
                 color: Color.fromARGB(255, 255, 255, 255),
               ),
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             Container(
               width: double.infinity,
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              padding: EdgeInsets.all(20),
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.grey[400]!,
-                    offset: Offset(0, 3),
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
+                  const Text(
                     'عن التطبيق',
                     style: TextStyle(
                       fontSize: 24,
@@ -77,7 +78,7 @@ class _About extends State<About> {
                       color: Colors.black,
                     ),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Text(
                     'تطبيق الأزياء هو وجهتك المثالية لعشاق الموضة. يمكنك استعراض أحدث الصيحات، واكتشاف منتجات مميزة، وبناء إطلالتك الخاصة بسهولة. سواء كنت تهتم بالأزياء يوميًا أو تبحث عن قطع مميزة لمناسباتك، ستجد هنا ما يساعدك على الظهور بأفضل صورة.',
                     style: TextStyle(
@@ -88,25 +89,25 @@ class _About extends State<About> {
                 ],
               ),
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
             Container(
               width: double.infinity,
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              padding: EdgeInsets.all(20),
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.grey[400]!,
-                    offset: Offset(0, 3),
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
+                  const Text(
                     'تواصل معنا',
                     style: TextStyle(
                       fontSize: 24,
@@ -114,11 +115,11 @@ class _About extends State<About> {
                       color: Colors.black,
                     ),
                   ),
-                  SizedBox(height: 20),
+                  const SizedBox(height: 20),
                   Row(
                     children: [
                       Icon(Icons.email, color: Colors.grey[600]),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Text(
                         'support@MyFashionApp.com',
                         style: TextStyle(
@@ -128,11 +129,11 @@ class _About extends State<About> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Icon(Icons.phone, color: Colors.grey[600]),
-                      SizedBox(width: 10),
+                      const SizedBox(width: 10),
                       Text(
                         '+1 (123) 456-7890',
                         style: TextStyle(
@@ -145,7 +146,7 @@ class _About extends State<About> {
                 ],
               ),
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
           ],
         ),
       ),

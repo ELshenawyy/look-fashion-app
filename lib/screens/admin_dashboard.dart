@@ -6,9 +6,10 @@ import 'package:my_fashion_app/screens/admin_orders_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AdminDashboard extends StatefulWidget {
-  const AdminDashboard({Key? key}) : super(key: key);
+  const AdminDashboard({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
   _AdminDashboardState createState() => _AdminDashboardState();
 }
 
@@ -17,12 +18,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   late Stream<QuerySnapshot> _productsStream;
 
+  DateTime _resolveDate(Map<String, dynamic> data) {
+    final v = data['createdAt'] ?? data['updatedAt'];
+    if (v is Timestamp) return v.toDate();
+    if (v is DateTime) return v;
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
   @override
   void initState() {
     super.initState();
     _productsStream = FirebaseFirestore.instance
         .collection('products')
-        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
@@ -67,7 +74,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           final ref = FirebaseStorage.instance.refFromURL(imageUrl);
           await ref.delete();
         } catch (e) {
-          print('Error deleting image: $e');
+          debugPrint('Error deleting image: $e');
         }
       }
 
@@ -76,6 +83,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         const SnackBar(
           content: Text('تم حذف المنتج بنجاح'),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
@@ -84,6 +92,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         SnackBar(
           content: Text('تعذر حذف المنتج: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -105,8 +114,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CustomScrollView(
-        slivers: [
+      body: NestedScrollView(
+        headerSliverBuilder: (context, _) => [
           AppSliverBar(
             titleWidget: const Text(
               'لوحة الإدارة',
@@ -128,9 +137,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ],
           ),
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: StreamBuilder<QuerySnapshot>(
+        ],
+        body: StreamBuilder<QuerySnapshot>(
               stream: _productsStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -157,7 +165,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
             );
           }
 
-          final products = snapshot.data!.docs;
+          final products = snapshot.data!.docs.toList()
+            ..sort((a, b) {
+              final aDate = _resolveDate(a.data() as Map<String, dynamic>);
+              final bDate = _resolveDate(b.data() as Map<String, dynamic>);
+              return bDate.compareTo(aDate);
+            });
 
           return ListView.builder(
             padding: const EdgeInsets.all(8),
@@ -259,8 +272,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
           );
         },
       ),
-          ),
-        ],
       ),
     );
   }

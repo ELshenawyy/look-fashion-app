@@ -10,9 +10,9 @@ class ProductListingPage extends StatefulWidget {
   final String? categoryName;
 
   const ProductListingPage({
-    Key? key,
+    super.key,
     this.categoryName,
-  }) : super(key: key);
+  });
 
   @override
   State<ProductListingPage> createState() => _ProductListingPageState();
@@ -53,6 +53,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
         const SnackBar(
           content: Text('يرجى تسجيل الدخول لحفظ المنتجات في المفضلة.'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -98,6 +99,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
         SnackBar(
           content: Text('تعذر تحديث المفضلة: $e'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }

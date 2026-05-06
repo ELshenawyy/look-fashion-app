@@ -8,7 +8,7 @@ import 'package:my_fashion_app/screens/product_listing_page.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class CategoriesScreen extends StatelessWidget {
-  const CategoriesScreen({Key? key}) : super(key: key);
+  const CategoriesScreen({super.key});
 
   static const Color _bg = Color(0xFF0D1117);
 
@@ -37,21 +37,21 @@ class CategoriesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bg,
-      body: CustomScrollView(
+    return ColoredBox(
+      color: _bg,
+      child: CustomScrollView(
         slivers: [
-          AppSliverBar(
+          const AppSliverBar(
             title: 'التصنيفات',
             backgroundColor: _bg,
-            actions: const [NotificationBellAction()],
+            actions: [NotificationBellAction()],
           ),
-          SliverToBoxAdapter(
+          const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: const [
+                children: [
                   Text(
                     'الأقسام',
                     style: TextStyle(

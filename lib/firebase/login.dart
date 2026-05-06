@@ -10,7 +10,10 @@ import 'package:my_fashion_app/main.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
 
 class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
+
   @override
+  // ignore: library_private_types_in_public_api
   _LoginPageState createState() => _LoginPageState();
 }
 
@@ -36,7 +39,7 @@ class _LoginPageState extends State<LoginPage> {
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
               'تسجيل الدخول عبر الهاتف متاح فقط على أندرويد وiOS والويب.'),
         ),
@@ -47,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
     final phoneNumber = _completePhoneNumber.replaceAll(RegExp(r'\s+'), '');
     if (phoneNumber.isEmpty || !_isPhoneValid) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
             content:
                 Text('يرجى إدخال رقم هاتف صحيح مع مفتاح الدولة.')),
       );
@@ -81,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Center(child: CircularProgressIndicator()),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
     try {
       await AuthService.signIn(email, password);
@@ -117,12 +120,12 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = Color(0xFF9B0B19);
+     const themeColor = Color(0xFF9B0B19);
     return DefaultTabController(
       length: 2,
       child: Scaffold(
         body: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             image: DecorationImage(
               image: AssetImage('assets/backc.png'),
               fit: BoxFit.cover,
@@ -131,11 +134,11 @@ class _LoginPageState extends State<LoginPage> {
           child: SafeArea(
             child: Center(
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                constraints: BoxConstraints(maxWidth: 640),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                constraints: const BoxConstraints(maxWidth: 640),
                 child: Column(
                   children: [
-                    Text(
+                    const Text(
                       'مرحبًا بعودتك',
                       style: TextStyle(
                         color: Colors.white,
@@ -144,8 +147,8 @@ class _LoginPageState extends State<LoginPage> {
                         fontFamily: 'arimo',
                       ),
                     ),
-                    SizedBox(height: 8),
-                    Text(
+                    const SizedBox(height: 8),
+                    const Text(
                       'سجّل الدخول عبر الهاتف أو البريد الإلكتروني لمتابعة التسوق.',
                       style: TextStyle(
                         color: Colors.white70,
@@ -154,15 +157,15 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
                     Container(
-                      padding: EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         color: Colors.white24,
                         borderRadius: BorderRadius.circular(35),
                       ),
                       child: TabBar(
-                        indicatorPadding: EdgeInsets.all(4),
+                        indicatorPadding: const EdgeInsets.all(4),
                         indicator: BoxDecoration(
                           color: themeColor,
                           borderRadius: BorderRadius.circular(30),
@@ -170,30 +173,30 @@ class _LoginPageState extends State<LoginPage> {
                             BoxShadow(
                               color: themeColor.withAlpha((0.3 * 255).round()),
                               blurRadius: 12,
-                              offset: Offset(0, 6),
+                              offset: const Offset(0, 6),
                             ),
                           ],
                         ),
                         labelColor: Colors.white,
                         unselectedLabelColor: Colors.white70,
-                        labelStyle: TextStyle(
+                        labelStyle: const TextStyle(
                             fontWeight: FontWeight.bold, fontFamily: 'arial'),
-                        tabs: [
+                        tabs: const [
                           Tab(text: 'دخول الهاتف'),
                           Tab(text: 'دخول البريد'),
                         ],
                       ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     Expanded(
                       child: TabBarView(
                         children: [
                           SingleChildScrollView(
-                            physics: ClampingScrollPhysics(),
+                            physics: const ClampingScrollPhysics(),
                             child: Column(
                               children: [
-                                SizedBox(height: 20),
-                                Text(
+                                const SizedBox(height: 20),
+                                const Text(
                                   'تسجيل الدخول بالهاتف',
                                   style: TextStyle(
                                     color: Colors.white,
@@ -202,8 +205,8 @@ class _LoginPageState extends State<LoginPage> {
                                     fontFamily: 'arial',
                                   ),
                                 ),
-                                SizedBox(height: 12),
-                                Text(
+                                const SizedBox(height: 12),
+                                const Text(
                                   'استخدم رقم هاتفك واستلم رمز تحقق آمن.',
                                   style: TextStyle(
                                     color: Colors.white70,
@@ -212,32 +215,32 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
-                                SizedBox(height: 30),
+                                const SizedBox(height: 30),
                                 IntlPhoneField(
                                   controller: _phoneController,
                                   initialCountryCode: 'SD',
                                   showCountryFlag: true,
-                                  dropdownIcon: Icon(Icons.arrow_drop_down,
+                                  dropdownIcon: const Icon(Icons.arrow_drop_down,
                                       color: Colors.white),
-                                  style: TextStyle(color: Colors.white),
+                                  style: const TextStyle(color: Colors.white),
                                   decoration: InputDecoration(
                                     filled: true,
                                     fillColor: Colors.white24,
                                     hintText: 'رقم الهاتف',
-                                    hintStyle: TextStyle(color: Colors.white54),
+                                    hintStyle: const TextStyle(color: Colors.white54),
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(25),
                                       borderSide:
-                                          BorderSide(color: Colors.white24),
+                                          const BorderSide(color: Colors.white24),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(25),
                                       borderSide:
-                                          BorderSide(color: Colors.white24),
+                                          const BorderSide(color: Colors.white24),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(25),
-                                      borderSide: BorderSide(color: themeColor),
+                                      borderSide: const BorderSide(color: themeColor),
                                     ),
                                   ),
                                   keyboardType: TextInputType.phone,
@@ -259,7 +262,7 @@ class _LoginPageState extends State<LoginPage> {
                                     });
                                   },
                                 ),
-                                SizedBox(height: 30),
+                                const SizedBox(height: 30),
                                 ElevatedButton(
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _isPhoneValid
@@ -269,11 +272,11 @@ class _LoginPageState extends State<LoginPage> {
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
                                             BorderRadius.circular(30)),
-                                    padding: EdgeInsets.symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                         vertical: 16, horizontal: 110),
                                   ),
                                   onPressed: _isPhoneValid ? _sendOTP : null,
-                                  child: Text(
+                                  child: const Text(
                                     'إرسال الرمز',
                                     style: TextStyle(
                                         fontSize: 18,
@@ -281,25 +284,25 @@ class _LoginPageState extends State<LoginPage> {
                                         fontFamily: 'arial'),
                                   ),
                                 ),
-                                SizedBox(height: 14),
-                                Text(
+                                const SizedBox(height: 14),
+                                const Text(
                                   'سنرسل رمز تحقق يستخدم مرة واحدة إلى هاتفك.',
                                   style: TextStyle(
                                       color: Colors.white54, fontSize: 14),
                                   textAlign: TextAlign.center,
                                 ),
-                                SizedBox(height: 24),
+                                const SizedBox(height: 24),
                               ],
                             ),
                           ),
                           SingleChildScrollView(
-                            physics: ClampingScrollPhysics(),
+                            physics: const ClampingScrollPhysics(),
                             child: Form(
                               key: _formKey,
                               child: Column(
                                 children: [
-                                  SizedBox(height: 20),
-                                  Text(
+                                  const SizedBox(height: 20),
+                                  const Text(
                                     'تسجيل الدخول بالبريد الإلكتروني',
                                     style: TextStyle(
                                       color: Colors.white,
@@ -308,8 +311,8 @@ class _LoginPageState extends State<LoginPage> {
                                       fontFamily: 'arial',
                                     ),
                                   ),
-                                  SizedBox(height: 12),
-                                  Text(
+                                  const SizedBox(height: 12),
+                                  const Text(
                                     'سجّل الدخول باستخدام البريد الإلكتروني وكلمة المرور.',
                                     style: TextStyle(
                                       color: Colors.white70,
@@ -318,35 +321,35 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
-                                  SizedBox(height: 30),
+                                  const SizedBox(height: 30),
                                   TextFormField(
                                     controller: _emailController,
                                     keyboardType: TextInputType.emailAddress,
                                     decoration: InputDecoration(
-                                      prefixIcon: Icon(Icons.email,
+                                      prefixIcon: const Icon(Icons.email,
                                           color: Colors.white),
                                       labelText: 'البريد الإلكتروني',
                                       labelStyle:
-                                          TextStyle(color: Colors.white70),
+                                          const TextStyle(color: Colors.white70),
                                       filled: true,
                                       fillColor: Colors.white24,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
                                         borderSide:
-                                            BorderSide(color: Colors.white24),
+                                            const BorderSide(color: Colors.white24),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
                                         borderSide:
-                                            BorderSide(color: Colors.white24),
+                                            const BorderSide(color: Colors.white24),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
                                         borderSide:
-                                            BorderSide(color: themeColor),
+                                            const BorderSide(color: themeColor),
                                       ),
                                     ),
-                                    style: TextStyle(color: Colors.white),
+                                    style: const TextStyle(color: Colors.white),
                                     validator: (value) {
                                       if (value == null ||
                                           value.trim().isEmpty) {
@@ -359,16 +362,16 @@ class _LoginPageState extends State<LoginPage> {
                                       return null;
                                     },
                                   ),
-                                  SizedBox(height: 20),
+                                  const SizedBox(height: 20),
                                   TextFormField(
                                     controller: _passwordController,
                                     obscureText: _obscureText,
                                     decoration: InputDecoration(
                                       prefixIcon:
-                                          Icon(Icons.lock, color: Colors.white),
+                                          const Icon(Icons.lock, color: Colors.white),
                                       labelText: 'كلمة المرور',
                                       labelStyle:
-                                          TextStyle(color: Colors.white70),
+                                          const TextStyle(color: Colors.white70),
                                       filled: true,
                                       fillColor: Colors.white24,
                                       suffixIcon: IconButton(
@@ -387,20 +390,20 @@ class _LoginPageState extends State<LoginPage> {
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
                                         borderSide:
-                                            BorderSide(color: Colors.white24),
+                                            const BorderSide(color: Colors.white24),
                                       ),
                                       enabledBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
                                         borderSide:
-                                            BorderSide(color: Colors.white24),
+                                            const BorderSide(color: Colors.white24),
                                       ),
                                       focusedBorder: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(25),
                                         borderSide:
-                                            BorderSide(color: themeColor),
+                                            const BorderSide(color: themeColor),
                                       ),
                                     ),
-                                    style: TextStyle(color: Colors.white),
+                                    style: const TextStyle(color: Colors.white),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
                                         return 'كلمة المرور مطلوبة';
@@ -411,38 +414,38 @@ class _LoginPageState extends State<LoginPage> {
                                       return null;
                                     },
                                   ),
-                                  SizedBox(height: 16),
+                                  const SizedBox(height: 16),
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
                                       onPressed: () {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
-                                          SnackBar(
+                                          const SnackBar(
                                             content: Text('نسيت كلمة المرور'),
                                             backgroundColor:
                                                 Color.fromARGB(255, 94, 255, 0),
                                           ),
                                         );
                                       },
-                                      child: Text(
+                                      child: const Text(
                                         'هل نسيت كلمة المرور؟',
                                         style: TextStyle(color: Colors.white),
                                       ),
                                     ),
                                   ),
-                                  SizedBox(height: 8),
+                                  const SizedBox(height: 8),
                                   ElevatedButton(
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: themeColor,
                                       shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(30)),
-                                      padding: EdgeInsets.symmetric(
+                                      padding: const EdgeInsets.symmetric(
                                           vertical: 16, horizontal: 110),
                                     ),
                                     onPressed: _signInWithEmail,
-                                    child: Text(
+                                    child: const Text(
                                       'تسجيل الدخول',
                                       style: TextStyle(
                                           fontSize: 18,
@@ -450,22 +453,22 @@ class _LoginPageState extends State<LoginPage> {
                                           fontFamily: 'arial'),
                                     ),
                                   ),
-                                  SizedBox(height: 18),
-                                  Divider(color: Colors.white24, thickness: 1),
-                                  SizedBox(height: 18),
-                                  Text(
+                                  const SizedBox(height: 18),
+                                  const Divider(color: Colors.white24, thickness: 1),
+                                  const SizedBox(height: 18),
+                                  const Text(
                                     'Or continue with',
                                     style: TextStyle(
                                         color: Colors.white70,
                                         fontFamily: 'arial'),
                                   ),
-                                  SizedBox(height: 18),
+                                  const SizedBox(height: 18),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       _socialButton(
                                           'assets/google.png', 'Google'),
-                                      SizedBox(width: 16),
+                                      const SizedBox(width: 16),
                                       _socialButton(
                                           'assets/apple.png', 'Apple'),
                                     ],
@@ -477,15 +480,15 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
                     ),
-                    SizedBox(height: 20),
+                    const SizedBox(height: 20),
                     RichText(
                       text: TextSpan(
                         text: 'Not a member? ',
-                        style: TextStyle(fontSize: 16, color: Colors.white),
+                        style: const TextStyle(fontSize: 16, color: Colors.white),
                         children: [
                           TextSpan(
                             text: 'أنشئ حسابًا الآن',
-                            style: TextStyle(
+                            style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF9B0B19)),
@@ -494,29 +497,29 @@ class _LoginPageState extends State<LoginPage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => Signup()),
+                                      builder: (context) => const Signup()),
                                 );
                               },
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: 18),
+                    const SizedBox(height: 18),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: themeColor,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25)),
                         padding:
-                            EdgeInsets.symmetric(vertical: 16, horizontal: 50),
+                            const EdgeInsets.symmetric(vertical: 16, horizontal: 50),
                       ),
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => MainScreen()),
+                          MaterialPageRoute(builder: (context) => const MainScreen()),
                         );
                       },
-                      child: Text(
+                      child: const Text(
                         'Go to Home',
                         style: TextStyle(
                             fontSize: 18,
@@ -540,7 +543,7 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تسجيل الدخول عبر $label'),
-            backgroundColor: Color.fromARGB(255, 104, 99, 99),
+            backgroundColor: const Color.fromARGB(255, 104, 99, 99),
           ),
         );
       },
@@ -550,7 +553,7 @@ class _LoginPageState extends State<LoginPage> {
           borderRadius: BorderRadius.circular(25),
           border: Border.all(color: Colors.white, width: 2),
         ),
-        padding: EdgeInsets.all(10),
+        padding: const EdgeInsets.all(10),
         child: Image.asset(asset, height: 50, width: 50),
       ),
     );

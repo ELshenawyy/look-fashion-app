@@ -6,7 +6,7 @@ import 'package:my_fashion_app/screens/checkout_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class CartPage extends StatelessWidget {
-  const CartPage({Key? key}) : super(key: key);
+  const CartPage({super.key});
 
   static const AppSliverBar _appBar = AppSliverBar(
     title: 'سلتي',
@@ -18,10 +18,10 @@ class CartPage extends StatelessWidget {
     return Consumer<Cart>(
       builder: (context, cart, child) {
         if (cart.items.isEmpty) {
-          return CustomScrollView(
+          return const CustomScrollView(
             slivers: [
               _appBar,
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -52,25 +52,23 @@ class CartPage extends StatelessWidget {
         return CustomScrollView(
           slivers: [
             _appBar,
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: cart.items.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final item = cart.items[index];
-                        return _CartItemCard(item: item, index: index);
-                      },
-                    ),
-                  ),
-                  _BottomBar(cart: cart),
-                ],
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final item = cart.items[index];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                          bottom: index < cart.items.length - 1 ? 12 : 0),
+                      child: _CartItemCard(item: item, index: index),
+                    );
+                  },
+                  childCount: cart.items.length,
+                ),
               ),
             ),
+            SliverToBoxAdapter(child: _BottomBar(cart: cart)),
           ],
         );
       },
