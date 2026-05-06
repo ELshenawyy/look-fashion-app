@@ -71,6 +71,7 @@ class _SignupState extends State<Signup> {
         'uid': user.uid,
         'email': _email.trim(),
         'name': _name.trim(),
+        'role': 'user', // كل مستخدم جديد يبدأ كـ user عادي
         'createdAt': FieldValue.serverTimestamp(),
       });
 

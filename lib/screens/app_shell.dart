@@ -10,7 +10,9 @@ import 'package:my_fashion_app/screens/favorites_screen.dart';
 import 'package:my_fashion_app/screens/profile_screen.dart';
 import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:my_fashion_app/screens/cart.dart';
+import 'package:my_fashion_app/screens/staff_management_screen.dart';
 import 'package:my_fashion_app/services/cart_provider.dart';
+import 'package:my_fashion_app/services/role_service.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -32,26 +34,47 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
-    // If no user is logged in, return a login screen or splash
     if (user == null) {
       return const LoginPage();
     }
 
-    // Real-time StreamBuilder to listen to user role changes
+    // Real-time StreamBuilder — يستمع لتغييرات الدور فوراً
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .snapshots(),
       builder: (context, snapshot) {
-        bool isAdmin = false;
-        dynamic rawRole;
+        final userData = snapshot.data?.data();
 
-        if (snapshot.hasData) {
-          final userData = snapshot.data?.data();
-          rawRole = userData?['role'];
-          isAdmin = rawRole is String && rawRole.toLowerCase() == 'admin';
+        // ── Force Logout: إذا كان الحساب مُلغى ───────────────────────
+        if (userData != null && userData['revokedAt'] != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await FirebaseAuth.instance.signOut();
+            if (!context.mounted) return;
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginPage()),
+              (_) => false,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('تم إلغاء صلاحياتك من قِبل المدير.'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          });
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+          );
         }
+
+        // ── فحص الدور ────────────────────────────────────────────────
+        final role =
+            userData?['role'] is String ? userData!['role'] as String : AppRole.user;
+        final isAdminLevel = AppRole.isAdminLevel(role);
+        final isSuperAdmin = AppRole.isSuperAdmin(role);
 
         final pages = <Widget>[
           const ProductListScreen(),
@@ -64,36 +87,51 @@ class _AppShellState extends State<AppShell> {
         return Scaffold(
           backgroundColor: Colors.black,
           body: pages[_selectedIndex],
-          floatingActionButton: isAdmin
+
+          // ── FABs بناءً على الدور ──────────────────────────────────
+          floatingActionButton: isAdminLevel
               ? Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    // زر إدارة الموظفين — superAdmin فقط
+                    if (isSuperAdmin) ...[
+                      FloatingActionButton.small(
+                        backgroundColor: Colors.deepPurple,
+                        heroTag: 'staff',
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const StaffManagementScreen(),
+                          ),
+                        ),
+                        tooltip: 'إدارة الموظفين',
+                        child: const Icon(Icons.manage_accounts),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     FloatingActionButton.small(
                       backgroundColor: Colors.blue,
                       heroTag: 'dashboard',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminDashboard(),
-                          ),
-                        );
-                      },
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AdminDashboard(isSuperAdmin: isSuperAdmin),
+                        ),
+                      ),
                       tooltip: 'لوحة الإدارة',
                       child: const Icon(Icons.dashboard),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     FloatingActionButton(
                       backgroundColor: const Color(0xFF800000),
                       heroTag: 'add',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AddProductScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AddProductScreen(),
+                        ),
+                      ),
                       tooltip: 'إضافة منتج',
                       child: const Icon(Icons.add),
                     ),
@@ -101,6 +139,7 @@ class _AppShellState extends State<AppShell> {
                 )
               : null,
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
           bottomNavigationBar: Consumer<Cart>(
             builder: (context, cart, _) => BottomNavigationBar(
               currentIndex: _selectedIndex,

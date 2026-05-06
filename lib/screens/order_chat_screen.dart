@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/services/role_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class OrderChatScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   final _scrollController = ScrollController();
 
   bool _isAdmin = false;
+  bool _isAuthorized = true; // يُضبط على false إذا لم يكن المستخدم صاحب الطلب
   String _customerName = '';
   String _customerPhone = '';
   String _customerEmail = '';
@@ -40,13 +42,13 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Check if current user is admin
+    // Check role
     final userDoc = await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .get();
     final role = userDoc.data()?['role'] as String? ?? '';
-    final isAdmin = role.toLowerCase() == 'admin';
+    final isAdmin = AppRole.isAdminLevel(role);
 
     // Load order data
     final orderDoc = await FirebaseFirestore.instance
@@ -55,9 +57,15 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         .get();
     final orderData = orderDoc.data();
 
+    // ── فحص الملكية ─────────────────────────────────────────────────
+    // المستخدم العادي لا يجب أن يقرأ محادثة طلب لا يخصه
+    final orderOwnerId = orderData?['userId'] as String? ?? '';
+    final authorized = isAdmin || user.uid == orderOwnerId;
+
     if (!mounted) return;
     setState(() {
       _isAdmin = isAdmin;
+      _isAuthorized = authorized;
       _customerName = orderData?['userName'] as String? ??
           orderData?['userEmail'] as String? ??
           'العميل';
@@ -177,6 +185,41 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+
+    // ── وصول مرفوض: المستخدم ليس صاحب الطلب ولا أدمن ──────────────
+    if (!_isAuthorized) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: const Text('محادثة الطلب',
+              style: TextStyle(color: Colors.white, fontSize: 15)),
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_outline, color: Colors.white24, size: 72),
+              SizedBox(height: 16),
+              Text(
+                'غير مصرح بالوصول',
+                style: TextStyle(color: Colors.white54, fontSize: 18),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'هذه المحادثة تخص طلباً لا يعود لك.',
+                style: TextStyle(color: Colors.white30, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     // Build the title based on admin/user role
     final chatTitle = _isAdmin

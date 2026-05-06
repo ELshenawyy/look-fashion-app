@@ -5,6 +5,8 @@ import 'package:my_fashion_app/firebase/login.dart';
 import 'package:my_fashion_app/screens/account_info_screen.dart';
 import 'package:my_fashion_app/screens/admin_orders_screen.dart';
 import 'package:my_fashion_app/screens/orders_screen.dart';
+import 'package:my_fashion_app/screens/staff_management_screen.dart';
+import 'package:my_fashion_app/services/role_service.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -17,15 +19,19 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   static const Color _gold = Color(0xFFD4AF37);
 
-  bool _isAdmin = false;
+  bool _isAdminLevel = false;
+  bool _isSuperAdmin = false;
+
+  // للتوافق مع الكود الحالي الذي يستخدم _isAdmin
+  bool get _isAdmin => _isAdminLevel;
 
   @override
   void initState() {
     super.initState();
-    _checkAdmin();
+    _checkRole();
   }
 
-  Future<void> _checkAdmin() async {
+  Future<void> _checkRole() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final doc = await FirebaseFirestore.instance
@@ -34,7 +40,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .get();
     final role = doc.data()?['role'] as String? ?? '';
     if (mounted) {
-      setState(() => _isAdmin = role.toLowerCase() == 'admin');
+      setState(() {
+        _isAdminLevel = AppRole.isAdminLevel(role);
+        _isSuperAdmin = AppRole.isSuperAdmin(role);
+      });
     }
   }
 
@@ -132,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         size: 44,
                       ),
                     ),
-                    if (_isAdmin)
+                    if (_isAdminLevel)
                       Positioned(
                         bottom: 2,
                         right: 2,
@@ -140,12 +149,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: _gold,
+                            color: _isSuperAdmin ? _gold : Colors.blue,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
-                            'أدمن',
-                            style: TextStyle(
+                          child: Text(
+                            _isSuperAdmin ? 'سوبر أدمن' : 'موظف',
+                            style: const TextStyle(
                               color: Colors.black,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -203,6 +212,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
+
+              // إدارة الموظفين — superAdmin فقط
+              if (_isSuperAdmin) ...[
+                const SizedBox(height: 12),
+                _ProfileTile(
+                  icon: Icons.manage_accounts,
+                  title: 'إدارة الموظفين',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const StaffManagementScreen()),
+                  ),
+                ),
+              ],
 
               // Support — only for regular users, not admin
               if (!_isAdmin) ...[

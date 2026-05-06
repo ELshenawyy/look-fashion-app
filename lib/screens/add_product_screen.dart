@@ -130,7 +130,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
-  bool get _isShoeCategory => _selectedCategory == kProductCategories[3];
+  bool get _isShoeCategory => _selectedCategory == 'أحذية';
+
+  /// هل القسم المختار يحتاج مقاسات وألوان؟
+  bool get _needsVariants =>
+      _selectedCategory != null &&
+      kCategoriesWithVariants.contains(_selectedCategory);
 
   List<String> get _availableSizes =>
       _isShoeCategory ? _shoeSizes : _clothingSizes;
@@ -302,25 +307,27 @@ class _AddProductScreenState extends State<AddProductScreen> {
       );
       return;
     }
-    if (_selectedSizes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى اختيار مقاس واحد على الأقل.'),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-    if (_selectedColors.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى اختيار لون واحد على الأقل.'),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
+    if (_needsVariants) {
+      if (_selectedSizes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يرجى اختيار مقاس واحد على الأقل.'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      if (_selectedColors.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('يرجى اختيار لون واحد على الأقل.'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -362,8 +369,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         'imageUrl': imageUrl,
         'category': category,
         'stockQuantity': stock,
-        'sizes': _selectedSizes,
-        'colors': _selectedColors,
+        'sizes': _needsVariants ? _selectedSizes : <String>[],
+        'colors': _needsVariants ? _selectedColors : <String>[],
         'gender': _selectedGender,
         'state': _selectedState ?? '',
         'updatedAt': FieldValue.serverTimestamp(),
@@ -636,9 +643,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     onChanged: (value) {
                       setState(() {
                         _selectedCategory = value;
-                        _selectedSizes = _selectedSizes
-                            .where(_availableSizes.contains)
-                            .toList();
+                        if (!kCategoriesWithVariants.contains(value)) {
+                          // قسم لا يحتاج مقاسات/ألوان — امسح الخيارات السابقة
+                          _selectedSizes.clear();
+                          _selectedColors.clear();
+                        } else {
+                          // قسم يحتاج مقاسات — احتفظ فقط بالمقاسات المتوافقة مع القسم الجديد
+                          _selectedSizes = _selectedSizes
+                              .where(_availableSizes.contains)
+                              .toList();
+                        }
                       });
                     },
                     validator: (value) {
@@ -708,38 +722,45 @@ class _AddProductScreenState extends State<AddProductScreen> {
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildSectionHeading(
-                    'اختر المقاسات',
-                    subtitle: _isShoeCategory
-                        ? 'اختر مقاسًا واحدًا أو أكثر للأحذية.'
-                        : 'اختر مقاسًا واحدًا أو أكثر للملابس.',
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: _availableSizes.map((size) {
-                      final isSelected = _selectedSizes.contains(size);
-                      return _buildSelectionChip(
-                        label: size,
-                        isSelected: isSelected,
-                        onTap: () => _toggleSelection(_selectedSizes, size),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildSectionHeading(
-                    'اختر الألوان',
-                    subtitle:
-                        'استخدم دوائر الألوان بالأسفل لتحديد الخيارات المتاحة.',
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: _availableColors.map(_buildColorOption).toList(),
-                  ),
-                  const SizedBox(height: 24),
+                  // ── مقاسات — تظهر فقط للملابس والأحذية ──────────────
+                  if (_needsVariants) ...[
+                    _buildSectionHeading(
+                      'اختر المقاسات',
+                      subtitle: _isShoeCategory
+                          ? 'اختر مقاسًا واحدًا أو أكثر للأحذية.'
+                          : 'اختر مقاسًا واحدًا أو أكثر للملابس.',
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: _availableSizes.map((size) {
+                        final isSelected = _selectedSizes.contains(size);
+                        return _buildSelectionChip(
+                          label: size,
+                          isSelected: isSelected,
+                          onTap: () => _toggleSelection(_selectedSizes, size),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  // ── ألوان — تظهر فقط للملابس والأحذية ───────────────
+                  if (_needsVariants) ...[
+                    _buildSectionHeading(
+                      'اختر الألوان',
+                      subtitle:
+                          'استخدم دوائر الألوان بالأسفل لتحديد الخيارات المتاحة.',
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: _availableColors.map(_buildColorOption).toList(),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  // ── الفئة المستهدفة — تظهر دائماً ───────────────────
                   _buildSectionHeading('الفئة المستهدفة'),
                   const SizedBox(height: 12),
                   Wrap(

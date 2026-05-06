@@ -136,6 +136,17 @@ class _OrdersBodyState extends State<_OrdersBody> {
   }
 }
 
+/// يبني تسمية عنصر الطلب — يُخفي المقاس/اللون إن كانا فارغَين أو 'افتراضي'
+String _buildItemLabel(Map<String, dynamic> item) {
+  final qty = item['quantity'];
+  final size = item['size'] as String? ?? '';
+  final color = item['color'] as String? ?? '';
+  final parts = <String>['x$qty'];
+  if (size.isNotEmpty && size != 'افتراضي') parts.add(size);
+  if (color.isNotEmpty && color != 'افتراضي') parts.add(color);
+  return parts.join('  •  ');
+}
+
 class _OrderCard extends StatelessWidget {
   final String orderId;
   final Map<String, dynamic> data;
@@ -272,7 +283,7 @@ class _OrderCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'x${itemMap['quantity']}  •  ${itemMap['size']}  •  ${itemMap['color']}',
+                    _buildItemLabel(itemMap),
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                 ],

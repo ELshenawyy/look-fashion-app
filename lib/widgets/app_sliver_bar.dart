@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/notifications_screen.dart';
+import 'package:my_fashion_app/services/role_service.dart';
 
 /// AppBar موحد لكل صفحات التطبيق — يدعم تأثير الـ Sliver
 class AppSliverBar extends StatelessWidget {
@@ -105,9 +106,9 @@ class NotificationBellAction extends StatelessWidget {
           .doc(user.uid)
           .snapshots(),
       builder: (context, userSnap) {
-        final isAdmin =
-            (userSnap.data?.data() as Map?)?['role']?.toString().toLowerCase() ==
-                'admin';
+        final role =
+            (userSnap.data?.data() as Map?)?['role']?.toString() ?? '';
+        final isAdmin = AppRole.isAdminLevel(role);
 
         return StreamBuilder<int>(
           stream: NotificationsScreen.getUnreadCount(

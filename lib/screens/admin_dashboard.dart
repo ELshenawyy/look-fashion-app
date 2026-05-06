@@ -6,7 +6,11 @@ import 'package:my_fashion_app/screens/admin_orders_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AdminDashboard extends StatefulWidget {
-  const AdminDashboard({super.key});
+  /// إن كان true → superAdmin (يرى زر الحذف)
+  /// إن كان false → subAdmin (زر الحذف مخفي)
+  final bool isSuperAdmin;
+
+  const AdminDashboard({super.key, required this.isSuperAdmin});
 
   @override
   // ignore: library_private_types_in_public_api
@@ -248,7 +252,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     ],
                   ),
                   trailing: SizedBox(
-                    width: 100,
+                    width: widget.isSuperAdmin ? 100 : 50,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -257,12 +261,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           tooltip: 'تعديل',
                           onPressed: () => _editProduct(doc.id, data),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          tooltip: 'حذف',
-                          onPressed: () =>
-                              _deleteProduct(doc.id, data['imageUrl'] ?? ''),
-                        ),
+                        // زر الحذف — superAdmin فقط
+                        if (widget.isSuperAdmin)
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: Colors.red),
+                            tooltip: 'حذف',
+                            onPressed: () =>
+                                _deleteProduct(doc.id, data['imageUrl'] ?? ''),
+                          ),
                       ],
                     ),
                   ),

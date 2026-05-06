@@ -239,6 +239,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
+  /// يبني تسمية عنصر الطلب — يُخفي المقاس/اللون إن كانا فارغَين أو 'افتراضي'
+  String _buildItemLabel(Map<String, dynamic> item) {
+    final qty = item['quantity'];
+    final size = item['size'] as String? ?? '';
+    final color = item['color'] as String? ?? '';
+    final parts = <String>['x$qty'];
+    if (size.isNotEmpty && size != 'افتراضي') parts.add(size);
+    if (color.isNotEmpty && color != 'افتراضي') parts.add(color);
+    return parts.join('  •  ');
+  }
+
   Widget _buildOrderCard(String orderId, Map<String, dynamic> data) {
     final status = data['status'] as String? ?? 'pending';
     final total = (data['total'] as num?)?.toDouble() ?? 0.0;
@@ -329,7 +340,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                     child: Text(m['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 13)),
                   ),
                   Text(
-                    'x${m['quantity']}  •  ${m['size']}  •  ${m['color']}',
+                    _buildItemLabel(m),
                     style: const TextStyle(color: Colors.white54, fontSize: 11),
                   ),
                 ],
