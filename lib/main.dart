@@ -8,6 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/services/cart_provider.dart';
+import 'package:my_fashion_app/providers/home_provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -28,8 +29,11 @@ void main() async {
   debugPrint('🔗 Project ID: ${FirebaseFirestore.instance.app.options.projectId}');
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => Cart(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => Cart()),
+        ChangeNotifierProvider(create: (_) => HomeProvider()),
+      ],
       child: DevicePreview(
         enabled: false,
         builder: (context) => const MyApp(),

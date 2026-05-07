@@ -1,21 +1,28 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
+import 'package:my_fashion_app/services/cart_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:my_fashion_app/widgets/product_card.dart';
+import 'package:provider/provider.dart';
 
-class FavoritesScreen extends StatelessWidget {
+class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
 
+  @override
+  State<FavoritesScreen> createState() => _FavoritesScreenState();
+}
+
+class _FavoritesScreenState extends State<FavoritesScreen> {
   static const Color _gold = Color(0xFFD4AF37);
-  static const Color _maroon = Color(0xFF800000);
 
-  static const AppSliverBar _appBar = AppSliverBar(
-    title: 'المفضلة',
-    actions: [NotificationBellAction()],
-  );
+  /// IDs التي يجري حذفها حاليًا — تُستخدم لتأثير التلاشي
+  final Set<String> _removingIds = {};
 
+  // ── Firestore stream ──────────────────────────────────────────────────
   Stream<List<Product>> _favoritesStream(String userId) {
     return FirebaseFirestore.instance
         .collection('users')
@@ -24,7 +31,7 @@ class FavoritesScreen extends StatelessWidget {
         .orderBy('savedAt', descending: true)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map((doc) {
+          (snap) => snap.docs.map((doc) {
             final data = doc.data();
             return Product.fromJson({
               ...data,
@@ -34,21 +41,32 @@ class FavoritesScreen extends StatelessWidget {
         );
   }
 
-  Future<void> _removeFavorite(BuildContext context, Product product) async {
+  // ── Remove with animation ─────────────────────────────────────────────
+  Future<void> _removeFavorite(Product product) async {
+    final id = product.docId ?? product.id.toString();
+    if (_removingIds.contains(id)) return; // منع النقر المزدوج
+
+    // 1. بدء تأثير التلاشي
+    setState(() => _removingIds.add(id));
+
+    // 2. الانتظار حتى تنتهي الأنيميشن (350ms)
+    await Future.delayed(const Duration(milliseconds: 350));
+    if (!mounted) return;
+
+    // 3. الحذف من Firestore — سيُحدَّث الـ stream تلقائيًا
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-
-    final favoriteId = product.docId ?? product.id.toString();
 
     try {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('favorites')
-          .doc(favoriteId)
+          .doc(id)
           .delete();
     } catch (e) {
-      if (!context.mounted) return;
+      if (!mounted) return;
+      setState(() => _removingIds.remove(id));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر إزالة المنتج من المفضلة: $e'),
@@ -59,198 +77,61 @@ class FavoritesScreen extends StatelessWidget {
     }
   }
 
-  void _openProduct(BuildContext context, Product product) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProductDetailScreen(product: product),
+  // ── Cart ──────────────────────────────────────────────────────────────
+  void _addToCart(Product product) {
+    final cart = context.read<Cart>();
+    cart.addItem(CartItem(
+      productId: product.docId ?? '',
+      name: product.title,
+      price: product.price,
+      image: product.imageUrl,
+      size: product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي',
+      color: product.colors.isNotEmpty ? product.colors.first : 'افتراضي',
+      productState: product.state,
+      quantity: 1,
+    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تمت الإضافة إلى السلة'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 1),
       ),
     );
   }
 
-  Widget _buildProductCard(BuildContext context, Product product) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(26),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(26),
-          onTap: () => _openProduct(context, product),
-          splashColor: _gold.withValues(alpha: 0.14),
-          highlightColor: _gold.withValues(alpha: 0.08),
-          child: Ink(
-            height: 156,
-            decoration: BoxDecoration(
-              color: _maroon,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(
-                color: _gold.withValues(alpha: 0.22),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.42),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 134,
-                  height: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(26),
-                      bottomLeft: Radius.circular(26),
-                    ),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.10),
-                        Colors.black.withValues(alpha: 0.18),
-                      ],
-                    ),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 102,
-                      height: 102,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.14),
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          product.imageUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(
-                              child: CircularProgressIndicator(color: _gold),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(
-                                Icons.image_not_supported,
-                                color: Colors.white70,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 16, 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          product.description,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                            height: 1.45,
-                          ),
-                        ),
-                        const Spacer(),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${product.price.toStringAsFixed(2)} ج.م',
-                                style: const TextStyle(
-                                  color: _gold,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
-                                ),
-                              ),
-                              child: IconButton(
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(),
-                                icon: const Icon(
-                                  Icons.favorite_rounded,
-                                  color: Colors.redAccent,
-                                  size: 20,
-                                ),
-                                tooltip: 'إزالة من المفضلة',
-                                onPressed: () =>
-                                    _removeFavorite(context, product),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  // ── childAspectRatio ──────────────────────────────────────────────────
+  double _cardRatio(BuildContext context) {
+    const hPadding = 32.0;
+    const hSpacing = 12.0;
+    const infoHeight = 102.0;
+    final w = MediaQuery.of(context).size.width;
+    final cardW = (w - hPadding - hSpacing) / 2;
+    return cardW / (cardW + infoHeight);
   }
 
+  // ── App bar (static since it has no deps) ─────────────────────────────
+  static const AppSliverBar _appBar = AppSliverBar(
+    title: 'المفضلة',
+    actions: [NotificationBellAction()],
+  );
+
+  // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final ratio = _cardRatio(context);
 
+    // ── Not logged in ──
     if (user == null) {
       return const CustomScrollView(
         slivers: [
           _appBar,
           SliverFillRemaining(
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'يرجى تسجيل الدخول لعرض المفضلة',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+            child: _EmptyState(
+              icon: Icons.person_outline_rounded,
+              title: 'يرجى تسجيل الدخول',
+              subtitle: 'سجّل دخولك لترى منتجاتك المفضلة',
             ),
           ),
         ],
@@ -260,6 +141,7 @@ class FavoritesScreen extends StatelessWidget {
     return StreamBuilder<List<Product>>(
       stream: _favoritesStream(user.uid),
       builder: (context, snapshot) {
+        // ── Loading ──
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const CustomScrollView(
             slivers: [
@@ -273,6 +155,7 @@ class FavoritesScreen extends StatelessWidget {
           );
         }
 
+        // ── Error ──
         if (snapshot.hasError) {
           return CustomScrollView(
             slivers: [
@@ -282,7 +165,7 @@ class FavoritesScreen extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'حدث خطأ أثناء تحميل المفضلة: ${snapshot.error}',
+                      'حدث خطأ: ${snapshot.error}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.redAccent),
                     ),
@@ -295,83 +178,174 @@ class FavoritesScreen extends StatelessWidget {
 
         final products = snapshot.data ?? const <Product>[];
 
+        // ── Empty state ──
         if (products.isEmpty) {
           return const CustomScrollView(
             slivers: [
               _appBar,
               SliverFillRemaining(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.favorite_border_rounded,
-                          color: _gold,
-                          size: 72,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'ستظهر منتجاتك المفضلة هنا',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'احفظ القطع التي تعجبك وارجع إليها في أي وقت.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white60,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                child: _EmptyState(
+                  icon: Icons.favorite_border_rounded,
+                  title: 'قائمة المفضلة فارغة',
+                  subtitle:
+                      'احفظ القطع التي تعجبك\nوارجع إليها في أي وقت',
                 ),
               ),
             ],
           );
         }
 
+        // ── Grid ──
         return CustomScrollView(
           slivers: [
             _appBar,
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  const Padding(
-                    padding: EdgeInsets.only(top: 14, bottom: 10),
-                    child: Text(
-                      'منتجاتك المفضلة، مجمعة لك في مكان واحد.',
+            // Header
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'منتجاتك المفضلة',
                       style: TextStyle(
                         color: _gold,
-                        fontSize: 22,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
-                  Text(
-                    '${products.length} منتج محفوظ',
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 14,
+                    const SizedBox(height: 4),
+                    Text(
+                      '${products.length} منتج محفوظ',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 13,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  ...products.map((p) => _buildProductCard(context, p)),
-                ]),
+                  ],
+                ),
+              ),
+            ),
+            // Grid
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              sliver: SliverGrid(
+                gridDelegate:
+                    SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: ratio,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final p = products[index];
+                    final id = p.docId ?? p.id.toString();
+                    final isRemoving = _removingIds.contains(id);
+
+                    return AnimatedOpacity(
+                      opacity: isRemoving ? 0.0 : 1.0,
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                      child: ProductCard(
+                        product: p,
+                        isFavorite: true, // دائمًا في المفضلة
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ProductDetailScreen(product: p),
+                          ),
+                        ),
+                        onFavoriteToggle: () => _removeFavorite(p),
+                        onAddToCart: () => _addToCart(p),
+                      ),
+                    );
+                  },
+                  childCount: products.length,
+                ),
               ),
             ),
           ],
         );
       },
+    );
+  }
+}
+
+// ── Empty State Widget ────────────────────────────────────────────────────
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  static const Color _gold = Color(0xFFD4AF37);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Animated heart container
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: _gold.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: _gold.withValues(alpha: 0.25), width: 1.5),
+              ),
+              child: Icon(icon, color: _gold, size: 48),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 32),
+            // CTA
+            OutlinedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.explore_outlined, size: 18),
+              label: const Text('تصفح المنتجات'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _gold,
+                side: const BorderSide(color: _gold),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

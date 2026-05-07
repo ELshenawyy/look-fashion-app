@@ -1,10 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
+import 'package:my_fashion_app/services/cart_provider.dart';
 import 'package:my_fashion_app/services/product_service.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:my_fashion_app/widgets/product_card.dart';
+import 'package:provider/provider.dart';
 
 class ProductListingPage extends StatefulWidget {
   final String? categoryName;
@@ -20,15 +24,14 @@ class ProductListingPage extends StatefulWidget {
 
 class _ProductListingPageState extends State<ProductListingPage> {
   static const Color _gold = Color(0xFFD4AF37);
-  static const Color _maroon = Color(0xFF800000);
 
   final ProductService _productService = ProductService();
   final Set<String> _optimisticFavorites = <String>{};
   final Set<String> _optimisticRemovals = <String>{};
 
-  String _productKey(Product product) {
-    return product.docId ?? product.id.toString();
-  }
+  // ── Favorites logic ───────────────────────────────────────────────────
+  String _productKey(Product product) =>
+      product.docId ?? product.id.toString();
 
   Stream<Set<String>> _favoriteIdsStream(String userId) {
     return FirebaseFirestore.instance
@@ -36,14 +39,14 @@ class _ProductListingPageState extends State<ProductListingPage> {
         .doc(userId)
         .collection('favorites')
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.id).toSet());
+        .map((snap) => snap.docs.map((doc) => doc.id).toSet());
   }
 
   bool _isFavorite(Product product, Set<String> savedFavoriteIds) {
-    final productKey = _productKey(product);
-    if (_optimisticRemovals.contains(productKey)) return false;
-    if (_optimisticFavorites.contains(productKey)) return true;
-    return savedFavoriteIds.contains(productKey);
+    final key = _productKey(product);
+    if (_optimisticRemovals.contains(key)) return false;
+    if (_optimisticFavorites.contains(key)) return true;
+    return savedFavoriteIds.contains(key);
   }
 
   Future<void> _toggleFavorite(Product product, bool isFavorite) async {
@@ -59,30 +62,30 @@ class _ProductListingPageState extends State<ProductListingPage> {
       return;
     }
 
-    final productKey = _productKey(product);
-    final favoriteRef = FirebaseFirestore.instance
+    final key = _productKey(product);
+    final ref = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .collection('favorites')
-        .doc(productKey);
+        .doc(key);
 
     setState(() {
       if (isFavorite) {
-        _optimisticFavorites.remove(productKey);
-        _optimisticRemovals.add(productKey);
+        _optimisticFavorites.remove(key);
+        _optimisticRemovals.add(key);
       } else {
-        _optimisticRemovals.remove(productKey);
-        _optimisticFavorites.add(productKey);
+        _optimisticRemovals.remove(key);
+        _optimisticFavorites.add(key);
       }
     });
 
     try {
       if (isFavorite) {
-        await favoriteRef.delete();
+        await ref.delete();
       } else {
-        await favoriteRef.set({
+        await ref.set({
           ...product.toJson(),
-          'docId': productKey,
+          'docId': key,
           'savedAt': FieldValue.serverTimestamp(),
         });
       }
@@ -90,9 +93,9 @@ class _ProductListingPageState extends State<ProductListingPage> {
       if (!mounted) return;
       setState(() {
         if (isFavorite) {
-          _optimisticRemovals.remove(productKey);
+          _optimisticRemovals.remove(key);
         } else {
-          _optimisticFavorites.remove(productKey);
+          _optimisticFavorites.remove(key);
         }
       });
       ScaffoldMessenger.of(context).showSnackBar(
@@ -105,301 +108,192 @@ class _ProductListingPageState extends State<ProductListingPage> {
     }
   }
 
-  void _openProduct(Product product) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProductDetailScreen(product: product),
+  // ── Cart logic ────────────────────────────────────────────────────────
+  void _addToCart(Product product) {
+    final cart = context.read<Cart>();
+    cart.addItem(CartItem(
+      productId: product.docId ?? '',
+      name: product.title,
+      price: product.price,
+      image: product.imageUrl,
+      size: product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي',
+      color: product.colors.isNotEmpty ? product.colors.first : 'افتراضي',
+      productState: product.state,
+      quantity: 1,
+    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تمت الإضافة إلى السلة'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 1),
       ),
     );
   }
 
-  Widget _buildProductCard(Product product, Set<String> favoriteIds) {
-    final bool isFavorite = _isFavorite(product, favoriteIds);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(26),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(26),
-          onTap: () => _openProduct(product),
-          splashColor: _gold.withValues(alpha: 0.14),
-          highlightColor: _gold.withValues(alpha: 0.08),
-          child: Ink(
-            height: 156,
-            decoration: BoxDecoration(
-              color: _maroon,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(
-                color: _gold.withValues(alpha: 0.22),
-                width: 1.2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.42),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 134,
-                  height: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(26),
-                      bottomLeft: Radius.circular(26),
-                    ),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.10),
-                        Colors.black.withValues(alpha: 0.18),
-                      ],
-                    ),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 102,
-                      height: 102,
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(22),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.14),
-                        ),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.network(
-                          product.imageUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const Center(
-                              child: CircularProgressIndicator(color: _gold),
-                            );
-                          },
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Center(
-                              child: Icon(
-                                Icons.image_not_supported,
-                                color: Colors.white70,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 16, 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          product.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            height: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          product.description,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                            height: 1.45,
-                          ),
-                        ),
-                        const Spacer(),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${product.price.toStringAsFixed(2)} ج.م',
-                                style: const TextStyle(
-                                  color: _gold,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.12),
-                                ),
-                              ),
-                              child: IconButton(
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(),
-                                icon: Icon(
-                                  isFavorite
-                                      ? Icons.favorite_rounded
-                                      : Icons.favorite_border_rounded,
-                                  color: isFavorite
-                                      ? Colors.redAccent
-                                      : Colors.white70,
-                                  size: 20,
-                                ),
-                                onPressed: () =>
-                                    _toggleFavorite(product, isFavorite),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  // ── childAspectRatio computed from screen width ───────────────────────
+  /// الارتفاع الثابت لقسم البيانات في الكارت = 102px
+  /// (8 top + 32 title + 4 gap + 16 price + 6 gap + 28 btn + 8 bottom)
+  double _cardRatio(BuildContext context) {
+    const hPadding = 32.0; // 16 يسار + 16 يمين
+    const hSpacing = 12.0; // المسافة بين العمودين
+    const infoHeight = 102.0;
+    final w = MediaQuery.of(context).size.width;
+    final cardW = (w - hPadding - hSpacing) / 2;
+    return cardW / (cardW + infoHeight);
   }
 
-  Widget _buildProductList(List<Product> products, Set<String> favoriteIds) {
-    if (products.isEmpty) {
-      final categoryLabel = widget.categoryName;
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 40),
-        child: Center(
-          child: Text(
-            categoryLabel == null
-                ? 'لا توجد منتجات'
-                : 'لا توجد منتجات في قسم $categoryLabel',
-            style: const TextStyle(color: Colors.white70, fontSize: 18),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: products.length,
-      itemBuilder: (context, index) {
-        return _buildProductCard(products[index], favoriteIds);
-      },
-    );
-  }
-
+  // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final title = widget.categoryName ?? 'كل المنتجات';
+    final ratio = _cardRatio(context);
 
     final sliverBar = AppSliverBar(
       title: title,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios, color: _gold),
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
         onPressed: () => Navigator.of(context).pop(),
       ),
       automaticallyImplyLeading: false,
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF000000),
+      backgroundColor: Colors.black,
       body: StreamBuilder<List<Product>>(
-        stream: _productService.getProductsStream(category: widget.categoryName),
-        builder: (context, productSnapshot) {
-          if (productSnapshot.connectionState == ConnectionState.waiting) {
-            return CustomScrollView(
-              slivers: [
-                sliverBar,
-                const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(color: _gold),
-                  ),
-                ),
-              ],
-            );
+        stream: _productService.getProductsStream(
+            category: widget.categoryName),
+        builder: (context, productSnap) {
+          // ── Loading ──
+          if (productSnap.connectionState == ConnectionState.waiting) {
+            return CustomScrollView(slivers: [
+              sliverBar,
+              const SliverFillRemaining(
+                child: Center(
+                    child: CircularProgressIndicator(color: _gold)),
+              ),
+            ]);
           }
 
-          if (productSnapshot.hasError) {
-            return CustomScrollView(
-              slivers: [
-                sliverBar,
-                SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      'حدث خطأ: ${productSnapshot.error}',
-                      style: const TextStyle(color: Colors.redAccent),
-                    ),
-                  ),
+          // ── Error ──
+          if (productSnap.hasError) {
+            return CustomScrollView(slivers: [
+              sliverBar,
+              SliverFillRemaining(
+                child: Center(
+                  child: Text('حدث خطأ: ${productSnap.error}',
+                      style:
+                          const TextStyle(color: Colors.redAccent)),
                 ),
-              ],
-            );
+              ),
+            ]);
           }
 
-          final products = productSnapshot.data ?? const <Product>[];
-          final favoriteIdsStream = user == null
+          final products = productSnap.data ?? const <Product>[];
+          final favStream = user == null
               ? Stream.value(<String>{})
               : _favoriteIdsStream(user.uid);
 
           return StreamBuilder<Set<String>>(
-            stream: favoriteIdsStream,
-            builder: (context, favoritesSnapshot) {
-              final favoriteIds = favoritesSnapshot.data ?? <String>{};
+            stream: favStream,
+            builder: (context, favSnap) {
+              final favoriteIds = favSnap.data ?? <String>{};
 
               return CustomScrollView(
                 slivers: [
                   sliverBar,
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        const Padding(
-                          padding: EdgeInsets.only(top: 14, bottom: 10),
-                          child: Text(
-                            'اختر القطعة التي تناسبك من بين منتجاتنا المتاحة.',
-                            textAlign: TextAlign.start,
+                  // Header subtitle
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'اختر القطعة التي تناسبك',
                             style: TextStyle(
                               color: _gold,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'times new roman',
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 10),
-                          child: Text(
-                            'هذه قائمة المنتجات المتوفرة لدينا',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
+                          const SizedBox(height: 4),
+                          Text(
+                            '${products.length} منتج متاح',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 13,
                             ),
                           ),
-                        ),
-                        _buildProductList(products, favoriteIds),
-                      ]),
+                        ],
+                      ),
                     ),
                   ),
+
+                  // ── Products Grid or Empty State ──
+                  products.isEmpty
+                      ? SliverFillRemaining(
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                    Icons.shopping_bag_outlined,
+                                    color: Colors.white24,
+                                    size: 72),
+                                const SizedBox(height: 16),
+                                Text(
+                                  widget.categoryName == null
+                                      ? 'لا توجد منتجات'
+                                      : 'لا توجد منتجات في قسم ${widget.categoryName}',
+                                  style: const TextStyle(
+                                    color: Colors.white54,
+                                    fontSize: 16,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : SliverPadding(
+                          padding:
+                              const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                          sliver: SliverGrid(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: ratio,
+                            ),
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final p = products[index];
+                                final fav =
+                                    _isFavorite(p, favoriteIds);
+                                return ProductCard(
+                                  product: p,
+                                  isFavorite: fav,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          ProductDetailScreen(
+                                              product: p),
+                                    ),
+                                  ),
+                                  onFavoriteToggle: () =>
+                                      _toggleFavorite(p, fav),
+                                  onAddToCart: () => _addToCart(p),
+                                );
+                              },
+                              childCount: products.length,
+                            ),
+                          ),
+                        ),
                 ],
               );
             },
