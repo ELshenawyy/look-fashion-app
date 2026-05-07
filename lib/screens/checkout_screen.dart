@@ -115,18 +115,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   /// Creates a notification for all admins about the new order.
-  Future<void> _notifyAdmins(String orderId, Cart cart, String userName) async {
+  Future<void> _notifyAdmins(
+      String orderId, Cart cart, String userName, String phone) async {
+    final user = FirebaseAuth.instance.currentUser;
     final firestore = FirebaseFirestore.instance;
     final itemNames = cart.items.map((i) => '${i.name} x${i.quantity}').join('، ');
 
     await firestore.collection('notifications').add({
       'type': 'new_order',
-      'title': 'طلب جديد',
-      'body': 'طلب جديد من $userName: $itemNames',
+      'title': 'طلب جديد من $userName',
+      'body': itemNames,
       'orderId': orderId,
       'forRole': 'admin',
       'forUserId': null,
       'read': false,
+      'senderName': userName,
+      'senderPhone': phone,
+      'senderId': user?.uid ?? '',
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -209,7 +214,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       await _decrementStock(cart);
 
       // 4) Notify admins
-      await _notifyAdmins(orderRef.id, cart, userName);
+      await _notifyAdmins(orderRef.id, cart, userName, _phoneController.text.trim());
 
       // 5) Clear cart & show confirmation
       cart.clear();

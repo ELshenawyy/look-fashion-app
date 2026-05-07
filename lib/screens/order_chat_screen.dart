@@ -121,6 +121,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
         'forRole': _isAdmin ? null : 'admin',
         'forUserId': _isAdmin ? orderUserId : null,
         'read': false,
+        'senderName': user.displayName ?? user.email ?? 'مستخدم',
+        'senderId': user.uid,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }

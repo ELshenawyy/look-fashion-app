@@ -48,6 +48,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         'forRole': null,
         'forUserId': userId,
         'read': false,
+        'senderName': 'فريق خدمة العملاء',
+        'senderId': '',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -111,40 +113,54 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: _panel,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'تغيير حالة الطلب',
-              style: TextStyle(color: _gold, fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 16),
-            ...statuses.map((status) => ListTile(
-                  leading: Icon(
-                    status == currentStatus ? Icons.radio_button_checked : Icons.radio_button_off,
-                    color: _statusColor(status),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'تغيير حالة الطلب',
+                style: TextStyle(color: _gold, fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 16),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: statuses.map((status) => ListTile(
+                          leading: Icon(
+                            status == currentStatus
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            color: _statusColor(status),
+                          ),
+                          title: Text(
+                            _statusLabel(status),
+                            style: TextStyle(
+                              color: status == currentStatus ? _gold : Colors.white,
+                              fontWeight: status == currentStatus
+                                  ? FontWeight.w700
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            if (status != currentStatus) {
+                              _updateOrderStatus(orderId, status, userId);
+                            }
+                          },
+                        )).toList(),
                   ),
-                  title: Text(
-                    _statusLabel(status),
-                    style: TextStyle(
-                      color: status == currentStatus ? _gold : Colors.white,
-                      fontWeight: status == currentStatus ? FontWeight.w700 : FontWeight.normal,
-                    ),
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    if (status != currentStatus) {
-                      _updateOrderStatus(orderId, status, userId);
-                    }
-                  },
-                )),
-            const SizedBox(height: 8),
-          ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
