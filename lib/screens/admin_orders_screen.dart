@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
+import 'package:my_fashion_app/utils/order_utils.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
@@ -43,7 +44,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       await FirebaseFirestore.instance.collection('notifications').add({
         'type': 'order_status',
         'title': 'تحديث حالة الطلب',
-        'body': 'تم تحديث حالة طلبك إلى: ${_statusLabel(newStatus)}',
+        'body': 'تم تحديث حالة طلبك إلى: ${OrderUtils.statusLabel(newStatus)}',
         'orderId': orderId,
         'forRole': null,
         'forUserId': userId,
@@ -56,7 +57,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم تحديث الحالة إلى: ${_statusLabel(newStatus)}'),
+          content: Text('تم تحديث الحالة إلى: ${OrderUtils.statusLabel(newStatus)}'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
@@ -70,40 +71,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-    }
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'pending':
-        return Colors.orange;
-      case 'confirmed':
-        return Colors.blue;
-      case 'shipped':
-        return Colors.purple;
-      case 'delivered':
-        return Colors.green;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'pending':
-        return 'قيد المعالجة';
-      case 'confirmed':
-        return 'تم التأكيد';
-      case 'shipped':
-        return 'تم الشحن';
-      case 'delivered':
-        return 'تم التسليم';
-      case 'cancelled':
-        return 'ملغي';
-      default:
-        return status;
     }
   }
 
@@ -137,10 +104,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                             status == currentStatus
                                 ? Icons.radio_button_checked
                                 : Icons.radio_button_off,
-                            color: _statusColor(status),
+                            color: OrderUtils.statusColor(status),
                           ),
                           title: Text(
-                            _statusLabel(status),
+                            OrderUtils.statusLabel(status),
                             style: TextStyle(
                               color: status == currentStatus ? _gold : Colors.white,
                               fontWeight: status == currentStatus
@@ -255,17 +222,6 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
-  /// يبني تسمية عنصر الطلب — يُخفي المقاس/اللون إن كانا فارغَين أو 'افتراضي'
-  String _buildItemLabel(Map<String, dynamic> item) {
-    final qty = item['quantity'];
-    final size = item['size'] as String? ?? '';
-    final color = item['color'] as String? ?? '';
-    final parts = <String>['x$qty'];
-    if (size.isNotEmpty && size != 'افتراضي') parts.add(size);
-    if (color.isNotEmpty && color != 'افتراضي') parts.add(color);
-    return parts.join('  •  ');
-  }
-
   Widget _buildOrderCard(String orderId, Map<String, dynamic> data) {
     final status = data['status'] as String? ?? 'pending';
     final total = (data['total'] as num?)?.toDouble() ?? 0.0;
@@ -277,7 +233,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     final userId = data['userId'] as String? ?? '';
     final createdAt = data['createdAt'] as Timestamp?;
     final dateStr = createdAt != null
-        ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year}  ${createdAt.toDate().hour}:${createdAt.toDate().minute.toString().padLeft(2, '0')}'
+        ? OrderUtils.formatDateTime(createdAt.toDate())
         : 'غير محدد';
 
     return Container(
@@ -308,14 +264,14 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _statusColor(status).withValues(alpha: 0.15),
+                      color: OrderUtils.statusColor(status).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _statusColor(status).withValues(alpha: 0.5)),
+                      border: Border.all(color: OrderUtils.statusColor(status).withValues(alpha: 0.5)),
                     ),
                     child: Text(
-                      _statusLabel(status),
+                      OrderUtils.statusLabel(status),
                       style: TextStyle(
-                        color: _statusColor(status),
+                        color: OrderUtils.statusColor(status),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -326,7 +282,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '$dateStr  •  ${total.toStringAsFixed(2)} ج.م  •  ${items.length} منتج',
+              '$dateStr  •  ${total.toStringAsFixed(2)} ج.س  •  ${items.length} منتج',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
@@ -356,7 +312,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                     child: Text(m['name'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 13)),
                   ),
                   Text(
-                    _buildItemLabel(m),
+                    OrderUtils.buildItemLabel(m),
                     style: const TextStyle(color: Colors.white54, fontSize: 11),
                   ),
                 ],

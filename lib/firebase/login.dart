@@ -77,6 +77,111 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // ── Forgot Password ───────────────────────────────────────────────────
+  Future<void> _showForgotPasswordDialog(BuildContext context) async {
+    const panel = Color(0xFF180808);
+    const gold = Color(0xFFD4AF37);
+    final emailCtrl = TextEditingController(text: _emailController.text.trim());
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: panel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'استعادة كلمة المرور',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'أدخل بريدك الإلكتروني وسنُرسل لك رابط إعادة تعيين كلمة المرور.',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                labelText: 'البريد الإلكتروني',
+                labelStyle: const TextStyle(color: Colors.white54),
+                prefixIcon:
+                    const Icon(Icons.email_outlined, color: Colors.white38),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: gold),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: gold,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty ||
+                  !RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(email)) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('يرجى إدخال بريد إلكتروني صحيح'),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                await FirebaseAuth.instance
+                    .sendPasswordResetEmail(email: email);
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'تم إرسال رابط الاستعادة إلى $email. تحقق من بريدك.'),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 5),
+                  ),
+                );
+              } on FirebaseAuthException catch (e) {
+                if (!context.mounted) return;
+                final msg = e.code == 'user-not-found'
+                    ? 'لا يوجد حساب بهذا البريد الإلكتروني.'
+                    : 'حدث خطأ: ${e.message}';
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(msg),
+                    backgroundColor: Colors.red,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            child: const Text('إرسال'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _signInWithEmail() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final email = _emailController.text.trim();
@@ -418,16 +523,8 @@ class _LoginPageState extends State<LoginPage> {
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
-                                      onPressed: () {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                            content: Text('نسيت كلمة المرور'),
-                                            backgroundColor:
-                                                Color.fromARGB(255, 94, 255, 0),
-                                          ),
-                                        );
-                                      },
+                                      onPressed: () =>
+                                          _showForgotPasswordDialog(context),
                                       child: const Text(
                                         'هل نسيت كلمة المرور؟',
                                         style: TextStyle(color: Colors.white),

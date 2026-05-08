@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/models/cartt.dart';
@@ -7,6 +8,8 @@ import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
+
+  static const Color _gold = Color(0xFFD4AF37);
 
   static const AppSliverBar _appBar = AppSliverBar(
     title: 'سلتي',
@@ -18,7 +21,7 @@ class CartPage extends StatelessWidget {
     return Consumer<Cart>(
       builder: (context, cart, child) {
         if (cart.items.isEmpty) {
-          return const CustomScrollView(
+          return CustomScrollView(
             slivers: [
               _appBar,
               SliverFillRemaining(
@@ -26,20 +29,30 @@ class CartPage extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.shopping_cart_outlined,
-                          color: Colors.white24, size: 80),
-                      SizedBox(height: 16),
-                      Text(
+                      Container(
+                        width: 110,
+                        height: 110,
+                        decoration: BoxDecoration(
+                          color: _gold.withValues(alpha: 0.08),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: _gold.withValues(alpha: 0.25), width: 1.5),
+                        ),
+                        child: const Icon(Icons.shopping_cart_outlined,
+                            color: _gold, size: 52),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
                         'السلة فارغة',
                         style: TextStyle(
-                            color: Colors.white54,
+                            color: Colors.white,
                             fontSize: 20,
-                            fontWeight: FontWeight.w600),
+                            fontWeight: FontWeight.w700),
                       ),
-                      SizedBox(height: 8),
-                      Text(
+                      const SizedBox(height: 8),
+                      const Text(
                         'أضف منتجات من المتجر لتظهر هنا',
-                        style: TextStyle(color: Colors.white38, fontSize: 14),
+                        style: TextStyle(color: Colors.white54, fontSize: 14),
                       ),
                     ],
                   ),
@@ -86,6 +99,41 @@ class _CartItemCard extends StatelessWidget {
 
   const _CartItemCard({required this.item, required this.index});
 
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _panel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('حذف المنتج', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'هل تريد إزالة "${item.name}" من السلة؟',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('تراجع', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      Provider.of<Cart>(context, listen: false).removeItem(index);
+    }
+  }
+
   Widget _tag(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -119,6 +167,9 @@ class _CartItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final atStockLimit =
+        item.stockQuantity > 0 && item.quantity >= item.stockQuantity;
+
     return Container(
       decoration: BoxDecoration(
         color: _panel,
@@ -127,15 +178,21 @@ class _CartItemCard extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Product image
           ClipRRect(
             borderRadius:
                 const BorderRadius.horizontal(left: Radius.circular(16)),
-            child: Image.network(
-              item.image,
+            child: CachedNetworkImage(
+              imageUrl: item.image,
               width: 100,
               height: 100,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              placeholder: (_, __) => Container(
+                width: 100,
+                height: 100,
+                color: Colors.grey[900],
+              ),
+              errorWidget: (_, __, ___) => Container(
                 width: 100,
                 height: 100,
                 color: Colors.grey[900],
@@ -145,6 +202,7 @@ class _CartItemCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
+          // Product info
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -164,31 +222,42 @@ class _CartItemCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      _tag(item.size),
-                      const SizedBox(width: 6),
-                      _tag(item.color),
+                      if (item.size != 'افتراضي') ...[
+                        _tag(item.size),
+                        const SizedBox(width: 6),
+                      ],
+                      if (item.color != 'افتراضي') _tag(item.color),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${item.price.toStringAsFixed(2)} ج.م',
+                    '${item.price.toStringAsFixed(2)} ج.س',
                     style: const TextStyle(
                       color: _gold,
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
                   ),
+                  // Stock limit hint
+                  if (atStockLimit)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text(
+                        'وصلت للحد الأقصى المتاح',
+                        style: TextStyle(color: Colors.orange, fontSize: 11),
+                      ),
+                    ),
                 ],
               ),
             ),
           ),
+          // Actions column
           Column(
             children: [
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red,
-                    size: 20),
-                onPressed: () =>
-                    Provider.of<Cart>(context, listen: false).removeItem(index),
+                icon: const Icon(Icons.delete_outline,
+                    color: Colors.red, size: 20),
+                onPressed: () => _confirmDelete(context),
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -211,8 +280,10 @@ class _CartItemCard extends StatelessWidget {
                   ),
                   _quantityButton(
                     icon: Icons.add,
-                    onTap: () => Provider.of<Cart>(context, listen: false)
-                        .incrementQuantity(index),
+                    onTap: atStockLimit
+                        ? () {} // زر معطّل بصرياً
+                        : () => Provider.of<Cart>(context, listen: false)
+                            .incrementQuantity(index),
                   ),
                 ],
               ),
@@ -253,7 +324,7 @@ class _BottomBar extends StatelessWidget {
                 style: TextStyle(color: Colors.white70, fontSize: 16),
               ),
               Text(
-                '${cart.totalPrice.toStringAsFixed(2)} ج.م',
+                '${cart.totalPrice.toStringAsFixed(2)} ج.س',
                 style: const TextStyle(
                   color: _gold,
                   fontSize: 22,

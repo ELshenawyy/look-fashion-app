@@ -74,46 +74,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
-  /// Validates that all items have sufficient stock before placing order.
-  Future<String?> _validateStock(Cart cart) async {
-    final firestore = FirebaseFirestore.instance;
-
-    for (final item in cart.items) {
-      final docRef = firestore.collection('products').doc(item.productId);
-      final docSnap = await docRef.get();
-
-      if (!docSnap.exists) {
-        return 'المنتج "${item.name}" لم يعد متاحاً.';
-      }
-
-      final data = docSnap.data()!;
-      final currentStock = (data['stockQuantity'] as num?)?.toInt() ?? 0;
-
-      if (currentStock < item.quantity) {
-        if (currentStock == 0) {
-          return 'المنتج "${item.name}" نفد من المخزون.';
-        }
-        return 'المنتج "${item.name}" متاح فقط $currentStock قطعة، لكن طلبت ${item.quantity}.';
-      }
-    }
-    return null; // all good
-  }
-
-  /// Decrements stock for all ordered items using a batch write.
-  Future<void> _decrementStock(Cart cart) async {
-    final firestore = FirebaseFirestore.instance;
-    final batch = firestore.batch();
-
-    for (final item in cart.items) {
-      final docRef = firestore.collection('products').doc(item.productId);
-      batch.update(docRef, {
-        'stockQuantity': FieldValue.increment(-item.quantity),
-      });
-    }
-
-    await batch.commit();
-  }
-
   /// Creates a notification for all admins about the new order.
   Future<void> _notifyAdmins(
       String orderId, Cart cart, String userName, String phone) async {
@@ -136,7 +96,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
   }
 
-  Future<void> _placeOrder(Cart cart) async {
+  /// Shows a summary bottom sheet and waits for user confirmation before placing order.
+  Future<void> _showOrderSummaryModal(Cart cart) async {
     final enteredName = _nameController.text.trim();
     if (enteredName.isEmpty) {
       _showSnack('يرجى إدخال اسمك', Colors.orange);
@@ -163,21 +124,229 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
+    // Close keyboard before showing sheet
+    FocusScope.of(context).unfocus();
+
+    final deliveryCost = _calculateDeliveryCost(cart);
+    final grandTotal = cart.totalPrice + deliveryCost;
+
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (_, scrollCtrl) {
+            return Container(
+              decoration: const BoxDecoration(
+                color: Color(0xFF180808),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  // ── Handle ─────────────────────────────────
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt_long_rounded, color: Color(0xFFD4AF37), size: 22),
+                        SizedBox(width: 10),
+                        Text(
+                          'مراجعة الطلب',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Divider(color: Colors.white12, height: 16),
+                  // ── Scrollable content ───────────────────────
+                  Expanded(
+                    child: ListView(
+                      controller: scrollCtrl,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      children: [
+                        // Items
+                        ...cart.items.map((item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  item.image,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(
+                                    width: 48,
+                                    height: 48,
+                                    color: Colors.white10,
+                                    child: const Icon(Icons.image_not_supported,
+                                        color: Colors.white24, size: 18),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(item.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600)),
+                                    Text('${item.size} • ${item.color} • x${item.quantity}',
+                                        style: const TextStyle(
+                                            color: Colors.white54, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                '${(item.price * item.quantity).toStringAsFixed(0)} ج.س',
+                                style: const TextStyle(
+                                    color: Color(0xFFD4AF37),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        )),
+                        const Divider(color: Colors.white12),
+                        // Delivery address & phone
+                        _summaryRow(Icons.person_outline_rounded,
+                            enteredName, Colors.white70),
+                        const SizedBox(height: 6),
+                        _summaryRow(Icons.location_on_outlined,
+                            '${_addressController.text.trim()} — $_selectedState', Colors.white70),
+                        const SizedBox(height: 6),
+                        _summaryRow(Icons.phone_outlined,
+                            _phoneController.text.trim(), Colors.white70),
+                        const Divider(color: Colors.white12),
+                        // Totals
+                        _totalRow('المجموع الفرعي',
+                            '${cart.totalPrice.toStringAsFixed(0)} ج.س', false),
+                        const SizedBox(height: 6),
+                        _totalRow('تكلفة التوصيل',
+                            '${deliveryCost.toStringAsFixed(0)} ج.س', false),
+                        const SizedBox(height: 6),
+                        _totalRow('الإجمالي',
+                            '${grandTotal.toStringAsFixed(0)} ج.س', true),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                  // ── Confirm button ───────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.of(sheetCtx).pop(true),
+                        icon: const Icon(Icons.check_circle_outline_rounded),
+                        label: const Text('تأكيد وإرسال الطلب'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFD4AF37),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 15),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18)),
+                          textStyle: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _placeOrder(cart);
+    }
+  }
+
+  Widget _summaryRow(IconData icon, String text, Color color) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: const Color(0xFFD4AF37), size: 16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(text,
+              style: TextStyle(color: color, fontSize: 13)),
+        ),
+      ],
+    );
+  }
+
+  Widget _totalRow(String label, String value, bool isBold) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: TextStyle(
+              color: isBold ? Colors.white : Colors.white70,
+              fontSize: isBold ? 15 : 13,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
+            )),
+        Text(value,
+            style: TextStyle(
+              color: isBold ? const Color(0xFFD4AF37) : Colors.white70,
+              fontSize: isBold ? 17 : 13,
+              fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
+            )),
+      ],
+    );
+  }
+
+  /// Places the order atomically using a Firestore transaction:
+  /// validates stock → creates order → decrements stock in one atomic operation.
+  Future<void> _placeOrder(Cart cart) async {
     setState(() => _isPlacingOrder = true);
 
     try {
-      // 1) Validate stock
-      final stockError = await _validateStock(cart);
-      if (stockError != null) {
-        if (!mounted) return;
-        _showSnack(stockError, Colors.red);
-        setState(() => _isPlacingOrder = false);
-        return;
-      }
-
-      // 2) Create order
       final user = FirebaseAuth.instance.currentUser;
-      final userName = enteredName;
+      final userName = _nameController.text.trim();
+      final phone = _phoneController.text.trim();
+      final deliveryCost = _calculateDeliveryCost(cart);
+      final grandTotal = cart.totalPrice + deliveryCost;
+
+      final firestore = FirebaseFirestore.instance;
+
+      // Build product refs ahead of the transaction
+      final productRefs = cart.items
+          .map((item) => firestore.collection('products').doc(item.productId))
+          .toList();
+
+      // Prepare the order document reference (auto-ID, created inside transaction)
+      final orderRef = firestore.collection('orders').doc();
+
       final orderItems = cart.items
           .map((item) => {
                 'productId': item.productId,
@@ -190,40 +359,73 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               })
           .toList();
 
-      final deliveryCost = _calculateDeliveryCost(cart);
-      final grandTotal = cart.totalPrice + deliveryCost;
+      // Run everything atomically
+      await firestore.runTransaction((tx) async {
+        // 1) Read all stock values first (reads must come before writes in a transaction)
+        final snaps = await Future.wait(
+          productRefs.map((ref) => tx.get(ref)),
+        );
 
-      final orderRef = await FirebaseFirestore.instance.collection('orders').add({
-        'userId': user?.uid,
-        'userEmail': user?.email,
-        'userName': userName,
-        'items': orderItems,
-        'subtotal': cart.totalPrice,
-        'deliveryCost': deliveryCost,
-        'total': grandTotal,
-        'address': _addressController.text.trim(),
-        'state': _selectedState,
-        'phone': _phoneController.text.trim(),
-        'status': 'pending',
-        'productStates': cart.items.map((i) => i.productState).toSet().toList(),
-        'deliveryDays': '1-15',
-        'createdAt': FieldValue.serverTimestamp(),
+        // 2) Validate stock
+        for (int i = 0; i < cart.items.length; i++) {
+          final item = cart.items[i];
+          final snap = snaps[i];
+
+          if (!snap.exists) {
+            throw Exception('المنتج "${item.name}" لم يعد متاحاً.');
+          }
+
+          final currentStock =
+              (snap.data()?['stockQuantity'] as num?)?.toInt() ?? 0;
+
+          if (currentStock < item.quantity) {
+            if (currentStock == 0) {
+              throw Exception('المنتج "${item.name}" نفد من المخزون.');
+            }
+            throw Exception(
+              'المنتج "${item.name}" متاح فقط $currentStock قطعة، لكن طلبت ${item.quantity}.',
+            );
+          }
+        }
+
+        // 3) Write order document
+        tx.set(orderRef, {
+          'userId': user?.uid,
+          'userEmail': user?.email,
+          'userName': userName,
+          'items': orderItems,
+          'subtotal': cart.totalPrice,
+          'deliveryCost': deliveryCost,
+          'total': grandTotal,
+          'address': _addressController.text.trim(),
+          'state': _selectedState,
+          'phone': phone,
+          'status': 'pending',
+          'productStates':
+              cart.items.map((i) => i.productState).toSet().toList(),
+          'deliveryDays': '1-15',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        // 4) Decrement stock for each item
+        for (int i = 0; i < cart.items.length; i++) {
+          tx.update(productRefs[i], {
+            'stockQuantity': FieldValue.increment(-cart.items[i].quantity),
+          });
+        }
       });
 
-      // 3) Decrement stock
-      await _decrementStock(cart);
+      // 5) Notify admins (outside transaction — non-critical)
+      await _notifyAdmins(orderRef.id, cart, userName, phone);
 
-      // 4) Notify admins
-      await _notifyAdmins(orderRef.id, cart, userName, _phoneController.text.trim());
-
-      // 5) Clear cart & show confirmation
+      // 6) Clear cart & show confirmation
       cart.clear();
 
       if (!mounted) return;
       _showOrderConfirmationDialog();
     } catch (e) {
       if (!mounted) return;
-      _showSnack('حدث خطأ أثناء تأكيد الطلب: $e', Colors.red);
+      _showSnack('$e', Colors.red);
     } finally {
       if (mounted) setState(() => _isPlacingOrder = false);
     }
@@ -356,7 +558,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         children: [
                           Text('x${item.quantity}',
                               style: const TextStyle(color: Colors.white70)),
-                          Text('${(item.price * item.quantity).toStringAsFixed(2)} ج.م',
+                          Text('${(item.price * item.quantity).toStringAsFixed(2)} ج.س',
                               style: const TextStyle(color: _gold, fontWeight: FontWeight.w700)),
                         ],
                       ),
@@ -526,7 +728,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _isPlacingOrder ? null : () => _placeOrder(cart),
+                onPressed: _isPlacingOrder ? null : () => _showOrderSummaryModal(cart),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _gold,
                   foregroundColor: Colors.black,

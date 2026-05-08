@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
+import 'package:my_fashion_app/services/role_service.dart';
+import 'package:my_fashion_app/utils/order_utils.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class OrdersScreen extends StatelessWidget {
@@ -72,7 +74,7 @@ class _OrdersBodyState extends State<_OrdersBody> {
         .get();
     final role = doc.data()?['role'] as String? ?? '';
     if (mounted) {
-      setState(() => _isAdmin = role.toLowerCase() == 'admin');
+      setState(() => _isAdmin = AppRole.isAdminLevel(role));
     }
   }
 
@@ -136,17 +138,6 @@ class _OrdersBodyState extends State<_OrdersBody> {
   }
 }
 
-/// يبني تسمية عنصر الطلب — يُخفي المقاس/اللون إن كانا فارغَين أو 'افتراضي'
-String _buildItemLabel(Map<String, dynamic> item) {
-  final qty = item['quantity'];
-  final size = item['size'] as String? ?? '';
-  final color = item['color'] as String? ?? '';
-  final parts = <String>['x$qty'];
-  if (size.isNotEmpty && size != 'افتراضي') parts.add(size);
-  if (color.isNotEmpty && color != 'افتراضي') parts.add(color);
-  return parts.join('  •  ');
-}
-
 class _OrderCard extends StatelessWidget {
   final String orderId;
   final Map<String, dynamic> data;
@@ -161,37 +152,61 @@ class _OrderCard extends StatelessWidget {
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'pending':
-        return Colors.orange;
-      case 'confirmed':
-        return Colors.blue;
-      case 'shipped':
-        return Colors.purple;
-      case 'delivered':
-        return Colors.green;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
+  Future<void> _cancelOrder(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _panel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('إلغاء الطلب', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'هل أنت متأكد من إلغاء هذا الطلب؟\nلا يمكن التراجع عن هذه العملية.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('تراجع', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('إلغاء الطلب'),
+          ),
+        ],
+      ),
+    );
 
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'pending':
-        return 'قيد المعالجة';
-      case 'confirmed':
-        return 'تم التأكيد';
-      case 'shipped':
-        return 'تم الشحن';
-      case 'delivered':
-        return 'تم التسليم';
-      case 'cancelled':
-        return 'ملغي';
-      default:
-        return status;
+    if (confirmed != true) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('orders')
+          .doc(orderId)
+          .update({'status': 'cancelled'});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم إلغاء الطلب بنجاح'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تعذر إلغاء الطلب: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -202,7 +217,9 @@ class _OrderCard extends StatelessWidget {
     final items = data['items'] as List<dynamic>? ?? [];
     final address = data['address'] as String? ?? '';
     final createdAt = data['createdAt'] as Timestamp?;
-    final dateStr = createdAt != null ? _formatDate(createdAt.toDate()) : 'غير محدد';
+    final dateStr = createdAt != null
+        ? OrderUtils.formatDateTime(createdAt.toDate())
+        : 'غير محدد';
 
     return Container(
       decoration: BoxDecoration(
@@ -225,7 +242,7 @@ class _OrderCard extends StatelessWidget {
                       style:
                           const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text('${total.toStringAsFixed(2)} ج.م  •  ${items.length} منتج',
+                  Text('${total.toStringAsFixed(2)} ج.س  •  ${items.length} منتج',
                       style: const TextStyle(color: Colors.white54, fontSize: 13)),
                 ],
               ),
@@ -233,14 +250,16 @@ class _OrderCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: _statusColor(status).withValues(alpha: 0.15),
+                color: OrderUtils.statusColor(status).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _statusColor(status).withValues(alpha: 0.5)),
+                border: Border.all(color: OrderUtils.statusColor(status).withValues(alpha: 0.5)),
               ),
               child: Text(
-                _statusLabel(status),
+                OrderUtils.statusLabel(status),
                 style: TextStyle(
-                    color: _statusColor(status), fontSize: 12, fontWeight: FontWeight.w600),
+                    color: OrderUtils.statusColor(status),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600),
               ),
             ),
           ],
@@ -283,16 +302,17 @@ class _OrderCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    _buildItemLabel(itemMap),
+                    OrderUtils.buildItemLabel(itemMap),
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                 ],
               ),
             );
           }),
-          // Chat button — only for regular users, NOT for admin
+          // Buttons — only for regular users, NOT for admin
           if (!isAdmin) ...[
             const Divider(color: Colors.white10, height: 16),
+            // Chat button
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -317,13 +337,27 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
             ),
+            // Cancel button — only for pending orders
+            if (status == 'pending') ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _cancelOrder(context),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('إلغاء الطلب'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
+              ),
+            ],
           ],
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}  ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

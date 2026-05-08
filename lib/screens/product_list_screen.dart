@@ -178,6 +178,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       size: size,
       color: color,
       productState: product.state,
+      stockQuantity: product.stockQuantity,
       quantity: 1,
     ));
     ScaffoldMessenger.of(context).showSnackBar(

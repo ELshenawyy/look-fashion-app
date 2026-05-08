@@ -93,6 +93,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       image: product.imageUrl,
       size: chosenSize,
       color: chosenColor,
+      productState: product.state,
+      stockQuantity: product.stockQuantity,
     );
 
     Provider.of<Cart>(context, listen: false).addItem(cartItem);

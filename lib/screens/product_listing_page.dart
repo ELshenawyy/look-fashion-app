@@ -119,6 +119,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
       size: product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي',
       color: product.colors.isNotEmpty ? product.colors.first : 'افتراضي',
       productState: product.state,
+      stockQuantity: product.stockQuantity,
       quantity: 1,
     ));
     ScaffoldMessenger.of(context).showSnackBar(

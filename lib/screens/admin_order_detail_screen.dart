@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
+import 'package:my_fashion_app/utils/order_utils.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 /// شاشة تفاصيل طلب واحد — للأدمن (تُفتح من الإشعارات)
@@ -66,7 +67,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       await FirebaseFirestore.instance.collection('notifications').add({
         'type': 'order_status',
         'title': 'تحديث حالة الطلب',
-        'body': 'تم تحديث حالة طلبك إلى: ${_statusLabel(newStatus)}',
+        'body': 'تم تحديث حالة طلبك إلى: ${OrderUtils.statusLabel(newStatus)}',
         'orderId': widget.orderId,
         'forRole': null,
         'forUserId': userId,
@@ -79,7 +80,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       if (!mounted) return;
       setState(() => _orderData = {...?_orderData, 'status': newStatus});
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('تم تحديث الحالة إلى: ${_statusLabel(newStatus)}'),
+        content: Text('تم تحديث الحالة إلى: ${OrderUtils.statusLabel(newStatus)}'),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
       ));
@@ -129,10 +130,10 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                             s == currentStatus
                                 ? Icons.radio_button_checked
                                 : Icons.radio_button_off,
-                            color: _statusColor(s),
+                            color: OrderUtils.statusColor(s),
                           ),
                           title: Text(
-                            _statusLabel(s),
+                            OrderUtils.statusLabel(s),
                             style: TextStyle(
                               color: s == currentStatus ? _gold : Colors.white,
                               fontWeight: s == currentStatus
@@ -157,50 +158,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   }
 
   // ── helpers ──────────────────────────────────────────────────────────
-  Color _statusColor(String s) {
-    switch (s) {
-      case 'pending':
-        return Colors.orange;
-      case 'confirmed':
-        return Colors.blue;
-      case 'shipped':
-        return Colors.purple;
-      case 'delivered':
-        return Colors.green;
-      case 'cancelled':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _statusLabel(String s) {
-    switch (s) {
-      case 'pending':
-        return 'قيد المعالجة';
-      case 'confirmed':
-        return 'تم التأكيد';
-      case 'shipped':
-        return 'تم الشحن';
-      case 'delivered':
-        return 'تم التسليم';
-      case 'cancelled':
-        return 'ملغي';
-      default:
-        return s;
-    }
-  }
-
-  String _buildItemLabel(Map<String, dynamic> item) {
-    final qty = item['quantity'];
-    final size = item['size'] as String? ?? '';
-    final color = item['color'] as String? ?? '';
-    final parts = <String>['x$qty'];
-    if (size.isNotEmpty && size != 'افتراضي') parts.add(size);
-    if (color.isNotEmpty && color != 'افتراضي') parts.add(color);
-    return parts.join('  •  ');
-  }
-
   Widget _infoRow(IconData icon, String text) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(
@@ -258,7 +215,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     final items = data['items'] as List<dynamic>? ?? [];
     final createdAt = data['createdAt'] as Timestamp?;
     final dateStr = createdAt != null
-        ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year}  ${createdAt.toDate().hour}:${createdAt.toDate().minute.toString().padLeft(2, '0')}'
+        ? OrderUtils.formatDateTime(createdAt.toDate())
         : 'غير محدد';
 
     return SingleChildScrollView(
@@ -301,15 +258,15 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _statusColor(status).withValues(alpha: 0.15),
+                      color: OrderUtils.statusColor(status).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: _statusColor(status).withValues(alpha: 0.5)),
+                          color: OrderUtils.statusColor(status).withValues(alpha: 0.5)),
                     ),
                     child: Text(
-                      _statusLabel(status),
+                      OrderUtils.statusLabel(status),
                       style: TextStyle(
-                        color: _statusColor(status),
+                        color: OrderUtils.statusColor(status),
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -395,7 +352,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                                   style: const TextStyle(
                                       color: Colors.white, fontSize: 13)),
                               Text(
-                                _buildItemLabel(m),
+                                OrderUtils.buildItemLabel(m),
                                 style: const TextStyle(
                                     color: Colors.white54, fontSize: 11),
                               ),
@@ -403,7 +360,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                           ),
                         ),
                         Text(
-                          '${(m['price'] as num?)?.toStringAsFixed(2) ?? 0} ج.م',
+                          '${(m['price'] as num?)?.toStringAsFixed(2) ?? 0} ج.س',
                           style: const TextStyle(
                               color: _gold,
                               fontSize: 13,
@@ -484,7 +441,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                     fontWeight:
                         bold ? FontWeight.w700 : FontWeight.normal)),
             Text(
-              '${amount.toStringAsFixed(2)} ج.م',
+              '${amount.toStringAsFixed(2)} ج.س',
               style: TextStyle(
                   color: bold ? _gold : Colors.white70,
                   fontSize: bold ? 14 : 13,

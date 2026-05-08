@@ -42,10 +42,12 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   static const Color _gold = Color(0xFFD4AF37);
+  static const int _pageSize = 20;
 
   bool _isAdmin = false;
   bool _loadingRole = true;
   String _userId = '';
+  int _visibleCount = _pageSize; // كم إشعار نعرض حالياً
 
   @override
   void initState() {
@@ -196,12 +198,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               );
             }
 
+            // تطبيق الـ pagination: عرض أول _visibleCount فقط
+            final visible =
+                sorted.take(_visibleCount).toList();
+            final hasMore = sorted.length > _visibleCount;
+
             return ListView.separated(
               padding: const EdgeInsets.all(12),
-              itemCount: sorted.length,
+              itemCount: visible.length + (hasMore ? 1 : 0),
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
-                final doc = sorted[index];
+                // زر "تحميل المزيد"
+                if (index == visible.length) {
+                  return Center(
+                    child: TextButton.icon(
+                      onPressed: () => setState(
+                          () => _visibleCount += _pageSize),
+                      icon: const Icon(Icons.expand_more, color: _gold),
+                      label: Text(
+                        'تحميل المزيد (${sorted.length - _visibleCount} متبقية)',
+                        style: const TextStyle(color: _gold),
+                      ),
+                    ),
+                  );
+                }
+                final doc = visible[index];
                 final data = doc.data() as Map<String, dynamic>;
                 return _NotificationTile(
                   docId: doc.id,

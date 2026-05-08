@@ -6,6 +6,7 @@ class CartItem {
   final String size;
   final String color;
   final String productState;
+  final int stockQuantity; // 0 = بدون حد (عند الإضافة السريعة)
   int quantity;
 
   CartItem({
@@ -16,6 +17,7 @@ class CartItem {
     required this.size,
     required this.color,
     this.productState = '',
+    this.stockQuantity = 0,
     this.quantity = 1,
   });
 }

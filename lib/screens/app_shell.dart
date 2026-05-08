@@ -80,7 +80,7 @@ class _AppShellState extends State<AppShell> {
           const ProductListScreen(),
           const CategoriesScreen(),
           const CartPage(),
-          const FavoritesScreen(),
+          FavoritesScreen(onBrowseProducts: () => _onItemTapped(0)),
           const ProfileScreen(),
         ];
 

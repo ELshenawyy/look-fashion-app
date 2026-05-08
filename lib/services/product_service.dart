@@ -32,6 +32,7 @@ class ProductService {
             'colors': data['colors'] ?? const [],
             'stockQuantity': data['stockQuantity'] ?? 0,
             'category': data['category'] ?? '',
+            'state': data['state'] ?? '',
           });
         }).toList();
       },

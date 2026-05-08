@@ -75,6 +75,27 @@ class CategoriesScreen extends StatelessWidget {
           StreamBuilder<Map<String, int>>(
             stream: _categoryCounts(),
             builder: (context, snapshot) {
+              // ── Error state ──
+              if (snapshot.hasError) {
+                return const SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.error_outline,
+                            color: Colors.white24, size: 56),
+                        SizedBox(height: 12),
+                        Text(
+                          'خطأ في تحميل الأقسام',
+                          style: TextStyle(
+                              color: Colors.white54, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
               final counts = snapshot.data ?? {};
 
               return SliverPadding(

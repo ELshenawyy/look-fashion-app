@@ -3,6 +3,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
 import 'package:my_fashion_app/screens/admin_orders_screen.dart';
+import 'package:my_fashion_app/utils/order_utils.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -13,38 +14,27 @@ class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key, required this.isSuperAdmin});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _AdminDashboardState createState() => _AdminDashboardState();
+  State<AdminDashboard> createState() => _AdminDashboardState();
 }
 
 class _AdminDashboardState extends State<AdminDashboard> {
   static const Color _gold = Color(0xFFD4AF37);
 
   late Stream<QuerySnapshot> _productsStream;
-
-  DateTime _resolveDate(Map<String, dynamic> data) {
-    final v = data['createdAt'] ?? data['updatedAt'];
-    if (v is Timestamp) return v.toDate();
-    if (v is DateTime) return v;
-    return DateTime.fromMillisecondsSinceEpoch(0);
-  }
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _productsStream = FirebaseFirestore.instance
-        .collection('products')
-        .snapshots();
+    _productsStream =
+        FirebaseFirestore.instance.collection('products').snapshots();
   }
 
   Future<void> _deleteProduct(String docId, String imageUrl) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(
-          'حذف المنتج',
-          style: TextStyle(color: _gold),
-        ),
+        title: const Text('حذف المنتج', style: TextStyle(color: _gold)),
         content: const Text(
           'هل أنت متأكد من رغبتك في حذف هذا المنتج؟',
           style: TextStyle(color: Colors.white70),
@@ -53,10 +43,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              'إلغاء',
-              style: TextStyle(color: _gold),
-            ),
+            child: const Text('إلغاء', style: TextStyle(color: _gold)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -69,15 +56,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (confirm != true) return;
 
     try {
-      // Delete from Firestore
-      await FirebaseFirestore.instance.collection('products').doc(docId).delete();
+      await FirebaseFirestore.instance
+          .collection('products')
+          .doc(docId)
+          .delete();
 
-      // Delete image from Storage
       if (imageUrl.isNotEmpty) {
         try {
-          final ref = FirebaseStorage.instance.refFromURL(imageUrl);
-          await ref.delete();
+          await FirebaseStorage.instance.refFromURL(imageUrl).delete();
         } catch (e) {
+          // صورة الـ Storage اختيارية — لا نوقف العملية إن فشل حذفها
           debugPrint('Error deleting image: $e');
         }
       }
@@ -119,11 +107,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: NestedScrollView(
-        headerSliverBuilder: (context, _) => [
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
           AppSliverBar(
             titleWidget: const Text(
               'لوحة الإدارة',
-              style: TextStyle(color: _gold, fontSize: 20, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                  color: _gold, fontSize: 20, fontWeight: FontWeight.w700),
             ),
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
@@ -134,150 +123,227 @@ class _AdminDashboardState extends State<AdminDashboard> {
               TextButton.icon(
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AdminOrdersScreen()),
+                  MaterialPageRoute(
+                      builder: (_) => const AdminOrdersScreen()),
                 ),
-                icon: const Icon(Icons.receipt_long, color: Colors.blue, size: 20),
-                label: const Text('الطلبات', style: TextStyle(color: Colors.blue)),
+                icon: const Icon(Icons.receipt_long,
+                    color: Colors.blue, size: 20),
+                label:
+                    const Text('الطلبات', style: TextStyle(color: Colors.blue)),
               ),
             ],
           ),
+          // ── شريط البحث ──────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: TextField(
+                style: const TextStyle(color: Colors.white),
+                cursorColor: _gold,
+                decoration: InputDecoration(
+                  hintText: 'ابحث عن منتج...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  prefixIcon:
+                      const Icon(Icons.search, color: Colors.white38),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear,
+                              color: Colors.white38, size: 18),
+                          onPressed: () => setState(() => _searchQuery = ''),
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: const Color(0xFF180808),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                        const BorderSide(color: _gold, width: 1),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                ),
+                onChanged: (v) => setState(() => _searchQuery = v),
+              ),
+            ),
+          ),
         ],
         body: StreamBuilder<QuerySnapshot>(
-              stream: _productsStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFF800000)),
-            );
-          }
+          stream: _productsStream,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(color: _gold),
+              );
+            }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'حدث خطأ: ${snapshot.error}',
-                style: const TextStyle(color: Colors.white),
-              ),
-            );
-          }
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  'حدث خطأ: ${snapshot.error}',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              );
+            }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text(
-                'لا توجد منتجات',
-                style: TextStyle(color: Colors.white70),
-              ),
-            );
-          }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(
+                child: Text(
+                  'لا توجد منتجات',
+                  style: TextStyle(color: Colors.white70),
+                ),
+              );
+            }
 
-          final products = snapshot.data!.docs.toList()
-            ..sort((a, b) {
-              final aDate = _resolveDate(a.data() as Map<String, dynamic>);
-              final bDate = _resolveDate(b.data() as Map<String, dynamic>);
-              return bDate.compareTo(aDate);
-            });
+            // ترتيب ثم تصفية بالبحث
+            var products = snapshot.data!.docs.toList()
+              ..sort((a, b) {
+                final aDate =
+                    OrderUtils.resolveDate(a.data() as Map<String, dynamic>);
+                final bDate =
+                    OrderUtils.resolveDate(b.data() as Map<String, dynamic>);
+                return bDate.compareTo(aDate);
+              });
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: products.length,
-            itemBuilder: (context, index) {
-              final doc = products[index];
-              final data = doc.data() as Map<String, dynamic>;
+            if (_searchQuery.trim().isNotEmpty) {
+              final q = _searchQuery.trim().toLowerCase();
+              products = products.where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final title =
+                    (data['title'] as String? ?? '').toLowerCase();
+                final category =
+                    (data['category'] as String? ?? '').toLowerCase();
+                return title.contains(q) || category.contains(q);
+              }).toList();
+            }
 
-              return Card(
-                color: Colors.grey[900],
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.all(12),
-                  leading: data['imageUrl'] != null && (data['imageUrl'] as String).isNotEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: Image.network(
-                              data['imageUrl'],
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
+            if (products.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.search_off,
+                        color: Colors.white24, size: 56),
+                    const SizedBox(height: 12),
+                    Text(
+                      'لا توجد نتائج لـ "$_searchQuery"',
+                      style: const TextStyle(color: Colors.white54),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(8),
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final doc = products[index];
+                final data = doc.data() as Map<String, dynamic>;
+
+                return Card(
+                  color: Colors.grey[900],
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(12),
+                    leading: data['imageUrl'] != null &&
+                            (data['imageUrl'] as String).isNotEmpty
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: SizedBox(
+                              width: 60,
+                              height: 60,
+                              child: Image.network(
+                                data['imageUrl'],
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
                                   color: Colors.white12,
                                   child: const Icon(Icons.broken_image,
                                       color: Colors.white38),
-                                );
-                              },
+                                ),
+                              ),
                             ),
+                          )
+                        : Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.white12,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.image,
+                                color: Colors.white38),
                           ),
-                        )
-                      : Container(
-                          width: 60,
-                          height: 60,
-                          decoration: BoxDecoration(
-                            color: Colors.white12,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.image, color: Colors.white38),
-                        ),
-                  title: Text(
-                    data['title'] ?? 'غير معروف',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+                    title: Text(
+                      data['title'] ?? 'غير معروف',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  subtitle: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(
-                        '${data['price'] ?? 0} ج.م',
-                        style: const TextStyle(
-                          color: Color(0xFFFFE600),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'المخزون: ${data['stockQuantity'] ?? 0}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      if (data['sizes'] != null && (data['sizes'] as List).isNotEmpty)
-                        Text(
-                          'المقاسات: ${(data['sizes'] as List).join(', ')}',
-                          style: const TextStyle(color: Colors.white54, fontSize: 11),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                  trailing: SizedBox(
-                    width: widget.isSuperAdmin ? 100 : 50,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blue),
-                          tooltip: 'تعديل',
-                          onPressed: () => _editProduct(doc.id, data),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${data['price'] ?? 0} ج.س',
+                          style: const TextStyle(
+                            color: _gold,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        // زر الحذف — superAdmin فقط
-                        if (widget.isSuperAdmin)
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            tooltip: 'حذف',
-                            onPressed: () =>
-                                _deleteProduct(doc.id, data['imageUrl'] ?? ''),
+                        const SizedBox(height: 2),
+                        Text(
+                          'المخزون: ${data['stockQuantity'] ?? 0}',
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12),
+                        ),
+                        if (data['sizes'] != null &&
+                            (data['sizes'] as List).isNotEmpty)
+                          Text(
+                            'المقاسات: ${(data['sizes'] as List).join(', ')}',
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 11),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                       ],
                     ),
+                    trailing: SizedBox(
+                      width: widget.isSuperAdmin ? 100 : 50,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon:
+                                const Icon(Icons.edit, color: Colors.blue),
+                            tooltip: 'تعديل',
+                            onPressed: () => _editProduct(doc.id, data),
+                          ),
+                          if (widget.isSuperAdmin)
+                            IconButton(
+                              icon: const Icon(Icons.delete,
+                                  color: Colors.red),
+                              tooltip: 'حذف',
+                              onPressed: () => _deleteProduct(
+                                  doc.id, data['imageUrl'] ?? ''),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              );
-            },
-          );
-        },
-      ),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

@@ -10,7 +10,10 @@ import 'package:my_fashion_app/widgets/product_card.dart';
 import 'package:provider/provider.dart';
 
 class FavoritesScreen extends StatefulWidget {
-  const FavoritesScreen({super.key});
+  /// يُستدعى عند الضغط على "تصفح المنتجات" لتبديل التبويب للرئيسية
+  final VoidCallback? onBrowseProducts;
+
+  const FavoritesScreen({super.key, this.onBrowseProducts});
 
   @override
   State<FavoritesScreen> createState() => _FavoritesScreenState();
@@ -88,6 +91,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       size: product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي',
       color: product.colors.isNotEmpty ? product.colors.first : 'افتراضي',
       productState: product.state,
+      stockQuantity: product.stockQuantity,
       quantity: 1,
     ));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -124,7 +128,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     // ── Not logged in ──
     if (user == null) {
-      return const CustomScrollView(
+      return CustomScrollView(
         slivers: [
           _appBar,
           SliverFillRemaining(
@@ -132,6 +136,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               icon: Icons.person_outline_rounded,
               title: 'يرجى تسجيل الدخول',
               subtitle: 'سجّل دخولك لترى منتجاتك المفضلة',
+              onBrowse: widget.onBrowseProducts,
             ),
           ),
         ],
@@ -180,15 +185,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
         // ── Empty state ──
         if (products.isEmpty) {
-          return const CustomScrollView(
+          return CustomScrollView(
             slivers: [
               _appBar,
               SliverFillRemaining(
                 child: _EmptyState(
                   icon: Icons.favorite_border_rounded,
                   title: 'قائمة المفضلة فارغة',
-                  subtitle:
-                      'احفظ القطع التي تعجبك\nوارجع إليها في أي وقت',
+                  subtitle: 'احفظ القطع التي تعجبك\nوارجع إليها في أي وقت',
+                  onBrowse: widget.onBrowseProducts,
                 ),
               ),
             ],
@@ -280,11 +285,13 @@ class _EmptyState extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.onBrowse,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final VoidCallback? onBrowse;
 
   static const Color _gold = Color(0xFFD4AF37);
 
@@ -331,7 +338,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 32),
             // CTA
             OutlinedButton.icon(
-              onPressed: () => Navigator.pop(context),
+              onPressed: onBrowse,
               icon: const Icon(Icons.explore_outlined, size: 18),
               label: const Text('تصفح المنتجات'),
               style: OutlinedButton.styleFrom(

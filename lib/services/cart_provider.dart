@@ -19,7 +19,13 @@ class Cart with ChangeNotifier {
           i.color == item.color,
     );
     if (existingIndex >= 0) {
-      _items[existingIndex].quantity++;
+      final existing = _items[existingIndex];
+      // احترام حد المخزون: إذا stockQuantity > 0 لا نتجاوزه
+      if (existing.stockQuantity > 0 &&
+          existing.quantity >= existing.stockQuantity) {
+        return; // الكمية وصلت للحد الأقصى — تجاهل الطلب
+      }
+      existing.quantity++;
     } else {
       _items.add(item);
     }
@@ -32,7 +38,12 @@ class Cart with ChangeNotifier {
   }
 
   void incrementQuantity(int index) {
-    _items[index].quantity++;
+    final item = _items[index];
+    // احترام حد المخزون
+    if (item.stockQuantity > 0 && item.quantity >= item.stockQuantity) {
+      return; // وصلنا للحد الأقصى
+    }
+    item.quantity++;
     notifyListeners();
   }
 
