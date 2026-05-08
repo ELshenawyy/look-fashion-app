@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/models/cartt.dart';
@@ -302,7 +302,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${product.price.toStringAsFixed(2)} ج.م',
+                          '${product.price.toStringAsFixed(2)} ج.س',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 28,

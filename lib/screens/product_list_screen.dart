@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -12,6 +13,7 @@ import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/providers/home_provider.dart';
 import 'package:my_fashion_app/services/cart_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:my_fashion_app/widgets/user_avatar.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -239,9 +241,6 @@ class _ProductListScreenState extends State<ProductListScreen> {
   // ── AppBar ────────────────────────────────────────────────────────────
   SliverAppBar _buildAppBar() {
     final user = FirebaseAuth.instance.currentUser;
-    final displayName = user?.displayName ?? '';
-    final name =
-        displayName.isNotEmpty ? displayName.split(' ').first : 'أهلاً';
 
     return SliverAppBar(
       backgroundColor: Colors.black,
@@ -251,28 +250,48 @@ class _ProductListScreenState extends State<ProductListScreen> {
       automaticallyImplyLeading: false,
       title: Row(
         children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: _gold.withValues(alpha: 0.2),
-            child: Text(
-              name.isNotEmpty ? name[0] : 'م',
-              style: const TextStyle(
-                  color: _gold, fontWeight: FontWeight.w700, fontSize: 15),
-            ),
-          ),
+          // ── Avatar — ديناميكي من Firestore ──────────────────────────
+          const UserAvatarWidget(radius: 20),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'مرحباً، $name',
-                style:
-                    const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-              const TalaAppBarTitle(),
-            ],
-          ),
+          // ── Greeting — ديناميكي من Firestore ────────────────────────
+          if (user != null)
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .snapshots(),
+              builder: (_, snap) {
+                final data = snap.data?.data();
+                final fullName = data?['name'] as String? ??
+                    user.displayName ?? '';
+                final first = fullName.trim().isNotEmpty
+                    ? fullName.trim().split(' ').first
+                    : 'أهلاً';
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'مرحباً، $first',
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12),
+                    ),
+                    const TalaAppBarTitle(),
+                  ],
+                );
+              },
+            )
+          else
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('مرحباً',
+                    style:
+                        TextStyle(color: Colors.white70, fontSize: 12)),
+                TalaAppBarTitle(),
+              ],
+            ),
         ],
       ),
       actions: [

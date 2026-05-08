@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/services/cart_provider.dart';
 import 'package:my_fashion_app/providers/home_provider.dart';
+import 'package:my_fashion_app/providers/profile_provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -33,6 +34,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => Cart()),
         ChangeNotifierProvider(create: (_) => HomeProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
       child: DevicePreview(
         enabled: false,

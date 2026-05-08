@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter analyze *)"
+      "Bash(flutter analyze *)",
+      "Bash(powershell -Command \"\\(Get-Content 'lib\\\\pages\\\\product_detail_screen.dart'\\) -replace 'ج\\\\.م', 'ج.س' | Set-Content 'lib\\\\pages\\\\product_detail_screen.dart' -Encoding UTF8; \\(Get-Content 'lib\\\\widgets\\\\product_card.dart'\\) -replace 'ج\\\\.م', 'ج.س' | Set-Content 'lib\\\\widgets\\\\product_card.dart' -Encoding UTF8; \\(Get-Content 'lib\\\\screens\\\\product_list_screen.dart'\\) -replace 'ج\\\\.م', 'ج.س' | Set-Content 'lib\\\\screens\\\\product_list_screen.dart' -Encoding UTF8\")"
     ]
   }
 }
