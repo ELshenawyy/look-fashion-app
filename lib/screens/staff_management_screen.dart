@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/repositories/admin_repository.dart';
 import 'package:my_fashion_app/services/role_service.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
@@ -16,7 +17,9 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
 
-  // ── إلغاء صلاحيات الموظف ───────────────────────────────────────────
+  final _repo = AdminRepository();
+
+  // ── إلغاء صلاحيات الموظف ───────────────────────────────────────────────
   Future<void> _revokeAccess(String uid, String name) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -28,13 +31,14 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           style: TextStyle(color: _gold, fontWeight: FontWeight.w700),
         ),
         content: Text(
-          'هل تريد إلغاء صلاحيات "$name"؟\nسيتم طرده من التطبيق فوراً.',
+          'هل تريد إلغاء صلاحيات "$name"؟\nسيتم طرده من لوحة الإدارة فوراً.',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء', style: TextStyle(color: Colors.white54)),
+            child:
+                const Text('إلغاء', style: TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -48,10 +52,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     if (confirmed != true) return;
 
     try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'role': AppRole.user,
-        'revokedAt': FieldValue.serverTimestamp(),
-      });
+      await _repo.revokeAdmin(uid);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -72,11 +73,12 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     }
   }
 
-  // ── ترقية مستخدم إلى subAdmin ─────────────────────────────────────
+  // ── إضافة موظف جديد ────────────────────────────────────────────────────
   void _showAddStaffDialog() {
-    final emailCtrl = TextEditingController();
+    final inputCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isLoading = false;
+    bool isEmail = true; // toggle بين إيميل ورقم هاتف
 
     showDialog(
       context: context,
@@ -94,17 +96,51 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
-                  'أدخل إيميل المستخدم الذي تريد ترقيته إلى موظف (subAdmin):',
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                // ── Toggle: إيميل أو هاتف ──
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      _toggleTab(
+                        label: 'البريد الإلكتروني',
+                        icon: Icons.email_outlined,
+                        isActive: isEmail,
+                        onTap: () {
+                          setDialogState(() {
+                            isEmail = true;
+                            inputCtrl.clear();
+                          });
+                        },
+                      ),
+                      _toggleTab(
+                        label: 'رقم الهاتف',
+                        icon: Icons.phone_outlined,
+                        isActive: !isEmail,
+                        onTap: () {
+                          setDialogState(() {
+                            isEmail = false;
+                            inputCtrl.clear();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
+                // ── حقل الإدخال ──
                 TextFormField(
-                  controller: emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
+                  controller: inputCtrl,
+                  keyboardType: isEmail
+                      ? TextInputType.emailAddress
+                      : TextInputType.phone,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'البريد الإلكتروني',
+                    labelText: isEmail
+                        ? 'البريد الإلكتروني'
+                        : 'رقم الهاتف (مثال: 0912345678)',
                     labelStyle: const TextStyle(color: Colors.white54),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.07),
@@ -112,16 +148,30 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
-                    prefixIcon:
-                        const Icon(Icons.email_outlined, color: Colors.white38),
+                    prefixIcon: Icon(
+                      isEmail ? Icons.email_outlined : Icons.phone_outlined,
+                      color: Colors.white38,
+                    ),
                   ),
                   validator: (v) {
                     if (v == null || v.trim().isEmpty) {
-                      return 'أدخل البريد الإلكتروني';
+                      return isEmail
+                          ? 'أدخل البريد الإلكتروني'
+                          : 'أدخل رقم الهاتف';
                     }
-                    if (!v.contains('@')) return 'بريد إلكتروني غير صالح';
+                    if (isEmail && !v.contains('@')) {
+                      return 'بريد إلكتروني غير صالح';
+                    }
+                    if (!isEmail && v.trim().length < 9) {
+                      return 'رقم هاتف غير صالح';
+                    }
                     return null;
                   },
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'سيتم البحث عن الحساب في قاعدة البيانات وترقيته فوراً.',
+                  style: TextStyle(color: Colors.white38, fontSize: 11),
                 ),
               ],
             ),
@@ -139,8 +189,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                       if (!formKey.currentState!.validate()) return;
                       setDialogState(() => isLoading = true);
                       await _promoteToSubAdmin(
-                          ctx, emailCtrl.text.trim().toLowerCase());
-                      setDialogState(() => isLoading = false);
+                          ctx, inputCtrl.text.trim());
+                      if (ctx.mounted) {
+                        setDialogState(() => isLoading = false);
+                      }
                     },
               child: isLoading
                   ? const SizedBox(
@@ -150,7 +202,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                           color: _gold, strokeWidth: 2),
                     )
                   : const Text('ترقية',
-                      style: TextStyle(color: _gold, fontWeight: FontWeight.w700)),
+                      style: TextStyle(
+                          color: _gold, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -158,42 +211,33 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     );
   }
 
-  Future<void> _promoteToSubAdmin(BuildContext dialogCtx, String email) async {
+  // ── منطق الترقية عبر AdminRepository ──────────────────────────────────
+  Future<void> _promoteToSubAdmin(
+      BuildContext dialogCtx, String identifier) async {
     String? errorMsg;
     String? successMsg;
 
     try {
-      final query = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
+      final result = await _repo.findUserByEmailOrPhone(identifier);
 
-      if (query.docs.isEmpty) {
-        errorMsg = 'لا يوجد مستخدم بهذا البريد الإلكتروني';
+      if (result == null) {
+        errorMsg = 'لا يوجد حساب مرتبط بهذا البريد أو الرقم.\n'
+            'تأكد من أن المستخدم سجّل في التطبيق أولاً.';
+      } else if (AppRole.isSuperAdmin(result.role)) {
+        errorMsg = 'لا يمكن تغيير دور السوبر أدمن';
+      } else if (result.role == AppRole.subAdmin) {
+        errorMsg = '"${result.name}" موظف بالفعل.';
       } else {
-        final docRef = query.docs.first.reference;
-        final currentRole =
-            query.docs.first.data()['role'] as String? ?? AppRole.user;
-
-        if (AppRole.isSuperAdmin(currentRole)) {
-          errorMsg = 'لا يمكن تغيير دور السوبر أدمن';
-        } else {
-          // إزالة revokedAt إن وُجد + ترقية الدور
-          await docRef.update({
-            'role': AppRole.subAdmin,
-            'revokedAt': FieldValue.delete(),
-          });
-          successMsg = 'تمت ترقية "$email" إلى موظف بنجاح';
-        }
+        await _repo.promoteToSubAdmin(result.uid);
+        successMsg = 'تمت ترقية "${result.name}" إلى موظف بنجاح ✓';
       }
     } catch (e) {
       errorMsg = 'خطأ: $e';
     }
 
-    // إغلاق الـ Dialog ثم عرض النتيجة
     if (!mounted) return;
     if (dialogCtx.mounted) Navigator.pop(dialogCtx);
+
     if (successMsg != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(successMsg),
@@ -205,10 +249,51 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
         content: Text(errorMsg),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
       ));
     }
   }
 
+  // ── Toggle Tab Helper ──────────────────────────────────────────────────
+  Widget _toggleTab({
+    required String label,
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? _gold : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 14,
+                  color: isActive ? Colors.black : Colors.white54),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: isActive ? Colors.black : Colors.white54,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Build ──────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -278,9 +363,12 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                 final uid = docs[index].id;
                 final name = data['name'] as String? ?? 'موظف';
                 final email = data['email'] as String? ?? '';
-                final createdAt = data['createdAt'] as Timestamp?;
-                final dateStr = createdAt != null
-                    ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year}'
+                final phone = data['phone'] as String? ?? '';
+                final promotedAt = data['promotedAt'] as Timestamp?;
+                final dateStr = promotedAt != null
+                    ? '${promotedAt.toDate().day}/'
+                        '${promotedAt.toDate().month}/'
+                        '${promotedAt.toDate().year}'
                     : 'غير محدد';
 
                 return Container(
@@ -292,6 +380,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   ),
                   child: Row(
                     children: [
+                      // Avatar
                       Container(
                         width: 46,
                         height: 46,
@@ -299,10 +388,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                           color: _gold.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.person,
-                            color: _gold, size: 24),
+                        child: const Icon(Icons.person, color: _gold, size: 24),
                       ),
                       const SizedBox(width: 12),
+                      // Info
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,17 +405,22 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(email,
-                                style: const TextStyle(
-                                    color: Colors.white54, fontSize: 12)),
+                            if (email.isNotEmpty)
+                              Text(email,
+                                  style: const TextStyle(
+                                      color: Colors.white54, fontSize: 12)),
+                            if (phone.isNotEmpty)
+                              Text(phone,
+                                  style: const TextStyle(
+                                      color: Colors.white38, fontSize: 12)),
                             const SizedBox(height: 2),
-                            Text('أُضيف: $dateStr',
+                            Text('تاريخ الإضافة: $dateStr',
                                 style: const TextStyle(
                                     color: Colors.white30, fontSize: 11)),
                           ],
                         ),
                       ),
-                      // زر إلغاء الصلاحيات
+                      // Revoke button
                       IconButton(
                         onPressed: () => _revokeAccess(uid, name),
                         icon: const Icon(Icons.person_remove,

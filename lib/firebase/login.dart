@@ -6,7 +6,6 @@ import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:my_fashion_app/firebase/auth_service.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
 import 'package:my_fashion_app/firebase/signup.dart';
-import 'package:my_fashion_app/main.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,30 +17,55 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  static const Color _themeColor = Color(0xFF9B0B19);
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
+  final PageController _pageController = PageController();
+
+  int _tabIndex = 0;
   bool _obscureText = true;
+  bool _isLoading = false;
   bool _isPhoneValid = false;
   String _completePhoneNumber = '';
+
+  // ── Real-time email validation ────────────────────────────────────────
+  String? _emailError;
+
+  void _onEmailChanged(String value) {
+    setState(() {
+      if (value.isEmpty) {
+        _emailError = null;
+      } else if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+          .hasMatch(value.trim())) {
+        _emailError = 'بريد إلكتروني غير صالح';
+      } else {
+        _emailError = null;
+      }
+    });
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
+  // ── OTP ───────────────────────────────────────────────────────────────
   void _sendOTP() {
     if (!(kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-              'تسجيل الدخول عبر الهاتف متاح فقط على أندرويد وiOS والويب.'),
+          content:
+              Text('تسجيل الدخول عبر الهاتف متاح فقط على أندرويد وiOS والويب.'),
+          behavior: SnackBarBehavior.floating,
         ),
       );
       return;
@@ -51,8 +75,9 @@ class _LoginPageState extends State<LoginPage> {
     if (phoneNumber.isEmpty || !_isPhoneValid) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-                Text('يرجى إدخال رقم هاتف صحيح مع مفتاح الدولة.')),
+          content: Text('يرجى إدخال رقم هاتف صحيح مع مفتاح الدولة.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
@@ -71,7 +96,10 @@ class _LoginPageState extends State<LoginPage> {
       },
       (FirebaseAuthException e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ: ${e.message}')),
+          SnackBar(
+            content: Text('حدث خطأ: ${e.message}'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       },
     );
@@ -81,13 +109,15 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _showForgotPasswordDialog(BuildContext context) async {
     const panel = Color(0xFF180808);
     const gold = Color(0xFFD4AF37);
-    final emailCtrl = TextEditingController(text: _emailController.text.trim());
+    final emailCtrl =
+        TextEditingController(text: _emailController.text.trim());
 
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: panel,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'استعادة كلمة المرور',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
@@ -110,6 +140,8 @@ class _LoginPageState extends State<LoginPage> {
                 labelStyle: const TextStyle(color: Colors.white54),
                 prefixIcon:
                     const Icon(Icons.email_outlined, color: Colors.white38),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.08),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: Colors.white24),
@@ -125,7 +157,8 @@ class _LoginPageState extends State<LoginPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء', style: TextStyle(color: Colors.white54)),
+            child:
+                const Text('إلغاء', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -182,26 +215,22 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // ── Email sign-in ─────────────────────────────────────────────────────
   Future<void> _signInWithEmail() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+    setState(() => _isLoading = true);
     try {
       await AuthService.signIn(email, password);
       if (!mounted) return;
-      Navigator.of(context).pop();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const AppShell()),
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      Navigator.of(context).pop();
+      setState(() => _isLoading = false);
       String errorMessage = 'فشل تسجيل الدخول';
       if (e.code == 'user-not-found') {
         errorMessage = 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.';
@@ -209,384 +238,466 @@ class _LoginPageState extends State<LoginPage> {
         errorMessage = 'كلمة المرور غير صحيحة.';
       } else if (e.code == 'invalid-email') {
         errorMessage = 'صيغة البريد الإلكتروني غير صحيحة.';
+      } else if (e.code == 'invalid-credential') {
+        errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      Navigator.of(context).pop();
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text('خطأ غير متوقع: $e'), backgroundColor: Colors.red),
+          content: Text('خطأ غير متوقع: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-     const themeColor = Color(0xFF9B0B19);
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage('assets/backc.png'),
-              fit: BoxFit.cover,
+  // ── Segmented Tab ─────────────────────────────────────────────────────
+  Widget _segTab(IconData icon, String label, int index) {
+    final active = _tabIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() => _tabIndex = index);
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOut,
+          );
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: active ? _themeColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: _themeColor.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    )
+                  ]
+                : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 16,
+                  color: active ? Colors.white : Colors.white38),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: active ? Colors.white : Colors.white38,
+                  fontWeight:
+                      active ? FontWeight.w700 : FontWeight.normal,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Input field helper ────────────────────────────────────────────────
+  InputDecoration _fieldDecoration({
+    required String label,
+    required IconData icon,
+    Widget? suffix,
+    String? errorText,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.white54),
+      prefixIcon: Icon(icon, color: Colors.white54),
+      suffixIcon: suffix,
+      errorText: errorText,
+      filled: true,
+      fillColor: Colors.white.withValues(alpha: 0.10),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.white24),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: _themeColor, width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+      ),
+    );
+  }
+
+  // ── Phone tab ─────────────────────────────────────────────────────────
+  Widget _buildPhoneTab() {
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          const Text(
+            'تسجيل الدخول بالهاتف',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'arial',
             ),
           ),
-          child: SafeArea(
+          const SizedBox(height: 8),
+          const Text(
+            'استخدم رقم هاتفك واستلم رمز تحقق آمن.',
+            style: TextStyle(color: Colors.white60, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 28),
+          // Phone field
+          IntlPhoneField(
+            controller: _phoneController,
+            initialCountryCode: 'SD',
+            showCountryFlag: true,
+            dropdownIcon:
+                const Icon(Icons.arrow_drop_down, color: Colors.white70),
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.10),
+              hintText: 'رقم الهاتف',
+              hintStyle: const TextStyle(color: Colors.white38),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Colors.white24),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide:
+                    const BorderSide(color: _themeColor, width: 1.5),
+              ),
+            ),
+            keyboardType: TextInputType.phone,
+            onChanged: (phone) {
+              setState(() {
+                _completePhoneNumber = phone.completeNumber
+                    .replaceAll(RegExp(r'\s+'), '');
+                _isPhoneValid = phone.number.isNotEmpty &&
+                    _completePhoneNumber.startsWith('+');
+              });
+            },
+            onCountryChanged: (_) {
+              setState(() {
+                final cleaned =
+                    _completePhoneNumber.replaceAll(RegExp(r'\s+'), '');
+                _completePhoneNumber = cleaned;
+                _isPhoneValid = cleaned.startsWith('+');
+              });
+            },
+          ),
+          const SizedBox(height: 28),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    _isPhoneValid ? _themeColor : Colors.white24,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: _isPhoneValid ? _sendOTP : null,
+              child: const Text(
+                'إرسال الرمز',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'arial'),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'سنرسل رمز تحقق يستخدم مرة واحدة إلى هاتفك.',
+            style: TextStyle(color: Colors.white38, fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  // ── Email tab ─────────────────────────────────────────────────────────
+  Widget _buildEmailTab() {
+    // Suffix icon for email field
+    Widget? emailSuffix;
+    if (_emailController.text.isNotEmpty) {
+      emailSuffix = Icon(
+        _emailError == null
+            ? Icons.check_circle_outline
+            : Icons.cancel_outlined,
+        color: _emailError == null ? Colors.green : Colors.redAccent,
+        size: 20,
+      );
+    }
+
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            const Text(
+              'تسجيل الدخول بالبريد',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'arial',
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'سجّل الدخول باستخدام البريد الإلكتروني وكلمة المرور.',
+              style: TextStyle(color: Colors.white60, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            // Email field
+            TextFormField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              style: const TextStyle(color: Colors.white),
+              onChanged: _onEmailChanged,
+              decoration: _fieldDecoration(
+                label: 'البريد الإلكتروني',
+                icon: Icons.email_outlined,
+                suffix: emailSuffix,
+                errorText: _emailError,
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'البريد الإلكتروني مطلوب';
+                }
+                if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+                    .hasMatch(value.trim())) {
+                  return 'يرجى إدخال بريد إلكتروني صحيح';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            // Password field
+            TextFormField(
+              controller: _passwordController,
+              obscureText: _obscureText,
+              style: const TextStyle(color: Colors.white),
+              decoration: _fieldDecoration(
+                label: 'كلمة المرور',
+                icon: Icons.lock_outline_rounded,
+                suffix: IconButton(
+                  icon: Icon(
+                    _obscureText
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: Colors.white38,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscureText = !_obscureText),
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'كلمة المرور مطلوبة';
+                }
+                if (value.length < 6) {
+                  return 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 8),
+            // Forgot password
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => _showForgotPasswordDialog(context),
+                style: TextButton.styleFrom(
+                    foregroundColor: Colors.white54),
+                child: const Text(
+                  'هل نسيت كلمة المرور؟',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Login button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _themeColor,
+                  disabledBackgroundColor:
+                      _themeColor.withValues(alpha: 0.6),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: _isLoading ? null : _signInWithEmail,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : const Text(
+                        'تسجيل الدخول',
+                        style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'arial'),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Background image ──
+          Image.asset('assets/backc.png', fit: BoxFit.cover),
+
+          // ── Dark gradient overlay ──
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.50),
+                  Colors.black.withValues(alpha: 0.75),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Content ──
+          SafeArea(
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 16),
                 constraints: const BoxConstraints(maxWidth: 640),
                 child: Column(
                   children: [
+                    const SizedBox(height: 8),
+
+                    // ── App logo ──
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: Image.asset('assets/icon.png',
+                          height: 62, width: 62),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // ── Title ──
                     const Text(
                       'مرحبًا بعودتك',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 34,
+                        fontSize: 30,
                         fontWeight: FontWeight.bold,
                         fontFamily: 'arimo',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     const Text(
-                      'سجّل الدخول عبر الهاتف أو البريد الإلكتروني لمتابعة التسوق.',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 16,
-                        fontFamily: 'arial',
-                      ),
+                      'سجّل الدخول عبر الهاتف أو البريد الإلكتروني.',
+                      style: TextStyle(color: Colors.white60, fontSize: 14),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
+
+                    // ── Segmented control ──
                     Container(
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(3),
                       decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(35),
+                        color: Colors.white12,
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      child: TabBar(
-                        indicatorPadding: const EdgeInsets.all(4),
-                        indicator: BoxDecoration(
-                          color: themeColor,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: themeColor.withAlpha((0.3 * 255).round()),
-                              blurRadius: 12,
-                              offset: const Offset(0, 6),
-                            ),
-                          ],
-                        ),
-                        labelColor: Colors.white,
-                        unselectedLabelColor: Colors.white70,
-                        labelStyle: const TextStyle(
-                            fontWeight: FontWeight.bold, fontFamily: 'arial'),
-                        tabs: const [
-                          Tab(text: 'دخول الهاتف'),
-                          Tab(text: 'دخول البريد'),
-                        ],
-                      ),
+                      child: Row(children: [
+                        _segTab(Icons.phone_outlined, 'الهاتف', 0),
+                        _segTab(Icons.email_outlined, 'البريد', 1),
+                      ]),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
+
+                    // ── PageView ──
                     Expanded(
-                      child: TabBarView(
+                      child: PageView(
+                        controller: _pageController,
+                        onPageChanged: (i) =>
+                            setState(() => _tabIndex = i),
                         children: [
-                          SingleChildScrollView(
-                            physics: const ClampingScrollPhysics(),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 20),
-                                const Text(
-                                  'تسجيل الدخول بالهاتف',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'arial',
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                const Text(
-                                  'استخدم رقم هاتفك واستلم رمز تحقق آمن.',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 15,
-                                    fontFamily: 'arial',
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 30),
-                                IntlPhoneField(
-                                  controller: _phoneController,
-                                  initialCountryCode: 'SD',
-                                  showCountryFlag: true,
-                                  dropdownIcon: const Icon(Icons.arrow_drop_down,
-                                      color: Colors.white),
-                                  style: const TextStyle(color: Colors.white),
-                                  decoration: InputDecoration(
-                                    filled: true,
-                                    fillColor: Colors.white24,
-                                    hintText: 'رقم الهاتف',
-                                    hintStyle: const TextStyle(color: Colors.white54),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(25),
-                                      borderSide:
-                                          const BorderSide(color: Colors.white24),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(25),
-                                      borderSide:
-                                          const BorderSide(color: Colors.white24),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(25),
-                                      borderSide: const BorderSide(color: themeColor),
-                                    ),
-                                  ),
-                                  keyboardType: TextInputType.phone,
-                                  onChanged: (phone) {
-                                    setState(() {
-                                      _completePhoneNumber = phone
-                                          .completeNumber
-                                          .replaceAll(RegExp(r'\s+'), '');
-                                      _isPhoneValid = phone.number.isNotEmpty &&
-                                          _completePhoneNumber.startsWith('+');
-                                    });
-                                  },
-                                  onCountryChanged: (country) {
-                                    setState(() {
-                                      final cleaned = _completePhoneNumber
-                                          .replaceAll(RegExp(r'\s+'), '');
-                                      _completePhoneNumber = cleaned;
-                                      _isPhoneValid = cleaned.startsWith('+');
-                                    });
-                                  },
-                                ),
-                                const SizedBox(height: 30),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _isPhoneValid
-                                        ? themeColor
-                                        : Colors.white24,
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(30)),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 16, horizontal: 110),
-                                  ),
-                                  onPressed: _isPhoneValid ? _sendOTP : null,
-                                  child: const Text(
-                                    'إرسال الرمز',
-                                    style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        fontFamily: 'arial'),
-                                  ),
-                                ),
-                                const SizedBox(height: 14),
-                                const Text(
-                                  'سنرسل رمز تحقق يستخدم مرة واحدة إلى هاتفك.',
-                                  style: TextStyle(
-                                      color: Colors.white54, fontSize: 14),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 24),
-                              ],
-                            ),
-                          ),
-                          SingleChildScrollView(
-                            physics: const ClampingScrollPhysics(),
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                children: [
-                                  const SizedBox(height: 20),
-                                  const Text(
-                                    'تسجيل الدخول بالبريد الإلكتروني',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.bold,
-                                      fontFamily: 'arial',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    'سجّل الدخول باستخدام البريد الإلكتروني وكلمة المرور.',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 15,
-                                      fontFamily: 'arial',
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 30),
-                                  TextFormField(
-                                    controller: _emailController,
-                                    keyboardType: TextInputType.emailAddress,
-                                    decoration: InputDecoration(
-                                      prefixIcon: const Icon(Icons.email,
-                                          color: Colors.white),
-                                      labelText: 'البريد الإلكتروني',
-                                      labelStyle:
-                                          const TextStyle(color: Colors.white70),
-                                      filled: true,
-                                      fillColor: Colors.white24,
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(25),
-                                        borderSide:
-                                            const BorderSide(color: Colors.white24),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(25),
-                                        borderSide:
-                                            const BorderSide(color: Colors.white24),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(25),
-                                        borderSide:
-                                            const BorderSide(color: themeColor),
-                                      ),
-                                    ),
-                                    style: const TextStyle(color: Colors.white),
-                                    validator: (value) {
-                                      if (value == null ||
-                                          value.trim().isEmpty) {
-                                        return 'البريد الإلكتروني مطلوب';
-                                      }
-                                      if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-                                          .hasMatch(value.trim())) {
-                                        return 'يرجى إدخال بريد إلكتروني صحيح';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 20),
-                                  TextFormField(
-                                    controller: _passwordController,
-                                    obscureText: _obscureText,
-                                    decoration: InputDecoration(
-                                      prefixIcon:
-                                          const Icon(Icons.lock, color: Colors.white),
-                                      labelText: 'كلمة المرور',
-                                      labelStyle:
-                                          const TextStyle(color: Colors.white70),
-                                      filled: true,
-                                      fillColor: Colors.white24,
-                                      suffixIcon: IconButton(
-                                        icon: Icon(
-                                          _obscureText
-                                              ? Icons.visibility_off
-                                              : Icons.visibility,
-                                          color: Colors.white70,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _obscureText = !_obscureText;
-                                          });
-                                        },
-                                      ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(25),
-                                        borderSide:
-                                            const BorderSide(color: Colors.white24),
-                                      ),
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(25),
-                                        borderSide:
-                                            const BorderSide(color: Colors.white24),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(25),
-                                        borderSide:
-                                            const BorderSide(color: themeColor),
-                                      ),
-                                    ),
-                                    style: const TextStyle(color: Colors.white),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'كلمة المرور مطلوبة';
-                                      }
-                                      if (value.length < 6) {
-                                        return 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton(
-                                      onPressed: () =>
-                                          _showForgotPasswordDialog(context),
-                                      child: const Text(
-                                        'هل نسيت كلمة المرور؟',
-                                        style: TextStyle(color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: themeColor,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(30)),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 16, horizontal: 110),
-                                    ),
-                                    onPressed: _signInWithEmail,
-                                    child: const Text(
-                                      'تسجيل الدخول',
-                                      style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          fontFamily: 'arial'),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  const Divider(color: Colors.white24, thickness: 1),
-                                  const SizedBox(height: 18),
-                                  const Text(
-                                    'Or continue with',
-                                    style: TextStyle(
-                                        color: Colors.white70,
-                                        fontFamily: 'arial'),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      _socialButton(
-                                          'assets/google.png', 'Google'),
-                                      const SizedBox(width: 16),
-                                      _socialButton(
-                                          'assets/apple.png', 'Apple'),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                          _buildPhoneTab(),
+                          _buildEmailTab(),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
+
+                    // ── Sign up link ──
                     RichText(
                       text: TextSpan(
-                        text: 'Not a member? ',
-                        style: const TextStyle(fontSize: 16, color: Colors.white),
+                        text: 'لا تمتلك حساباً؟ ',
+                        style: const TextStyle(
+                            fontSize: 15, color: Colors.white60),
                         children: [
                           TextSpan(
                             text: 'أنشئ حسابًا الآن',
                             style: const TextStyle(
-                                fontSize: 16,
+                                fontSize: 15,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF9B0B19)),
                             recognizer: TapGestureRecognizer()
@@ -594,64 +705,21 @@ class _LoginPageState extends State<LoginPage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) => const Signup()),
+                                      builder: (context) =>
+                                          const Signup()),
                                 );
                               },
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeColor,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25)),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 16, horizontal: 50),
-                      ),
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const MainScreen()),
-                        );
-                      },
-                      child: const Text(
-                        'Go to Home',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'arial'),
-                      ),
-                    ),
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _socialButton(String asset, String label) {
-    return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تسجيل الدخول عبر $label'),
-            backgroundColor: const Color.fromARGB(255, 104, 99, 99),
-          ),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Colors.white, width: 2),
-        ),
-        padding: const EdgeInsets.all(10),
-        child: Image.asset(asset, height: 50, width: 50),
+        ],
       ),
     );
   }
