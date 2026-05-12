@@ -79,6 +79,7 @@ class Product {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      if (docId != null) 'docId': docId,
       'price': price,
       'title': title,
       'imageUrl': imageUrl,

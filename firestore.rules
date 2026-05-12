@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── دوال مساعدة ───────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+             currentUserData().role in ['superAdmin', 'subAdmin'];
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() &&
+             currentUserData().role == 'superAdmin';
+    }
+
+    // ─── مجموعة المستخدمين ──────────────────────────────────────────────
+    match /users/{userId} {
+      // القراءة: المستخدم يقرأ بياناته فقط — السوبر-أدمن يقرأ الكل
+      allow read: if request.auth.uid == userId || isSuperAdmin();
+
+      // الإنشاء: عند التسجيل فقط — يُمنع تعيين role أي شيء غير 'user'
+      allow create: if request.auth.uid == userId
+                    && (!('role' in request.resource.data)
+                        || request.resource.data.role == 'user');
+
+      // التحديث: المستخدم يحدّث بياناته (بدون تغيير role)
+      //           السوبر-أدمن يستطيع تغيير أي حقل
+      allow update: if (request.auth.uid == userId
+                        && !('role' in request.resource.data.diff(resource.data).affectedKeys()))
+                    || isSuperAdmin();
+
+      allow delete: if isSuperAdmin();
+
+      // المفضلة — subcollection
+      match /favorites/{favId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+    }
+
+    // ─── مجموعة المنتجات ────────────────────────────────────────────────
+    match /products/{productId} {
+      allow read: if true;                    // الكل يقرأ المنتجات
+      allow create, update: if isAdmin();     // الأدمن والموظفون يكتبون
+      allow delete: if isSuperAdmin();        // الحذف للسوبر-أدمن فقط
+    }
+
+    // ─── مجموعة الطلبات ─────────────────────────────────────────────────
+    match /orders/{orderId} {
+      allow read: if isSignedIn() &&
+                  (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn()
+                    && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ─── مجموعة الإشعارات ───────────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() &&
+                  resource.data.userId == request.auth.uid;
+      allow write: if isAdmin();
+    }
+  }
+}

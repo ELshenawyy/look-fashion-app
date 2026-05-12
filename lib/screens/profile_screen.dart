@@ -13,6 +13,7 @@ import 'package:my_fashion_app/screens/orders_screen.dart';
 import 'package:my_fashion_app/screens/privacy_policy_screen.dart';
 import 'package:my_fashion_app/screens/staff_management_screen.dart';
 import 'package:my_fashion_app/screens/terms_screen.dart';
+import 'package:my_fashion_app/constants/app_config.dart';
 import 'package:my_fashion_app/services/role_service.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/user_avatar.dart';
@@ -25,17 +26,14 @@ class ProfileScreen extends StatelessWidget {
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
 
-  static const String _whatsappNumber = '00249968991500';
-  static const String _supportEmail = 'mohamedaaltaayeb@gmail.com';
-
   // ── Launch URL helpers ────────────────────────────────────────────────
   static Future<void> _openWhatsApp() async {
-    final uri = Uri.parse('https://wa.me/$_whatsappNumber');
+    final uri = Uri.parse('https://wa.me/${AppConfig.supportWhatsApp}');
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   static Future<void> _openEmail() async {
-    final uri = Uri.parse('mailto:$_supportEmail');
+    final uri = Uri.parse('mailto:${AppConfig.supportEmail}');
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
@@ -356,7 +354,7 @@ class ProfileScreen extends StatelessWidget {
                     const _ProfileTile(
                       icon: Icons.chat_bubble_outline_rounded,
                       title: 'واتساب',
-                      subtitle: '+$_whatsappNumber',
+                      subtitle: '+${AppConfig.supportWhatsApp}',
                       iconColor: Color(0xFF25D366),
                       onTap: _openWhatsApp,
                     ),
@@ -364,7 +362,7 @@ class ProfileScreen extends StatelessWidget {
                     const _ProfileTile(
                       icon: Icons.email_outlined,
                       title: 'البريد الإلكتروني',
-                      subtitle: _supportEmail,
+                      subtitle: AppConfig.supportEmail,
                       onTap: _openEmail,
                     ),
 

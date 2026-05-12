@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/models/product.dart';
@@ -17,6 +19,7 @@ class HomeProvider extends ChangeNotifier {
   HomeSortMode _sortMode = HomeSortMode.newArrivals;
   DocumentSnapshot? _lastDoc;
   String _searchQuery = '';
+  Timer? _searchDebounce;
 
   // ── Getters ───────────────────────────────────────────────────────────
   bool get isLoading => _isLoading;
@@ -112,8 +115,17 @@ class HomeProvider extends ChangeNotifier {
   }
 
   void setSearchQuery(String q) {
-    _searchQuery = q;
-    notifyListeners();
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      _searchQuery = q;
+      notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
   }
 
   // ── Private helpers ───────────────────────────────────────────────────

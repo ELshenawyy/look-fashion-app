@@ -4,7 +4,7 @@ import 'package:my_fashion_app/models/product.dart';
 /// نتيجة صفحة واحدة من المنتجات — Dart 2 متوافق (لا Record types)
 class ProductPage {
   final List<Product> products;
-  final DocumentSnapshot? lastDoc; // cursor للصفحة التالية — null عند التصفية بالفئة
+  final DocumentSnapshot? lastDoc; // cursor للصفحة التالية
 
   const ProductPage({required this.products, this.lastDoc});
 }
@@ -15,44 +15,24 @@ class HomeRepository {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// جلب صفحة من المنتجات.
+  /// جلب صفحة من المنتجات مع pagination حقيقي لجميع الحالات.
   ///
-  /// السلوك حسب الحالة:
-  /// ─ بدون فئة  → Firestore orderBy + limit (pagination حقيقي)
-  /// ─ مع فئة    → where('category') فقط ثم فرز من جهة العميل
-  ///               (تجنّب Composite Index الذي تتطلبه Firestore عند دمج
-  ///               where + orderBy على حقلين مختلفين)
+  /// يتطلب Composite Indexes في Firebase Console:
+  ///   - category ASC + createdAt DESC
+  ///   - category ASC + stockQuantity ASC
   Future<ProductPage> fetchProducts({
-    String? category, // null = الكل
+    String? category,
     String sortField = 'createdAt',
     bool descending = true,
     DocumentSnapshot? startAfter,
   }) async {
-    // ── حالة: تصفية بفئة محددة ───────────────────────────────────────────
+    Query<Map<String, dynamic>> q = _db.collection('products');
+
     if (category != null && category.isNotEmpty) {
-      final snap = await _db
-          .collection('products')
-          .where('category', isEqualTo: category)
-          .get();
-
-      final docs = snap.docs.toList()
-        ..sort((a, b) => _compareField(
-              a.data()[sortField],
-              b.data()[sortField],
-              descending: descending,
-            ));
-
-      return ProductPage(
-        products: docs.map(_fromDoc).toList(),
-        lastDoc: null, // لا pagination عند التصفية — جميع النتائج مُعادة
-      );
+      q = q.where('category', isEqualTo: category);
     }
 
-    // ── حالة: كل المنتجات — Firestore orderBy + limit ────────────────────
-    Query<Map<String, dynamic>> q = _db
-        .collection('products')
-        .orderBy(sortField, descending: descending)
-        .limit(pageSize);
+    q = q.orderBy(sortField, descending: descending).limit(pageSize);
 
     if (startAfter != null) {
       q = q.startAfterDocument(startAfter);
@@ -63,22 +43,6 @@ class HomeRepository {
     final lastDoc = snap.docs.isNotEmpty ? snap.docs.last : null;
 
     return ProductPage(products: products, lastDoc: lastDoc);
-  }
-
-  // ── Helpers ───────────────────────────────────────────────────────────
-
-  /// مقارنة حقل للفرز — يدعم Timestamp، num، وأي نوع آخر
-  int _compareField(dynamic a, dynamic b, {required bool descending}) {
-    int cmp;
-    if (a is Timestamp && b is Timestamp) {
-      cmp = a.compareTo(b);
-    } else if (a is num && b is num) {
-      cmp = a.compareTo(b);
-    } else {
-      // null أو نوع غير معروف → تجاهل الترتيب
-      cmp = 0;
-    }
-    return descending ? -cmp : cmp;
   }
 
   Product _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {

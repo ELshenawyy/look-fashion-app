@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/repositories/admin_repository.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
 import 'package:my_fashion_app/screens/admin_orders_screen.dart';
 import 'package:my_fashion_app/utils/order_utils.dart';
@@ -22,6 +22,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   late Stream<QuerySnapshot> _productsStream;
   String _searchQuery = '';
+  final _adminRepo = AdminRepository();
 
   @override
   void initState() {
@@ -56,19 +57,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (confirm != true) return;
 
     try {
-      await FirebaseFirestore.instance
-          .collection('products')
-          .doc(docId)
-          .delete();
-
-      if (imageUrl.isNotEmpty) {
-        try {
-          await FirebaseStorage.instance.refFromURL(imageUrl).delete();
-        } catch (e) {
-          // صورة الـ Storage اختيارية — لا نوقف العملية إن فشل حذفها
-          debugPrint('Error deleting image: $e');
-        }
-      }
+      await _adminRepo.deleteProduct(docId, imageUrl: imageUrl);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,7 +71,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تعذر حذف المنتج: $e'),
+          content: Text('$e'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),

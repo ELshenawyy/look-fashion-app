@@ -91,20 +91,36 @@ class TalaAppBarTitle extends StatelessWidget {
   }
 }
 
-/// زر الجرس مع badge لعدد الإشعارات غير المقروءة
-class NotificationBellAction extends StatelessWidget {
+/// زر الجرس مع badge لعدد الإشعارات غير المقروءة.
+/// StatefulWidget لتثبيت الـ streams وتجنب إعادة الاشتراك عند كل rebuild.
+class NotificationBellAction extends StatefulWidget {
   const NotificationBellAction({super.key});
 
   @override
+  State<NotificationBellAction> createState() => _NotificationBellActionState();
+}
+
+class _NotificationBellActionState extends State<NotificationBellAction> {
+  Stream<DocumentSnapshot>? _userStream;
+  final _user = FirebaseAuth.instance.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_user != null) {
+      _userStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.uid)
+          .snapshots();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const SizedBox.shrink();
+    if (_user == null || _userStream == null) return const SizedBox.shrink();
 
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
+      stream: _userStream,
       builder: (context, userSnap) {
         final role =
             (userSnap.data?.data() as Map?)?['role']?.toString() ?? '';
@@ -112,7 +128,7 @@ class NotificationBellAction extends StatelessWidget {
 
         return StreamBuilder<int>(
           stream: NotificationsScreen.getUnreadCount(
-            userId: user.uid,
+            userId: _user!.uid,
             isAdmin: isAdmin,
           ),
           builder: (context, countSnap) {

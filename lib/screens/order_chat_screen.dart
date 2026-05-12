@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/constants/app_config.dart';
 import 'package:my_fashion_app/services/role_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -21,7 +22,6 @@ class OrderChatScreen extends StatefulWidget {
 class _OrderChatScreenState extends State<OrderChatScreen> {
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
-  static const String _adminWhatsApp = '201200507628'; // رقم الأدمن
 
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
@@ -144,7 +144,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   Future<void> _openWhatsApp() async {
     // Admin contacts customer, User contacts admin
-    final phone = _isAdmin ? _formatPhone(_customerPhone) : _adminWhatsApp;
+    final phone = _isAdmin ? _formatPhone(_customerPhone) : AppConfig.adminWhatsApp;
 
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
