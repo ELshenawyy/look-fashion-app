@@ -1,19 +1,37 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:my_fashion_app/features/orders/domain/entities/order_entity.dart';
+import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
-import 'package:my_fashion_app/services/role_service.dart';
 import 'package:my_fashion_app/utils/order_utils.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:provider/provider.dart';
 
-class OrdersScreen extends StatelessWidget {
+class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
 
+  @override
+  State<OrdersScreen> createState() => _OrdersScreenState();
+}
+
+class _OrdersScreenState extends State<OrdersScreen> {
   static const Color _gold = Color(0xFFD4AF37);
 
   @override
+  void initState() {
+    super.initState();
+    final uid = context.read<AuthProvider>().user?.uid;
+    if (uid != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<OrdersProvider>().watchForUser(uid);
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = context.watch<AuthProvider>().user;
 
     final backButton = IconButton(
       icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
@@ -24,9 +42,14 @@ class OrdersScreen extends StatelessWidget {
       return Scaffold(
         backgroundColor: Colors.black,
         body: CustomScrollView(slivers: [
-          AppSliverBar(title: 'طلباتي', leading: backButton, automaticallyImplyLeading: false),
+          AppSliverBar(
+              title: 'طلباتي',
+              leading: backButton,
+              automaticallyImplyLeading: false),
           const SliverFillRemaining(
-            child: Center(child: Text('يرجى تسجيل الدخول', style: TextStyle(color: Colors.white54))),
+            child: Center(
+                child: Text('يرجى تسجيل الدخول',
+                    style: TextStyle(color: Colors.white54))),
           ),
         ]),
       );
@@ -42,112 +65,50 @@ class OrdersScreen extends StatelessWidget {
             automaticallyImplyLeading: false,
           ),
         ],
-        body: _OrdersBody(userId: user.uid),
+        body: Consumer<OrdersProvider>(
+          builder: (context, provider, _) {
+            final orders = provider.userOrders;
+
+            if (orders.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.receipt_long_outlined,
+                        color: Colors.white24, size: 72),
+                    SizedBox(height: 16),
+                    Text('لا توجد طلبات بعد',
+                        style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600)),
+                    SizedBox(height: 8),
+                    Text('ابدأ التسوق وستظهر طلباتك هنا',
+                        style: TextStyle(color: Colors.white38)),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: orders.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (_, i) =>
+                  _OrderCard(order: orders[i], isAdmin: user.isAdmin),
+            );
+          },
+        ),
       ),
     );
   }
 }
 
-/// Separate stateful widget to load admin status once
-class _OrdersBody extends StatefulWidget {
-  final String userId;
-  const _OrdersBody({required this.userId});
-
-  @override
-  State<_OrdersBody> createState() => _OrdersBodyState();
-}
-
-class _OrdersBodyState extends State<_OrdersBody> {
-  static const Color _gold = Color(0xFFD4AF37);
-  bool _isAdmin = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkAdmin();
-  }
-
-  Future<void> _checkAdmin() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.userId)
-        .get();
-    final role = doc.data()?['role'] as String? ?? '';
-    if (mounted) {
-      setState(() => _isAdmin = AppRole.isAdminLevel(role));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('orders')
-          .where('userId', isEqualTo: widget.userId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: _gold));
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('خطأ: ${snapshot.error}',
-                style: const TextStyle(color: Colors.red)),
-          );
-        }
-
-        final docs = List.of(snapshot.data?.docs ?? [])
-          ..sort((a, b) {
-            final aTime = (a.data() as Map)['createdAt'] as Timestamp?;
-            final bTime = (b.data() as Map)['createdAt'] as Timestamp?;
-            if (aTime == null || bTime == null) return 0;
-            return bTime.compareTo(aTime);
-          });
-
-        if (docs.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.receipt_long_outlined, color: Colors.white24, size: 72),
-                SizedBox(height: 16),
-                Text('لا توجد طلبات بعد',
-                    style: TextStyle(
-                        color: Colors.white54, fontSize: 18, fontWeight: FontWeight.w600)),
-                SizedBox(height: 8),
-                Text('ابدأ التسوق وستظهر طلباتك هنا',
-                    style: TextStyle(color: Colors.white38)),
-              ],
-            ),
-          );
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: docs.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final doc = docs[index];
-            final data = doc.data() as Map<String, dynamic>;
-            return _OrderCard(orderId: doc.id, data: data, isAdmin: _isAdmin);
-          },
-        );
-      },
-    );
-  }
-}
-
 class _OrderCard extends StatelessWidget {
-  final String orderId;
-  final Map<String, dynamic> data;
+  final OrderEntity order;
   final bool isAdmin;
 
-  const _OrderCard({
-    required this.orderId,
-    required this.data,
-    required this.isAdmin,
-  });
+  const _OrderCard({required this.order, required this.isAdmin});
 
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
@@ -157,8 +118,10 @@ class _OrderCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: _panel,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('إلغاء الطلب', style: TextStyle(color: Colors.white)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title:
+            const Text('إلغاء الطلب', style: TextStyle(color: Colors.white)),
         content: const Text(
           'هل أنت متأكد من إلغاء هذا الطلب؟\nلا يمكن التراجع عن هذه العملية.',
           style: TextStyle(color: Colors.white70),
@@ -166,14 +129,16 @@ class _OrderCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('تراجع', style: TextStyle(color: Colors.white54)),
+            child:
+                const Text('تراجع', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('إلغاء الطلب'),
           ),
@@ -181,44 +146,27 @@ class _OrderCard extends StatelessWidget {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !context.mounted) return;
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .update({'status': 'cancelled'});
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم إلغاء الطلب بنجاح'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
+    final ok = await context.read<OrdersProvider>().updateStatus(
+          orderId: order.id,
+          status: OrderStatus.cancelled,
         );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('تعذر إلغاء الطلب: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'تم إلغاء الطلب بنجاح' : 'تعذر إلغاء الطلب'),
+        backgroundColor: ok ? Colors.green : Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final status = data['status'] as String? ?? 'pending';
-    final total = (data['total'] as num?)?.toDouble() ?? 0.0;
-    final items = data['items'] as List<dynamic>? ?? [];
-    final address = data['address'] as String? ?? '';
-    final createdAt = data['createdAt'] as Timestamp?;
-    final dateStr = createdAt != null
-        ? OrderUtils.formatDateTime(createdAt.toDate())
+    final statusStr = order.status.toFirestoreValue();
+    final dateStr = order.createdAt != null
+        ? OrderUtils.formatDateTime(order.createdAt!)
         : 'غير محدد';
 
     return Container(
@@ -239,25 +187,30 @@ class _OrderCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(dateStr,
-                      style:
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Text('${total.toStringAsFixed(2)} ج.س  •  ${items.length} منتج',
-                      style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                  Text(
+                    '${order.total.toStringAsFixed(2)} ج.س  •  ${order.items.length} منتج',
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
                 ],
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: OrderUtils.statusColor(status).withValues(alpha: 0.15),
+                color: OrderUtils.statusColor(statusStr).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: OrderUtils.statusColor(status).withValues(alpha: 0.5)),
+                border: Border.all(
+                    color:
+                        OrderUtils.statusColor(statusStr).withValues(alpha: 0.5)),
               ),
               child: Text(
-                OrderUtils.statusLabel(status),
+                OrderUtils.statusLabel(statusStr),
                 style: TextStyle(
-                    color: OrderUtils.statusColor(status),
+                    color: OrderUtils.statusColor(statusStr),
                     fontSize: 12,
                     fontWeight: FontWeight.w600),
               ),
@@ -265,14 +218,16 @@ class _OrderCard extends StatelessWidget {
           ],
         ),
         children: [
-          if (address.isNotEmpty) ...[
+          if (order.address.isNotEmpty) ...[
             Row(
               children: [
-                const Icon(Icons.location_on_outlined, color: _gold, size: 16),
+                const Icon(Icons.location_on_outlined,
+                    color: _gold, size: 16),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(address,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  child: Text(order.address,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13)),
                 ),
               ],
             ),
@@ -289,30 +244,32 @@ class _OrderCard extends StatelessWidget {
             ),
             const Divider(color: Colors.white10, height: 20),
           ],
-          ...items.map((item) {
-            final itemMap = item as Map<String, dynamic>;
+          ...order.items.map((item) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
                   Expanded(
                     child: Text(
-                      itemMap['name'] as String? ?? '',
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      item.name,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 13),
                     ),
                   ),
                   Text(
-                    OrderUtils.buildItemLabel(itemMap),
+                    OrderUtils.buildItemLabel({
+                      'quantity': item.quantity,
+                      'size': item.size,
+                      'color': item.color,
+                    }),
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                 ],
               ),
             );
           }),
-          // Buttons — only for regular users, NOT for admin
           if (!isAdmin) ...[
             const Divider(color: Colors.white10, height: 16),
-            // Chat button
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -321,7 +278,7 @@ class _OrderCard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => OrderChatScreen(
-                        orderId: orderId,
+                        orderId: order.id,
                         otherUserName: 'الإدارة',
                       ),
                     ),
@@ -332,13 +289,13 @@ class _OrderCard extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _gold,
                   side: const BorderSide(color: _gold),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
               ),
             ),
-            // Cancel button — only for pending orders
-            if (status == 'pending') ...[
+            if (order.status == OrderStatus.pending) ...[
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
@@ -349,7 +306,8 @@ class _OrderCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                 ),

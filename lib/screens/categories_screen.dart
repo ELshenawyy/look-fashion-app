@@ -1,30 +1,17 @@
 import 'dart:ui';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:my_fashion_app/constants/category_constants.dart';
+import 'package:my_fashion_app/features/products/presentation/providers/categories_provider.dart';
 import 'package:my_fashion_app/screens/product_listing_page.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:provider/provider.dart';
 
 class CategoriesScreen extends StatelessWidget {
   const CategoriesScreen({super.key});
 
   static const Color _bg = Color(0xFF0D1117);
-
-  Stream<Map<String, int>> _categoryCounts() {
-    return FirebaseFirestore.instance
-        .collection('products')
-        .snapshots()
-        .map((snapshot) {
-      final counts = <String, int>{};
-      for (final doc in snapshot.docs) {
-        final cat = (doc.data()['category'] as String?) ?? '';
-        if (cat.isNotEmpty) counts[cat] = (counts[cat] ?? 0) + 1;
-      }
-      return counts;
-    });
-  }
 
   void _navigateToCategory(BuildContext context, String category) {
     Navigator.push(
@@ -72,11 +59,9 @@ class CategoriesScreen extends StatelessWidget {
               ),
             ),
           ),
-          StreamBuilder<Map<String, int>>(
-            stream: _categoryCounts(),
-            builder: (context, snapshot) {
-              // ── Error state ──
-              if (snapshot.hasError) {
+          Consumer<CategoriesProvider>(
+            builder: (context, provider, _) {
+              if (provider.error != null) {
                 return const SliverFillRemaining(
                   child: Center(
                     child: Column(
@@ -96,7 +81,7 @@ class CategoriesScreen extends StatelessWidget {
                 );
               }
 
-              final counts = snapshot.data ?? {};
+              final counts = provider.counts;
 
               return SliverPadding(
                 padding:

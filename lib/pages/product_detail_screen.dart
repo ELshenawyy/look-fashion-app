@@ -2,7 +2,7 @@
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/models/cartt.dart';
-import 'package:my_fashion_app/services/cart_provider.dart';
+import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -97,7 +97,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       stockQuantity: product.stockQuantity,
     );
 
-    Provider.of<Cart>(context, listen: false).addItem(cartItem);
+    Provider.of<CartProvider>(context, listen: false).addItem(cartItem);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
@@ -7,9 +8,19 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:my_fashion_app/services/cart_provider.dart';
-import 'package:my_fashion_app/providers/home_provider.dart';
+import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart'
+    as cart_p;
 import 'package:my_fashion_app/providers/profile_provider.dart';
+import 'package:my_fashion_app/core/di/injection_container.dart' as di;
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart'
+    as auth_p;
+import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
+import 'package:my_fashion_app/features/addresses/presentation/providers/addresses_provider.dart';
+import 'package:my_fashion_app/features/notifications/presentation/providers/notifications_provider.dart';
+import 'package:my_fashion_app/screens/notifications_screen.dart' as notif_screen;
+import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
+import 'package:my_fashion_app/features/products/presentation/providers/categories_provider.dart';
+import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -20,21 +31,43 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Configure Firestore for development (disable App Check enforcement)
+  // Configure Firestore persistence
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
 
-  debugPrint('✅ Firebase initialized successfully');
-  debugPrint('📱 Firestore configured for development');
-  debugPrint('🔗 Project ID: ${FirebaseFirestore.instance.app.options.projectId}');
+  // ─── Initialize Dependency Injection (Clean Architecture) ─────────────
+  await di.init();
+
+  // ─── ربط NotificationsScreen.getUnreadCount بـ DI ─────────────────────
+  notif_screen.registerUnreadCountResolver(
+    (uid, isAdmin) => di
+        .sl<NotificationsProvider>()
+        .watchUnreadCount(userId: uid, isAdmin: isAdmin),
+  );
+
+  if (kDebugMode) {
+    debugPrint('✅ Firebase + DI initialized successfully');
+  }
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => Cart()),
-        ChangeNotifierProvider(create: (_) => HomeProvider()),
+        // Legacy providers (سيتم نقلها تباعاً للـ features/)
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        // Clean Architecture providers (يُحقَنون من DI)
+        ChangeNotifierProvider<auth_p.AuthProvider>.value(
+            value: di.sl<auth_p.AuthProvider>()),
+        ChangeNotifierProvider<cart_p.CartProvider>.value(
+            value: di.sl<cart_p.CartProvider>()),
+        ChangeNotifierProvider(create: (_) => di.sl<FavoritesProvider>()),
+        ChangeNotifierProvider(create: (_) => di.sl<ProductsProvider>()),
+        ChangeNotifierProvider(create: (_) => di.sl<CategoriesProvider>()),
+        ChangeNotifierProvider(create: (_) => di.sl<AddressesProvider>()),
+        ChangeNotifierProvider<OrdersProvider>.value(
+            value: di.sl<OrdersProvider>()),
+        ChangeNotifierProvider<NotificationsProvider>.value(
+            value: di.sl<NotificationsProvider>()),
       ],
       child: DevicePreview(
         enabled: false,
@@ -100,7 +133,6 @@ class _MainScreen extends State<MainScreen>
   late AnimationController _animationController;
   late Animation<Offset> _buttonOffsetAnimation;
   late Animation<Offset> _textOffsetAnimation;
-  bool _isTextAnimated = false;
 
   @override
   void initState() {
@@ -116,14 +148,6 @@ class _MainScreen extends State<MainScreen>
     _textOffsetAnimation = Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero)
         .animate(
             CurvedAnimation(parent: _animationController, curve: Curves.ease));
-
-    _animationController.addListener(() {
-      if (_animationController.status == AnimationStatus.completed) {
-        setState(() {
-          _isTextAnimated = true;
-        });
-      }
-    });
 
     _animationController.forward();
   }
@@ -176,13 +200,11 @@ class _MainScreen extends State<MainScreen>
               const SizedBox(height: 50),
               SlideTransition(
                 position: _textOffsetAnimation,
-                child: Text(
+                child: const Text(
                   'ابدأ الآن في استكشاف أحدث الماركات وصيحات الأزياء والتسوق بسهولة.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: _isTextAnimated
-                        ? const Color.fromARGB(255, 255, 255, 255)
-                        : const Color.fromARGB(255, 255, 255, 255),
+                    color: Color.fromARGB(255, 255, 255, 255),
                     fontSize: 20,
                     fontFamily: 'arial',
                   ),

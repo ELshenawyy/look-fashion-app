@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/models/cartt.dart';
-import 'package:my_fashion_app/services/cart_provider.dart';
+import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/screens/checkout_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
@@ -18,7 +18,7 @@ class CartPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<Cart>(
+    return Consumer<CartProvider>(
       builder: (context, cart, child) {
         if (cart.items.isEmpty) {
           return CustomScrollView(
@@ -130,7 +130,7 @@ class _CartItemCard extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      Provider.of<Cart>(context, listen: false).removeItem(index);
+      Provider.of<CartProvider>(context, listen: false).removeItem(index);
     }
   }
 
@@ -264,7 +264,7 @@ class _CartItemCard extends StatelessWidget {
                 children: [
                   _quantityButton(
                     icon: Icons.remove,
-                    onTap: () => Provider.of<Cart>(context, listen: false)
+                    onTap: () => Provider.of<CartProvider>(context, listen: false)
                         .decrementQuantity(index),
                   ),
                   Padding(
@@ -282,7 +282,7 @@ class _CartItemCard extends StatelessWidget {
                     icon: Icons.add,
                     onTap: atStockLimit
                         ? () {} // زر معطّل بصرياً
-                        : () => Provider.of<Cart>(context, listen: false)
+                        : () => Provider.of<CartProvider>(context, listen: false)
                             .incrementQuantity(index),
                   ),
                 ],
@@ -298,7 +298,7 @@ class _CartItemCard extends StatelessWidget {
 }
 
 class _BottomBar extends StatelessWidget {
-  final Cart cart;
+  final CartProvider cart;
 
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);

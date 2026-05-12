@@ -1,8 +1,9 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:my_fashion_app/services/cart_provider.dart';
+import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
+import 'package:my_fashion_app/features/orders/domain/repositories/order_repository.dart';
+import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -42,7 +43,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
-  double _calculateDeliveryCost(Cart cart) {
+  double _calculateDeliveryCost(CartProvider cart) {
     if (_selectedState == null) return 0;
     // توصيل محلي فقط لو كل منتجات السلة من نفس ولاية العميل
     final allLocal = cart.items.isNotEmpty &&
@@ -74,30 +75,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
-  /// Creates a notification for all admins about the new order.
-  Future<void> _notifyAdmins(
-      String orderId, Cart cart, String userName, String phone) async {
-    final user = FirebaseAuth.instance.currentUser;
-    final firestore = FirebaseFirestore.instance;
-    final itemNames = cart.items.map((i) => '${i.name} x${i.quantity}').join('، ');
-
-    await firestore.collection('notifications').add({
-      'type': 'new_order',
-      'title': 'طلب جديد من $userName',
-      'body': itemNames,
-      'orderId': orderId,
-      'forRole': 'admin',
-      'forUserId': null,
-      'read': false,
-      'senderName': userName,
-      'senderPhone': phone,
-      'senderId': user?.uid ?? '',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
   /// Shows a summary bottom sheet and waits for user confirmation before placing order.
-  Future<void> _showOrderSummaryModal(Cart cart) async {
+  Future<void> _showOrderSummaryModal(CartProvider cart) async {
     final enteredName = _nameController.text.trim();
     if (enteredName.isEmpty) {
       _showSnack('يرجى إدخال اسمك', Colors.orange);
@@ -325,109 +304,43 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  /// Places the order atomically using a Firestore transaction:
-  /// validates stock → creates order → decrements stock in one atomic operation.
-  Future<void> _placeOrder(Cart cart) async {
+  /// Places the order through the OrdersProvider use case.
+  /// المعاملة الذرية الآن في FirestoreOrderDataSource.placeOrderTransaction.
+  Future<void> _placeOrder(CartProvider cart) async {
     setState(() => _isPlacingOrder = true);
 
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      final userName = _nameController.text.trim();
-      final phone = _phoneController.text.trim();
-      final deliveryCost = _calculateDeliveryCost(cart);
-      final grandTotal = cart.totalPrice + deliveryCost;
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = _nameController.text.trim();
+    final phone = _phoneController.text.trim();
+    final deliveryCost = _calculateDeliveryCost(cart);
+    final grandTotal = cart.totalPrice + deliveryCost;
 
-      final firestore = FirebaseFirestore.instance;
+    final input = PlaceOrderInput(
+      userId: user?.uid,
+      userEmail: user?.email,
+      userName: userName,
+      phone: phone,
+      address: _addressController.text.trim(),
+      state: _selectedState,
+      items: cart.items,
+      subtotal: cart.totalPrice,
+      deliveryCost: deliveryCost,
+      total: grandTotal,
+      productStates: cart.items.map((i) => i.productState).toSet().toList(),
+    );
 
-      // Build product refs ahead of the transaction
-      final productRefs = cart.items
-          .map((item) => firestore.collection('products').doc(item.productId))
-          .toList();
+    final ordersProvider = context.read<OrdersProvider>();
+    final orderId = await ordersProvider.placeOrder(input);
 
-      // Prepare the order document reference (auto-ID, created inside transaction)
-      final orderRef = firestore.collection('orders').doc();
+    if (!mounted) return;
+    setState(() => _isPlacingOrder = false);
 
-      final orderItems = cart.items
-          .map((item) => {
-                'productId': item.productId,
-                'name': item.name,
-                'price': item.price,
-                'quantity': item.quantity,
-                'size': item.size,
-                'color': item.color,
-                'image': item.image,
-              })
-          .toList();
-
-      // Run everything atomically
-      await firestore.runTransaction((tx) async {
-        // 1) Read all stock values first (reads must come before writes in a transaction)
-        final snaps = await Future.wait(
-          productRefs.map((ref) => tx.get(ref)),
-        );
-
-        // 2) Validate stock
-        for (int i = 0; i < cart.items.length; i++) {
-          final item = cart.items[i];
-          final snap = snaps[i];
-
-          if (!snap.exists) {
-            throw Exception('المنتج "${item.name}" لم يعد متاحاً.');
-          }
-
-          final currentStock =
-              (snap.data()?['stockQuantity'] as num?)?.toInt() ?? 0;
-
-          if (currentStock < item.quantity) {
-            if (currentStock == 0) {
-              throw Exception('المنتج "${item.name}" نفد من المخزون.');
-            }
-            throw Exception(
-              'المنتج "${item.name}" متاح فقط $currentStock قطعة، لكن طلبت ${item.quantity}.',
-            );
-          }
-        }
-
-        // 3) Write order document
-        tx.set(orderRef, {
-          'userId': user?.uid,
-          'userEmail': user?.email,
-          'userName': userName,
-          'items': orderItems,
-          'subtotal': cart.totalPrice,
-          'deliveryCost': deliveryCost,
-          'total': grandTotal,
-          'address': _addressController.text.trim(),
-          'state': _selectedState,
-          'phone': phone,
-          'status': 'pending',
-          'productStates':
-              cart.items.map((i) => i.productState).toSet().toList(),
-          'deliveryDays': '1-15',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
-        // 4) Decrement stock for each item
-        for (int i = 0; i < cart.items.length; i++) {
-          tx.update(productRefs[i], {
-            'stockQuantity': FieldValue.increment(-cart.items[i].quantity),
-          });
-        }
-      });
-
-      // 5) Notify admins (outside transaction — non-critical)
-      await _notifyAdmins(orderRef.id, cart, userName, phone);
-
-      // 6) Clear cart & show confirmation
+    if (orderId != null) {
       cart.clear();
-
-      if (!mounted) return;
       _showOrderConfirmationDialog();
-    } catch (e) {
-      if (!mounted) return;
-      _showSnack('$e', Colors.red);
-    } finally {
-      if (mounted) setState(() => _isPlacingOrder = false);
+    } else if (ordersProvider.failure != null) {
+      _showSnack(ordersProvider.failure!.message, Colors.red);
+      ordersProvider.clearFailure();
     }
   }
 
@@ -490,7 +403,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cart = Provider.of<Cart>(context);
+    final cart = Provider.of<CartProvider>(context);
 
     return Scaffold(
       backgroundColor: Colors.black,

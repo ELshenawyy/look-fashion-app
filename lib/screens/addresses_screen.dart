@@ -1,11 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/addresses/domain/entities/address_entity.dart';
+import 'package:my_fashion_app/features/addresses/presentation/providers/addresses_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:provider/provider.dart';
 
-class AddressesScreen extends StatelessWidget {
+class AddressesScreen extends StatefulWidget {
   const AddressesScreen({super.key});
 
+  @override
+  State<AddressesScreen> createState() => _AddressesScreenState();
+}
+
+class _AddressesScreenState extends State<AddressesScreen> {
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
 
@@ -16,12 +23,18 @@ class AddressesScreen extends StatelessWidget {
     'شمال دارفور', 'جنوب دارفور', 'وسط دارفور', 'شرق دارفور', 'غرب دارفور',
   ];
 
-  CollectionReference<Map<String, dynamic>> _addressesRef() {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('addresses');
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = _uid;
+    if (uid != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<AddressesProvider>().startWatching(uid);
+      });
+    }
   }
 
   Future<void> _showAddSheet(BuildContext context) async {
@@ -30,7 +43,7 @@ class AddressesScreen extends StatelessWidget {
     final buildingCtrl = TextEditingController();
     String? selectedState;
 
-    await showModalBottomSheet(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -52,7 +65,6 @@ class AddressesScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Handle
                     Center(
                       child: Container(
                         width: 40,
@@ -79,7 +91,6 @@ class AddressesScreen extends StatelessWidget {
                       icon: Icons.label_outline,
                     ),
                     const SizedBox(height: 12),
-                    // State dropdown
                     Container(
                       decoration: BoxDecoration(
                         color: const Color(0xFF121212),
@@ -150,14 +161,34 @@ class AddressesScreen extends StatelessWidget {
                             ));
                             return;
                           }
-                          await _addressesRef().add({
-                            'label': label,
-                            'region': selectedState,
-                            'street': street,
-                            'building': building,
-                            'createdAt': FieldValue.serverTimestamp(),
-                          });
-                          if (ctx.mounted) Navigator.pop(ctx);
+                          final uid = _uid;
+                          if (uid == null) return;
+                          final ok = await ctx
+                              .read<AddressesProvider>()
+                              .add(
+                                userId: uid,
+                                label: label,
+                                region: selectedState!,
+                                street: street,
+                                building: building,
+                              );
+                          if (!ctx.mounted) return;
+                          if (ok) {
+                            Navigator.pop(ctx);
+                          } else {
+                            final f = ctx
+                                .read<AddressesProvider>()
+                                .failure;
+                            if (f != null) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                SnackBar(
+                                  content: Text(f.message),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              ctx.read<AddressesProvider>().clearFailure();
+                            }
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _gold,
@@ -213,9 +244,13 @@ class AddressesScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) {
-      await _addressesRef().doc(docId).delete();
-    }
+    if (confirmed != true) return;
+    final uid = _uid;
+    if (uid == null) return;
+    if (!context.mounted) return;
+    await context
+        .read<AddressesProvider>()
+        .delete(userId: uid, addressId: docId);
   }
 
   @override
@@ -233,12 +268,9 @@ class AddressesScreen extends StatelessWidget {
             ),
             automaticallyImplyLeading: false,
           ),
-          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: _addressesRef()
-                .orderBy('createdAt', descending: true)
-                .snapshots(),
-            builder: (ctx, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
+          Consumer<AddressesProvider>(
+            builder: (ctx, provider, _) {
+              if (provider.loading) {
                 return const SliverFillRemaining(
                   child: Center(
                     child: CircularProgressIndicator(color: _gold),
@@ -246,9 +278,9 @@ class AddressesScreen extends StatelessWidget {
                 );
               }
 
-              final docs = snap.data?.docs ?? [];
+              final addresses = provider.addresses;
 
-              if (docs.isEmpty) {
+              if (addresses.isEmpty) {
                 return SliverFillRemaining(
                   child: Center(
                     child: Column(
@@ -290,13 +322,7 @@ class AddressesScreen extends StatelessWidget {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (_, i) {
-                      final doc = docs[i];
-                      final data = doc.data();
-                      final label = data['label'] as String? ?? '';
-                      final region = data['region'] as String? ?? '';
-                      final street = data['street'] as String? ?? '';
-                      final building = data['building'] as String? ?? '';
-
+                      final AddressEntity addr = addresses[i];
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(16),
@@ -326,15 +352,15 @@ class AddressesScreen extends StatelessWidget {
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                 children: [
-                                  Text(label,
+                                  Text(addr.label,
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 15,
                                           fontWeight: FontWeight.w700)),
                                   const SizedBox(height: 4),
                                   Text(
-                                    '$region — $street'
-                                    '${building.isNotEmpty ? ' — $building' : ''}',
+                                    '${addr.region} — ${addr.street}'
+                                    '${addr.building.isNotEmpty ? ' — ${addr.building}' : ''}',
                                     style: const TextStyle(
                                         color: Colors.white54,
                                         fontSize: 13),
@@ -346,13 +372,13 @@ class AddressesScreen extends StatelessWidget {
                               icon: const Icon(Icons.delete_outline,
                                   color: Colors.redAccent, size: 22),
                               onPressed: () =>
-                                  _deleteAddress(context, doc.id, label),
+                                  _deleteAddress(context, addr.id, addr.label),
                             ),
                           ],
                         ),
                       );
                     },
-                    childCount: docs.length,
+                    childCount: addresses.length,
                   ),
                 ),
               );

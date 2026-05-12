@@ -110,7 +110,7 @@ class _NotificationBellActionState extends State<NotificationBellAction> {
     if (_user != null) {
       _userStream = FirebaseFirestore.instance
           .collection('users')
-          .doc(_user!.uid)
+          .doc(_user.uid)
           .snapshots();
     }
   }
@@ -128,7 +128,7 @@ class _NotificationBellActionState extends State<NotificationBellAction> {
 
         return StreamBuilder<int>(
           stream: NotificationsScreen.getUnreadCount(
-            userId: _user!.uid,
+            userId: _user.uid,
             isAdmin: isAdmin,
           ),
           builder: (context, countSnap) {

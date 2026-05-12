@@ -1,16 +1,18 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/favorites/domain/entities/favorite_entity.dart';
+import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
-import 'package:my_fashion_app/services/cart_provider.dart';
+import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/product_card.dart';
 import 'package:provider/provider.dart';
 
+/// شاشة المفضلة — لا تستدعي Firebase مباشرةً.
+/// كل البيانات تأتي من FavoritesProvider الذي يستدعي use cases.
 class FavoritesScreen extends StatefulWidget {
-  /// يُستدعى عند الضغط على "تصفح المنتجات" لتبديل التبويب للرئيسية
   final VoidCallback? onBrowseProducts;
 
   const FavoritesScreen({super.key, this.onBrowseProducts});
@@ -21,79 +23,68 @@ class FavoritesScreen extends StatefulWidget {
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
   static const Color _gold = Color(0xFFD4AF37);
-
-  /// IDs التي يجري حذفها حاليًا — تُستخدم لتأثير التلاشي
   final Set<String> _removingIds = {};
 
-  // ── Firestore stream ──────────────────────────────────────────────────
-  Stream<List<Product>> _favoritesStream(String userId) {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('favorites')
-        .orderBy('savedAt', descending: true)
-        .snapshots()
-        .map(
-          (snap) => snap.docs.map((doc) {
-            final data = doc.data();
-            return Product.fromJson({
-              ...data,
-              'docId': data['docId'] ?? doc.id,
-            });
-          }).toList(),
-        );
+  @override
+  void initState() {
+    super.initState();
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      // ابدأ مراقبة المفضلات فور فتح الشاشة
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<FavoritesProvider>().startWatching(uid);
+      });
+    }
   }
 
-  // ── Remove with animation ─────────────────────────────────────────────
-  Future<void> _removeFavorite(Product product) async {
-    final id = product.docId ?? product.id.toString();
-    if (_removingIds.contains(id)) return; // منع النقر المزدوج
+  // ── حذف مع تأثير fade ───────────────────────────────────────────────────
+  Future<void> _removeFavorite(FavoriteEntity fav) async {
+    final id = fav.productId;
+    if (_removingIds.contains(id)) return;
 
-    // 1. بدء تأثير التلاشي
     setState(() => _removingIds.add(id));
-
-    // 2. الانتظار حتى تنتهي الأنيميشن (350ms)
     await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
 
-    // 3. الحذف من Firestore — سيُحدَّث الـ stream تلقائيًا
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('favorites')
-          .doc(id)
-          .delete();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _removingIds.remove(id));
+    await context.read<FavoritesProvider>().toggle(
+          userId: uid,
+          productId: id,
+          title: fav.title,
+          imageUrl: fav.imageUrl,
+          price: fav.price,
+        );
+
+    if (!mounted) return;
+    setState(() => _removingIds.remove(id));
+
+    final failure = context.read<FavoritesProvider>().failure;
+    if (failure != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تعذر إزالة المنتج من المفضلة: $e'),
+          content: Text(failure.message),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
       );
+      context.read<FavoritesProvider>().clearFailure();
     }
   }
 
-  // ── Cart ──────────────────────────────────────────────────────────────
-  void _addToCart(Product product) {
-    final cart = context.read<Cart>();
-    cart.addItem(CartItem(
-      productId: product.docId ?? '',
-      name: product.title,
-      price: product.price,
-      image: product.imageUrl,
-      size: product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي',
-      color: product.colors.isNotEmpty ? product.colors.first : 'افتراضي',
-      productState: product.state,
-      stockQuantity: product.stockQuantity,
-      quantity: 1,
-    ));
+  // ── إضافة لـ السلة ──────────────────────────────────────────────────────
+  void _addToCart(FavoriteEntity fav) {
+    context.read<CartProvider>().addItem(CartItem(
+          productId: fav.productId,
+          name: fav.title,
+          price: fav.price,
+          image: fav.imageUrl,
+          size: 'افتراضي',
+          color: 'افتراضي',
+          quantity: 1,
+        ));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('تمت الإضافة إلى السلة'),
@@ -104,7 +95,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  // ── childAspectRatio ──────────────────────────────────────────────────
   double _cardRatio(BuildContext context) {
     const hPadding = 32.0;
     const hSpacing = 12.0;
@@ -114,19 +104,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return cardW / (cardW + infoHeight);
   }
 
-  // ── App bar (static since it has no deps) ─────────────────────────────
   static const AppSliverBar _appBar = AppSliverBar(
     title: 'المفضلة',
     actions: [NotificationBellAction()],
   );
 
-  // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final ratio = _cardRatio(context);
 
-    // ── Not logged in ──
     if (user == null) {
       return CustomScrollView(
         slivers: [
@@ -143,25 +130,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       );
     }
 
-    return StreamBuilder<List<Product>>(
-      stream: _favoritesStream(user.uid),
-      builder: (context, snapshot) {
-        // ── Loading ──
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CustomScrollView(
-            slivers: [
-              _appBar,
-              SliverFillRemaining(
-                child: Center(
-                  child: CircularProgressIndicator(color: _gold),
-                ),
-              ),
-            ],
-          );
-        }
+    return Consumer<FavoritesProvider>(
+      builder: (context, provider, _) {
+        final products = provider.favorites;
+        final failure = provider.failure;
 
-        // ── Error ──
-        if (snapshot.hasError) {
+        if (failure != null && products.isEmpty) {
           return CustomScrollView(
             slivers: [
               _appBar,
@@ -170,7 +144,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Text(
-                      'حدث خطأ: ${snapshot.error}',
+                      'حدث خطأ: ${failure.message}',
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.redAccent),
                     ),
@@ -181,9 +155,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           );
         }
 
-        final products = snapshot.data ?? const <Product>[];
-
-        // ── Empty state ──
         if (products.isEmpty) {
           return CustomScrollView(
             slivers: [
@@ -200,15 +171,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           );
         }
 
-        // ── Grid ──
         return CustomScrollView(
           slivers: [
             _appBar,
-            // Header
             SliverToBoxAdapter(
               child: Padding(
-                padding:
-                    const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -224,20 +192,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     Text(
                       '${products.length} منتج محفوظ',
                       style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 13,
-                      ),
+                          color: Colors.white54, fontSize: 13),
                     ),
                   ],
                 ),
               ),
             ),
-            // Grid
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               sliver: SliverGrid(
-                gridDelegate:
-                    SliverGridDelegateWithFixedCrossAxisCount(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
@@ -245,26 +209,34 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 ),
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final p = products[index];
-                    final id = p.docId ?? p.id.toString();
-                    final isRemoving = _removingIds.contains(id);
+                    final fav = products[index];
+                    final isRemoving = _removingIds.contains(fav.productId);
+                    final productView = Product(
+                      id: 0,
+                      docId: fav.productId,
+                      title: fav.title,
+                      price: fav.price,
+                      imageUrl: fav.imageUrl,
+                      description: '',
+                      gender: '',
+                    );
 
                     return AnimatedOpacity(
                       opacity: isRemoving ? 0.0 : 1.0,
                       duration: const Duration(milliseconds: 350),
                       curve: Curves.easeOut,
                       child: ProductCard(
-                        product: p,
-                        isFavorite: true, // دائمًا في المفضلة
+                        product: productView,
+                        isFavorite: true,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) =>
-                                ProductDetailScreen(product: p),
+                                ProductDetailScreen(product: productView),
                           ),
                         ),
-                        onFavoriteToggle: () => _removeFavorite(p),
-                        onAddToCart: () => _addToCart(p),
+                        onFavoriteToggle: () => _removeFavorite(fav),
+                        onAddToCart: () => _addToCart(fav),
                       ),
                     );
                   },
@@ -279,7 +251,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 }
 
-// ── Empty State Widget ────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
   const _EmptyState({
     required this.icon,
@@ -303,7 +274,6 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Animated heart container
             Container(
               width: 100,
               height: 100,
@@ -336,7 +306,6 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            // CTA
             OutlinedButton.icon(
               onPressed: onBrowse,
               icon: const Icon(Icons.explore_outlined, size: 18),
@@ -344,8 +313,8 @@ class _EmptyState extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: _gold,
                 side: const BorderSide(color: _gold),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),

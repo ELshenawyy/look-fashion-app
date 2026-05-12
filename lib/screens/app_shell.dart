@@ -1,7 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:my_fashion_app/features/auth/domain/entities/user_entity.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/login.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
 import 'package:my_fashion_app/screens/admin_dashboard.dart';
@@ -11,9 +11,10 @@ import 'package:my_fashion_app/screens/profile_screen.dart';
 import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:my_fashion_app/screens/cart.dart';
 import 'package:my_fashion_app/screens/staff_management_screen.dart';
-import 'package:my_fashion_app/services/cart_provider.dart';
-import 'package:my_fashion_app/services/role_service.dart';
+import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 
+/// AppShell — يعتمد كلياً على AuthProvider من Clean Architecture.
+/// لا استدعاءات Firebase مباشرة.
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -23,58 +24,66 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
+  bool _revokedHandled = false;
 
   void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    setState(() => _selectedIndex = index);
+  }
+
+  Future<void> _handleRevocation(BuildContext context) async {
+    if (_revokedHandled) return;
+    _revokedHandled = true;
+    await context.read<AuthProvider>().signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (_) => false,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم إلغاء صلاحياتك من قِبل المدير.'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const LoginPage();
-    }
-
-    // Real-time StreamBuilder — يستمع لتغييرات الدور فوراً
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
-      builder: (context, snapshot) {
-        final userData = snapshot.data?.data();
-
-        // ── Force Logout: إذا كان الحساب مُلغى ───────────────────────
-        if (userData != null && userData['revokedAt'] != null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) async {
-            await FirebaseAuth.instance.signOut();
-            if (!context.mounted) return;
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const LoginPage()),
-              (_) => false,
-            );
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('تم إلغاء صلاحياتك من قِبل المدير.'),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          });
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        // ── حالة التحميل الأولي ─────────────────────────────────────────
+        if (auth.status == AuthStatus.unknown) {
           return const Scaffold(
             backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+            ),
           );
         }
 
-        // ── فحص الدور ────────────────────────────────────────────────
-        final role =
-            userData?['role'] is String ? userData!['role'] as String : AppRole.user;
-        final isAdminLevel = AppRole.isAdminLevel(role);
-        final isSuperAdmin = AppRole.isSuperAdmin(role);
+        // ── غير مسجَّل ───────────────────────────────────────────────────
+        if (auth.status == AuthStatus.unauthenticated) {
+          return const LoginPage();
+        }
+
+        // ── ملغى ────────────────────────────────────────────────────────
+        if (auth.status == AuthStatus.revoked) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _handleRevocation(context);
+          });
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+            ),
+          );
+        }
+
+        // ── authenticated ───────────────────────────────────────────────
+        final UserEntity user = auth.user!;
+        final isAdminLevel = user.isAdmin;
+        final isSuperAdmin = user.isSuperAdmin;
 
         final pages = <Widget>[
           const ProductListScreen(),
@@ -87,13 +96,10 @@ class _AppShellState extends State<AppShell> {
         return Scaffold(
           backgroundColor: Colors.black,
           body: pages[_selectedIndex],
-
-          // ── FABs بناءً على الدور ──────────────────────────────────
           floatingActionButton: isAdminLevel
               ? Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    // زر إدارة الموظفين — superAdmin فقط
                     if (isSuperAdmin) ...[
                       FloatingActionButton.small(
                         backgroundColor: Colors.deepPurple,
@@ -139,8 +145,7 @@ class _AppShellState extends State<AppShell> {
                 )
               : null,
           floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-
-          bottomNavigationBar: Consumer<Cart>(
+          bottomNavigationBar: Consumer<CartProvider>(
             builder: (context, cart, _) => BottomNavigationBar(
               currentIndex: _selectedIndex,
               onTap: _onItemTapped,

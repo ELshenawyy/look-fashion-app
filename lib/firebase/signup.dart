@@ -1,10 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
+import 'package:provider/provider.dart';
 
-import 'auth_service.dart';
 import 'login.dart';
 
 class Signup extends StatefulWidget {
@@ -86,30 +85,17 @@ class _SignupState extends State<Signup> {
 
     setState(() => _isLoading = true);
 
-    try {
-      UserCredential? userCredential =
-          await AuthService.signUp(_email.trim(), _password);
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.signUpWithEmail(
+      email: _email.trim(),
+      password: _password,
+      name: _name.trim(),
+    );
 
-      final user = userCredential?.user;
-      if (user == null) {
-        throw FirebaseAuthException(
-          code: 'null-user',
-          message: 'User creation returned null user object',
-        );
-      }
+    if (!mounted) return;
+    setState(() => _isLoading = false);
 
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .set({
-        'uid': user.uid,
-        'email': _email.trim(),
-        'name': _name.trim(),
-        'role': 'user',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
+    if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تم إنشاء الحساب بنجاح.'),
@@ -121,40 +107,15 @@ class _SignupState extends State<Signup> {
         MaterialPageRoute(builder: (context) => const AppShell()),
         (route) => false,
       );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      final msg = _authErrorMessage(e.code);
+    } else if (auth.failure != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(msg),
+          content: Text(auth.failure!.message),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ غير متوقع: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  String _authErrorMessage(String code) {
-    switch (code) {
-      case 'email-already-in-use':
-        return 'هذا البريد الإلكتروني مسجّل بالفعل. حاول تسجيل الدخول.';
-      case 'weak-password':
-        return 'كلمة المرور ضعيفة جداً. استخدم 6 أحرف على الأقل.';
-      case 'invalid-email':
-        return 'صيغة البريد الإلكتروني غير صحيحة.';
-      default:
-        return 'حدث خطأ. حاول مرة أخرى.';
+      auth.clearFailure();
     }
   }
 

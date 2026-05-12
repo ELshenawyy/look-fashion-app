@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:my_fashion_app/repositories/admin_repository.dart';
+import 'package:my_fashion_app/core/di/injection_container.dart';
+import 'package:my_fashion_app/features/admin/data/repositories/admin_repository.dart';
 import 'package:my_fashion_app/services/role_service.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
@@ -17,7 +18,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
 
-  final _repo = AdminRepository();
+  final _repo = sl<AdminRepository>();
 
   // ── إلغاء صلاحيات الموظف ───────────────────────────────────────────────
   Future<void> _revokeAccess(String uid, String name) async {
@@ -80,7 +81,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     bool isLoading = false;
     bool isEmail = true; // toggle بين إيميل ورقم هاتف
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
@@ -208,7 +209,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           ],
         ),
       ),
-    );
+    ).then((_) => inputCtrl.dispose());
   }
 
   // ── منطق الترقية عبر AdminRepository ──────────────────────────────────

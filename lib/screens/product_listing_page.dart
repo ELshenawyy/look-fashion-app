@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
-import 'package:my_fashion_app/services/cart_provider.dart';
-import 'package:my_fashion_app/services/product_service.dart';
+import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/watch_products.dart';
+import 'package:my_fashion_app/core/di/injection_container.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/product_card.dart';
 import 'package:provider/provider.dart';
@@ -25,7 +26,7 @@ class ProductListingPage extends StatefulWidget {
 class _ProductListingPageState extends State<ProductListingPage> {
   static const Color _gold = Color(0xFFD4AF37);
 
-  final ProductService _productService = ProductService();
+  final WatchProducts _watchProducts = sl<WatchProducts>();
   final Set<String> _optimisticFavorites = <String>{};
   final Set<String> _optimisticRemovals = <String>{};
 
@@ -110,7 +111,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
 
   // ── Cart logic ────────────────────────────────────────────────────────
   void _addToCart(Product product) {
-    final cart = context.read<Cart>();
+    final cart = context.read<CartProvider>();
     cart.addItem(CartItem(
       productId: product.docId ?? '',
       name: product.title,
@@ -163,8 +164,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: StreamBuilder<List<Product>>(
-        stream: _productService.getProductsStream(
-            category: widget.categoryName),
+        stream: _watchProducts(category: widget.categoryName),
         builder: (context, productSnap) {
           // ── Loading ──
           if (productSnap.connectionState == ConnectionState.waiting) {

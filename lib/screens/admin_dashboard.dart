@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:my_fashion_app/repositories/admin_repository.dart';
+import 'package:my_fashion_app/core/di/injection_container.dart';
+import 'package:my_fashion_app/features/admin/data/repositories/admin_repository.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
 import 'package:my_fashion_app/screens/admin_orders_screen.dart';
 import 'package:my_fashion_app/utils/order_utils.dart';
@@ -22,7 +23,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   late Stream<QuerySnapshot> _productsStream;
   String _searchQuery = '';
-  final _adminRepo = AdminRepository();
+  final _adminRepo = sl<AdminRepository>();
 
   @override
   void initState() {
@@ -240,15 +241,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
-                    leading: data['imageUrl'] != null &&
-                            (data['imageUrl'] as String).isNotEmpty
+                    leading: ((data['imageUrl'] as String?) ?? '').isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: SizedBox(
                               width: 60,
                               height: 60,
                               child: Image.network(
-                                data['imageUrl'],
+                                data['imageUrl'] as String,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Container(
                                   color: Colors.white12,

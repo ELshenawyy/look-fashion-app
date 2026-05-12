@@ -10,8 +10,8 @@ import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
-import 'package:my_fashion_app/providers/home_provider.dart';
-import 'package:my_fashion_app/services/cart_provider.dart';
+import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
+import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/user_avatar.dart';
 import 'package:provider/provider.dart';
@@ -76,7 +76,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
     // Load initial products
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<HomeProvider>().init();
+      context.read<ProductsProvider>().init();
     });
   }
 
@@ -94,7 +94,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
     if (!_scrollController.hasClients) return;
     final pos = _scrollController.position;
     if (pos.pixels >= pos.maxScrollExtent - 300) {
-      context.read<HomeProvider>().loadMore();
+      context.read<ProductsProvider>().loadMore();
     }
   }
 
@@ -133,7 +133,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         _searchController.selection =
             TextSelection.fromPosition(TextPosition(offset: words.length));
       });
-      context.read<HomeProvider>().setSearchQuery(words);
+      context.read<ProductsProvider>().setSearchQuery(words);
     });
   }
 
@@ -169,7 +169,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   // ── Quick Add to Cart ─────────────────────────────────────────────────
   void _quickAddToCart(Product product) {
-    final cart = context.read<Cart>();
+    final cart = context.read<CartProvider>();
     final size = product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي';
     final color = product.colors.isNotEmpty ? product.colors.first : 'افتراضي';
     cart.addItem(CartItem(
@@ -196,7 +196,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    return Consumer<HomeProvider>(
+    return Consumer<ProductsProvider>(
       builder: (context, provider, _) {
         return RefreshIndicator(
           color: _gold,
@@ -215,7 +215,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               SliverToBoxAdapter(child: _buildSortTabs(provider)),
               if (provider.isLoading)
                 SliverToBoxAdapter(child: _buildShimmerGrid())
-              else if (provider.error != null)
+              else if (provider.failure != null)
                 SliverToBoxAdapter(child: _buildErrorState(provider))
               else if (provider.products.isEmpty)
                 SliverToBoxAdapter(child: _buildEmptyState())
@@ -296,7 +296,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
       ),
       actions: [
         // Cart badge
-        Consumer<Cart>(
+        Consumer<CartProvider>(
           builder: (context, cart, _) => Stack(
             clipBehavior: Clip.none,
             children: [
@@ -338,7 +338,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   // ── Search Bar ────────────────────────────────────────────────────────
-  Widget _buildSearchBar(HomeProvider provider) {
+  Widget _buildSearchBar(ProductsProvider provider) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Container(
@@ -507,7 +507,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   // ── Categories ────────────────────────────────────────────────────────
-  Widget _buildCategories(HomeProvider provider) {
+  Widget _buildCategories(ProductsProvider provider) {
     return SizedBox(
       height: 110,
       child: ListView.builder(
@@ -586,7 +586,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   // ── Sort Tabs ─────────────────────────────────────────────────────────
-  Widget _buildSortTabs(HomeProvider provider) {
+  Widget _buildSortTabs(ProductsProvider provider) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Row(
@@ -599,7 +599,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
-  Widget _sortTab(String label, HomeSortMode mode, HomeProvider provider) {
+  Widget _sortTab(String label, HomeSortMode mode, ProductsProvider provider) {
     final isActive = provider.sortMode == mode;
     return GestureDetector(
       onTap: () => provider.setSortMode(mode),
@@ -760,7 +760,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   // ── Empty State ───────────────────────────────────────────────────────
   Widget _buildEmptyState() {
-    final provider = context.read<HomeProvider>();
+    final provider = context.read<ProductsProvider>();
     final categoryLabel = provider.selectedCategory;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 60),
@@ -794,7 +794,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   // ── Error State ───────────────────────────────────────────────────────
-  Widget _buildErrorState(HomeProvider provider) {
+  Widget _buildErrorState(ProductsProvider provider) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
       child: Center(

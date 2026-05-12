@@ -1,108 +1,60 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:my_fashion_app/features/notifications/domain/entities/notification_entity.dart';
+import 'package:my_fashion_app/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:my_fashion_app/screens/admin_order_detail_screen.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
 import 'package:my_fashion_app/screens/orders_screen.dart';
-import 'package:my_fashion_app/services/role_service.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:provider/provider.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
-  /// Returns a stream of notifications filtered correctly by role.
-  static Stream<QuerySnapshot> getNotificationsStream({
-    required String userId,
-    required bool isAdmin,
-  }) {
-    final collection = FirebaseFirestore.instance.collection('notifications');
-    if (isAdmin) {
-      return collection.where('forRole', isEqualTo: 'admin').snapshots();
-    } else {
-      return collection.where('forUserId', isEqualTo: userId).snapshots();
-    }
-  }
-
-  /// Returns a stream of unread notification count.
+  /// Wrapper مساعد للـ NotificationBellAction (يحافظ على الـ API القديمة).
   static Stream<int> getUnreadCount({
     required String userId,
     required bool isAdmin,
   }) {
-    return getNotificationsStream(userId: userId, isAdmin: isAdmin).map(
-      (snap) => snap.docs.where((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return data['read'] != true;
-      }).length,
-    );
+    // ignore: deprecated_member_use_from_same_package
+    return _kUnreadCountResolver(userId, isAdmin);
   }
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
+/// محقن من main.dart بعد تهيئة DI.
+late Stream<int> Function(String userId, bool isAdmin) _kUnreadCountResolver;
+
+void registerUnreadCountResolver(
+    Stream<int> Function(String userId, bool isAdmin) fn) {
+  _kUnreadCountResolver = fn;
+}
+
 class _NotificationsScreenState extends State<NotificationsScreen> {
   static const Color _gold = Color(0xFFD4AF37);
   static const int _pageSize = 20;
-
-  bool _isAdmin = false;
-  bool _loadingRole = true;
-  String _userId = '';
-  int _visibleCount = _pageSize; // كم إشعار نعرض حالياً
+  int _visibleCount = _pageSize;
 
   @override
   void initState() {
     super.initState();
-    _loadRole();
-  }
-
-  Future<void> _loadRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() => _loadingRole = false);
-      return;
-    }
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    final role = doc.data()?['role'] as String? ?? '';
-    if (mounted) {
-      setState(() {
-        _userId = user.uid;
-        _isAdmin = AppRole.isAdminLevel(role);
-        _loadingRole = false;
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    if (user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context
+            .read<NotificationsProvider>()
+            .startWatching(userId: user.uid, isAdmin: user.isAdmin);
       });
     }
   }
 
-  Future<void> _markAllRead() async {
-    final firestore = FirebaseFirestore.instance;
-    late QuerySnapshot snap;
-
-    if (_isAdmin) {
-      snap = await firestore
-          .collection('notifications')
-          .where('forRole', isEqualTo: 'admin')
-          .where('read', isEqualTo: false)
-          .get();
-    } else {
-      snap = await firestore
-          .collection('notifications')
-          .where('forUserId', isEqualTo: _userId)
-          .where('read', isEqualTo: false)
-          .get();
-    }
-
-    final batch = firestore.batch();
-    for (final doc in snap.docs) {
-      batch.update(doc.reference, {'read': true});
-    }
-    await batch.commit();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = context.watch<AuthProvider>().user;
     final backButton = IconButton(
       icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
       onPressed: () => Navigator.pop(context),
@@ -127,24 +79,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
     }
 
-    if (_loadingRole) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: NestedScrollView(
-          headerSliverBuilder: (context, _) => [
-            AppSliverBar(
-              title: 'الإشعارات',
-              leading: backButton,
-              automaticallyImplyLeading: false,
-            ),
-          ],
-          body: const Center(
-            child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: NestedScrollView(
@@ -155,34 +89,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             automaticallyImplyLeading: false,
             actions: [
               TextButton(
-                onPressed: _markAllRead,
+                onPressed: () =>
+                    context.read<NotificationsProvider>().markAllAsRead(),
                 child: const Text('قراءة الكل',
                     style: TextStyle(color: _gold, fontSize: 13)),
               ),
             ],
           ),
         ],
-        body: StreamBuilder<QuerySnapshot>(
-          stream: NotificationsScreen.getNotificationsStream(
-              userId: _userId, isAdmin: _isAdmin),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+        body: Consumer<NotificationsProvider>(
+          builder: (context, provider, _) {
+            if (provider.loading) {
               return const Center(
                   child: CircularProgressIndicator(color: _gold));
             }
 
-            final docs = snapshot.data?.docs ?? [];
-            final sorted = List.of(docs)
-              ..sort((a, b) {
-                final aTime =
-                    (a.data() as Map)['createdAt'] as Timestamp?;
-                final bTime =
-                    (b.data() as Map)['createdAt'] as Timestamp?;
-                if (aTime == null || bTime == null) return 0;
-                return bTime.compareTo(aTime);
-              });
+            final all = provider.notifications;
 
-            if (sorted.isEmpty) {
+            if (all.isEmpty) {
               return const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -198,37 +122,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               );
             }
 
-            // تطبيق الـ pagination: عرض أول _visibleCount فقط
-            final visible =
-                sorted.take(_visibleCount).toList();
-            final hasMore = sorted.length > _visibleCount;
+            final visible = all.take(_visibleCount).toList();
+            final hasMore = all.length > _visibleCount;
 
             return ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: visible.length + (hasMore ? 1 : 0),
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
-                // زر "تحميل المزيد"
                 if (index == visible.length) {
                   return Center(
                     child: TextButton.icon(
-                      onPressed: () => setState(
-                          () => _visibleCount += _pageSize),
+                      onPressed: () =>
+                          setState(() => _visibleCount += _pageSize),
                       icon: const Icon(Icons.expand_more, color: _gold),
                       label: Text(
-                        'تحميل المزيد (${sorted.length - _visibleCount} متبقية)',
+                        'تحميل المزيد (${all.length - _visibleCount} متبقية)',
                         style: const TextStyle(color: _gold),
                       ),
                     ),
                   );
                 }
-                final doc = visible[index];
-                final data = doc.data() as Map<String, dynamic>;
-                return _NotificationTile(
-                  docId: doc.id,
-                  data: data,
-                  isAdmin: _isAdmin,
-                );
+                return _NotificationTile(notification: visible[index]);
               },
             );
           },
@@ -239,44 +154,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 class _NotificationTile extends StatelessWidget {
-  final String docId;
-  final Map<String, dynamic> data;
-  final bool isAdmin;
+  final NotificationEntity notification;
 
-  const _NotificationTile({
-    required this.docId,
-    required this.data,
-    required this.isAdmin,
-  });
+  const _NotificationTile({required this.notification});
 
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
 
-  /// الحرف الأول للأيقونة عند غياب اسم المرسل
   String _iconLetter(String type) {
     switch (type) {
       case 'new_order':
-        return 'ط'; // طلب
+        return 'ط';
       case 'order_status':
-        return 'ح'; // حالة
+        return 'ح';
       case 'chat_message':
-        return 'ر'; // رسالة
+        return 'ر';
       default:
-        return 'إ'; // إشعار
+        return 'إ';
     }
   }
 
-  void _handleTap(BuildContext context, String type, String orderId,
-      String senderName) {
-    final isRead = data['read'] == true;
-    if (!isRead) {
-      FirebaseFirestore.instance
-          .collection('notifications')
-          .doc(docId)
-          .update({'read': true});
+  void _handleTap(BuildContext context) {
+    final n = notification;
+    if (!n.read) {
+      context.read<NotificationsProvider>().markAsRead(n.id);
     }
 
-    switch (type) {
+    final orderId = n.orderId ?? '';
+    switch (n.type) {
       case 'new_order':
         if (orderId.isNotEmpty) {
           Navigator.push(
@@ -294,7 +199,7 @@ class _NotificationTile extends StatelessWidget {
             MaterialPageRoute(
               builder: (_) => OrderChatScreen(
                 orderId: orderId,
-                otherUserName: senderName,
+                otherUserName: n.senderName,
               ),
             ),
           );
@@ -311,21 +216,15 @@ class _NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isRead = data['read'] == true;
-    final type = data['type'] as String? ?? '';
-    final title = data['title'] as String? ?? '';
-    final body = data['body'] as String? ?? '';
-    final orderId = data['orderId'] as String? ?? '';
-    final senderName = data['senderName'] as String? ?? '';
-    final senderPhone = data['senderPhone'] as String? ?? '';
-    final createdAt = data['createdAt'] as Timestamp?;
-    final timeStr = createdAt != null ? _timeAgo(createdAt.toDate()) : '';
-
+    final n = notification;
+    final isRead = n.read;
+    final timeStr =
+        n.createdAt != null ? _timeAgo(n.createdAt!) : '';
     final avatarLetter =
-        senderName.isNotEmpty ? senderName[0] : _iconLetter(type);
+        n.senderName.isNotEmpty ? n.senderName[0] : _iconLetter(n.type);
 
     return GestureDetector(
-      onTap: () => _handleTap(context, type, orderId, senderName),
+      onTap: () => _handleTap(context),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -338,7 +237,6 @@ class _NotificationTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── CircleAvatar ─────────────────────────────────────────
             CircleAvatar(
               radius: 20,
               backgroundColor: isRead
@@ -354,23 +252,19 @@ class _NotificationTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-
-            // ── Content ───────────────────────────────────────────────
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title + unread dot
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          title,
+                          n.title,
                           style: TextStyle(
                             color: isRead ? Colors.white54 : Colors.white,
-                            fontWeight: isRead
-                                ? FontWeight.normal
-                                : FontWeight.w700,
+                            fontWeight:
+                                isRead ? FontWeight.normal : FontWeight.w700,
                             fontSize: 14,
                           ),
                         ),
@@ -384,24 +278,19 @@ class _NotificationTile extends StatelessWidget {
                         ),
                     ],
                   ),
-
-                  // Phone (if present)
-                  if (senderPhone.isNotEmpty) ...[
+                  if (n.senderPhone != null && n.senderPhone!.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
-                      senderPhone,
+                      n.senderPhone!,
                       style: TextStyle(
                         color: isRead ? Colors.white30 : Colors.white54,
                         fontSize: 12,
                       ),
                     ),
                   ],
-
                   const SizedBox(height: 4),
-
-                  // Body
                   Text(
-                    body,
+                    n.body,
                     style: TextStyle(
                       color: isRead ? Colors.white38 : Colors.white70,
                       fontSize: 13,
@@ -410,8 +299,6 @@ class _NotificationTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-
-                  // Time
                   Text(timeStr,
                       style: const TextStyle(
                           color: Colors.white30, fontSize: 11)),
@@ -426,9 +313,7 @@ class _NotificationTile extends StatelessWidget {
 
   String _timeAgo(DateTime date) {
     final diff = DateTime.now().difference(date);
-
     if (diff.inSeconds < 60) return 'الآن';
-
     if (diff.inMinutes < 60) {
       final m = diff.inMinutes;
       if (m == 1) return 'منذ دقيقة';
@@ -436,7 +321,6 @@ class _NotificationTile extends StatelessWidget {
       if (m <= 10) return 'منذ $m دقائق';
       return 'منذ $m دقيقة';
     }
-
     if (diff.inHours < 24) {
       final h = diff.inHours;
       if (h == 1) return 'منذ ساعة';
@@ -444,7 +328,6 @@ class _NotificationTile extends StatelessWidget {
       if (h <= 10) return 'منذ $h ساعات';
       return 'منذ $h ساعة';
     }
-
     if (diff.inDays < 7) {
       final d = diff.inDays;
       if (d == 1) return 'منذ يوم';
@@ -452,7 +335,6 @@ class _NotificationTile extends StatelessWidget {
       if (d <= 10) return 'منذ $d أيام';
       return 'منذ $d يوم';
     }
-
     return '${date.day}/${date.month}/${date.year}';
   }
 }

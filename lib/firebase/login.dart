@@ -1,12 +1,12 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:my_fashion_app/firebase/auth_service.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
 import 'package:my_fashion_app/firebase/signup.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
+import 'package:provider/provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -57,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // ── OTP ───────────────────────────────────────────────────────────────
-  void _sendOTP() {
+  Future<void> _sendOTP() async {
     if (!(kIsWeb ||
         defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS)) {
@@ -81,28 +81,28 @@ class _LoginPageState extends State<LoginPage> {
       );
       return;
     }
-    AuthService.verifyPhoneNumber(
-      phoneNumber,
-      (String verificationId) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => OTPScreen(
-              verificationId: verificationId,
-              phoneNumber: _completePhoneNumber,
-            ),
+    final auth = context.read<AuthProvider>();
+    final result = await auth.sendOtp(phoneNumber);
+    if (!mounted) return;
+    if (result != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => OTPScreen(
+            verificationId: result.verificationId,
+            phoneNumber: _completePhoneNumber,
           ),
-        );
-      },
-      (FirebaseAuthException e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('حدث خطأ: ${e.message}'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      },
-    );
+        ),
+      );
+    } else if (auth.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('حدث خطأ: ${auth.failure!.message}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      auth.clearFailure();
+    }
   }
 
   // ── Forgot Password ───────────────────────────────────────────────────
@@ -181,10 +181,10 @@ class _LoginPageState extends State<LoginPage> {
                 return;
               }
               Navigator.pop(ctx);
-              try {
-                await FirebaseAuth.instance
-                    .sendPasswordResetEmail(email: email);
-                if (!context.mounted) return;
+              final auth = context.read<AuthProvider>();
+              final ok = await auth.sendPasswordReset(email);
+              if (!context.mounted) return;
+              if (ok) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -194,18 +194,15 @@ class _LoginPageState extends State<LoginPage> {
                     duration: const Duration(seconds: 5),
                   ),
                 );
-              } on FirebaseAuthException catch (e) {
-                if (!context.mounted) return;
-                final msg = e.code == 'user-not-found'
-                    ? 'لا يوجد حساب بهذا البريد الإلكتروني.'
-                    : 'حدث خطأ: ${e.message}';
+              } else if (auth.failure != null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(msg),
+                    content: Text(auth.failure!.message),
                     backgroundColor: Colors.red,
                     behavior: SnackBarBehavior.floating,
                   ),
                 );
+                auth.clearFailure();
               }
             },
             child: const Text('إرسال'),
@@ -221,43 +218,27 @@ class _LoginPageState extends State<LoginPage> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     setState(() => _isLoading = true);
-    try {
-      await AuthService.signIn(email, password);
-      if (!mounted) return;
+
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.signInWithEmail(email, password);
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (ok) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const AppShell()),
         (route) => false,
       );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      String errorMessage = 'فشل تسجيل الدخول';
-      if (e.code == 'user-not-found') {
-        errorMessage = 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.';
-      } else if (e.code == 'wrong-password') {
-        errorMessage = 'كلمة المرور غير صحيحة.';
-      } else if (e.code == 'invalid-email') {
-        errorMessage = 'صيغة البريد الإلكتروني غير صحيحة.';
-      } else if (e.code == 'invalid-credential') {
-        errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
-      }
+    } else if (auth.failure != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(errorMessage),
+          content: Text(auth.failure!.message),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
       );
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ غير متوقع: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      auth.clearFailure();
     }
   }
 

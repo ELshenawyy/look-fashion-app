@@ -1,11 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:pinput/pinput.dart';
-
-import 'auth_service.dart';
+import 'package:my_fashion_app/shared/widgets/otp_pin_field.dart';
+import 'package:provider/provider.dart';
 
 class OTPScreen extends StatefulWidget {
   final String verificationId;
@@ -18,8 +17,7 @@ class OTPScreen extends StatefulWidget {
   });
 
   @override
-  // ignore: library_private_types_in_public_api
-  _OTPScreenState createState() => _OTPScreenState();
+  State<OTPScreen> createState() => _OTPScreenState();
 }
 
 class _OTPScreenState extends State<OTPScreen> {
@@ -30,6 +28,7 @@ class _OTPScreenState extends State<OTPScreen> {
   int _remainingSeconds = 60;
   bool _isResendAvailable = false;
   bool _isSending = false;
+  bool _isVerifying = false;
 
   @override
   void initState() {
@@ -62,60 +61,57 @@ class _OTPScreenState extends State<OTPScreen> {
         });
         return;
       }
-      setState(() {
-        _remainingSeconds -= 1;
-      });
+      setState(() => _remainingSeconds -= 1);
     });
   }
 
   Future<void> _resendCode() async {
     if (!_isResendAvailable || _isSending) return;
-    setState(() {
-      _isSending = true;
-    });
-    AuthService.verifyPhoneNumber(
-      widget.phoneNumber,
-      (String newVerificationId) {
-        if (!mounted) return;
-        setState(() {
-          _verificationId = newVerificationId;
-          _isSending = false;
-          _isResendAvailable = false;
-        });
-        _startCountdown();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم إرسال رمز جديد.')),
-        );
-      },
-      (FirebaseAuthException e) {
-        if (!mounted) return;
-        setState(() {
-          _isSending = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تعذر إعادة الإرسال: ${e.message}')),
-        );
-      },
-    );
+    setState(() => _isSending = true);
+
+    final auth = context.read<AuthProvider>();
+    final result = await auth.sendOtp(widget.phoneNumber);
+
+    if (!mounted) return;
+    setState(() => _isSending = false);
+
+    if (result != null) {
+      setState(() {
+        _verificationId = result.verificationId;
+        _isResendAvailable = false;
+      });
+      _startCountdown();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم إرسال رمز جديد.')),
+      );
+    } else if (auth.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تعذر إعادة الإرسال: ${auth.failure!.message}')),
+      );
+      auth.clearFailure();
+    }
   }
 
   Future<void> _verifyOTP() async {
+    if (_isVerifying) return;
     final smsCode = _otpController.text.trim();
     if (smsCode.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال رمز تحقق صحيح مكوّن من 6 أرقام')),
+        const SnackBar(
+            content: Text('يرجى إدخال رمز تحقق صحيح مكوّن من 6 أرقام')),
       );
       return;
     }
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+    setState(() => _isVerifying = true);
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.verifyOtp(
+      verificationId: _verificationId,
+      smsCode: smsCode,
     );
-    try {
-      await AuthService.signInWithPhone(_verificationId, smsCode);
-      if (!mounted) return;
-      Navigator.of(context).pop();
+    if (!mounted) return;
+    setState(() => _isVerifying = false);
+
+    if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم تسجيل الدخول بنجاح!')),
       );
@@ -123,18 +119,11 @@ class _OTPScreenState extends State<OTPScreen> {
         MaterialPageRoute(builder: (context) => const AppShell()),
         (route) => false,
       );
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
+    } else if (auth.failure != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('حدث خطأ: ${e.message}')),
+        SnackBar(content: Text(auth.failure!.message)),
       );
-    } catch (e) {
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ غير متوقع: $e')),
-      );
+      auth.clearFailure();
     }
   }
 
@@ -147,21 +136,6 @@ class _OTPScreenState extends State<OTPScreen> {
   @override
   Widget build(BuildContext context) {
     const themeColor = Color(0xFF9B0B19);
-    final defaultPinTheme = PinTheme(
-      width: 60,
-      height: 60,
-      textStyle: const TextStyle(
-        fontSize: 22,
-        color: Colors.white,
-        fontWeight: FontWeight.w700,
-        fontFamily: 'arial',
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white24,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white54),
-      ),
-    );
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
@@ -174,9 +148,11 @@ class _OTPScreenState extends State<OTPScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
                 decoration: BoxDecoration(
                   color: Colors.black.withAlpha((0.42 * 255).round()),
                   borderRadius: BorderRadius.circular(34),
@@ -204,24 +180,10 @@ class _OTPScreenState extends State<OTPScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 28),
-                    Pinput(
-                      length: 6,
+                    OtpPinField(
                       controller: _otpController,
                       focusNode: _pinFocusNode,
-                      defaultPinTheme: defaultPinTheme,
-                      focusedPinTheme: defaultPinTheme.copyWith(
-                        decoration: defaultPinTheme.decoration!.copyWith(
-                          color: Colors.white30,
-                          border: Border.all(color: themeColor, width: 2),
-                        ),
-                      ),
-                      submittedPinTheme: defaultPinTheme.copyWith(
-                        decoration: defaultPinTheme.decoration!.copyWith(
-                          color: Colors.white30,
-                        ),
-                      ),
-                      pinAnimationType: PinAnimationType.scale,
-                      keyboardType: TextInputType.number,
+                      themeColor: themeColor,
                     ),
                     const SizedBox(height: 24),
                     Row(
@@ -245,17 +207,17 @@ class _OTPScreenState extends State<OTPScreen> {
                     const SizedBox(height: 18),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            _isResendAvailable ? themeColor : Colors.white24,
+                        backgroundColor: _isResendAvailable
+                            ? themeColor
+                            : Colors.white24,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 14, horizontal: 48),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 14, horizontal: 48),
                       ),
-                      onPressed: _isResendAvailable && !_isSending
-                          ? _resendCode
-                          : null,
+                      onPressed:
+                          _isResendAvailable && !_isSending ? _resendCode : null,
                       child: _isSending
                           ? const SizedBox(
                               height: 18,
@@ -280,17 +242,26 @@ class _OTPScreenState extends State<OTPScreen> {
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 16, horizontal: 90),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 90),
                       ),
-                      onPressed: _verifyOTP,
-                      child: const Text(
-                        'تأكيد الرمز',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'arial'),
-                      ),
+                      onPressed: _isVerifying ? null : _verifyOTP,
+                      child: _isVerifying
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'تأكيد الرمز',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'arial'),
+                            ),
                     ),
                   ],
                 ),

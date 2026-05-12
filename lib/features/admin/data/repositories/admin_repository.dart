@@ -1,8 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:my_fashion_app/services/role_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:my_fashion_app/features/auth/domain/entities/user_role.dart';
 
-/// نتيجة البحث عن مستخدم في Firestore
+/// نتيجة البحث عن مستخدم في Firestore (للوحة إدارة الموظفين).
 class AdminUserResult {
   final String uid;
   final String name;
@@ -19,17 +20,18 @@ class AdminUserResult {
   });
 }
 
-/// Repository مسؤول عن عمليات إدارة الأدوار (RBAC) في Firestore.
-/// يفصل منطق قاعدة البيانات عن الـ UI.
+/// Repository لعمليات الإدمن (RBAC + إدارة المنتجات).
+/// مُسجَّل في DI كـ singleton.
 class AdminRepository {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFirestore _db;
+  final FirebaseStorage _storage;
 
-  // ── البحث عن مستخدم بالبريد الإلكتروني أو رقم الهاتف ──────────────────
+  AdminRepository(this._db, this._storage);
+
   Future<AdminUserResult?> findUserByEmailOrPhone(String identifier) async {
     try {
       final trimmed = identifier.trim();
 
-      // ── بريد إلكتروني ──
       if (trimmed.contains('@')) {
         final snap = await _db
             .collection('users')
@@ -39,10 +41,8 @@ class AdminRepository {
         return snap.docs.isEmpty ? null : _fromDoc(snap.docs.first);
       }
 
-      // ── رقم هاتف — تطبيع الرقم ──
       final phone = trimmed.replaceAll(RegExp(r'[\s\-\(\)]'), '');
 
-      // محاولة البحث المباشر أولاً
       final direct = await _db
           .collection('users')
           .where('phone', isEqualTo: phone)
@@ -50,7 +50,6 @@ class AdminRepository {
           .get();
       if (direct.docs.isNotEmpty) return _fromDoc(direct.docs.first);
 
-      // إذا كان رقم محلي سوداني (09XXXXXXXX) → نحوّله لـ +249
       if (phone.startsWith('09') && phone.length == 10) {
         final intl = '+249${phone.substring(1)}';
         final intlSnap = await _db
@@ -61,7 +60,6 @@ class AdminRepository {
         if (intlSnap.docs.isNotEmpty) return _fromDoc(intlSnap.docs.first);
       }
 
-      // إذا كان بدون + (مثلاً 249XXXXXXXXX)
       if (phone.startsWith('249') && phone.length == 12) {
         final withPlus = '+$phone';
         final plusSnap = await _db
@@ -75,73 +73,71 @@ class AdminRepository {
       return null;
     } on FirebaseException catch (e) {
       throw Exception('خطأ في البحث: ${_mapFirestoreError(e.code)}');
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('AdminRepository.findUserByEmailOrPhone error: $e\n$st');
       throw Exception('خطأ غير متوقع أثناء البحث، تحقق من الاتصال');
     }
   }
 
-  // ── ترقية مستخدم إلى subAdmin ──────────────────────────────────────────
   Future<void> promoteToSubAdmin(String uid) async {
     try {
       await _db.collection('users').doc(uid).update({
-        'role': AppRole.subAdmin,
+        'role': UserRole.subAdmin.toFirestoreValue(),
         'promotedAt': FieldValue.serverTimestamp(),
         'revokedAt': FieldValue.delete(),
       });
     } on FirebaseException catch (e) {
       throw Exception('فشل الترقية: ${_mapFirestoreError(e.code)}');
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('AdminRepository.promoteToSubAdmin error: $e\n$st');
       throw Exception('خطأ غير متوقع أثناء الترقية');
     }
   }
 
-  // ── إلغاء صلاحيات الموظف ────────────────────────────────────────────────
   Future<void> revokeAdmin(String uid) async {
     try {
       await _db.collection('users').doc(uid).update({
-        'role': AppRole.user,
+        'role': UserRole.customer.toFirestoreValue(),
         'revokedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
       throw Exception('فشل إلغاء الصلاحيات: ${_mapFirestoreError(e.code)}');
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('AdminRepository.revokeAdmin error: $e\n$st');
       throw Exception('خطأ غير متوقع أثناء إلغاء الصلاحيات');
     }
   }
 
-  // ── حذف منتج مع صورته من Storage ────────────────────────────────────────
   Future<void> deleteProduct(String docId, {String imageUrl = ''}) async {
     try {
       await _db.collection('products').doc(docId).delete();
 
       if (imageUrl.isNotEmpty) {
         try {
-          await FirebaseStorage.instance.refFromURL(imageUrl).delete();
-        } catch (_) {
-          // صورة الـ Storage اختيارية — لا نوقف العملية إن فشل حذفها
+          await _storage.refFromURL(imageUrl).delete();
+        } catch (e) {
+          debugPrint('Storage image delete failed (non-fatal): $e');
         }
       }
     } on FirebaseException catch (e) {
       throw Exception('فشل حذف المنتج: ${_mapFirestoreError(e.code)}');
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('AdminRepository.deleteProduct error: $e\n$st');
       throw Exception('خطأ غير متوقع أثناء حذف المنتج');
     }
   }
 
-  // ── تحويل Document إلى AdminUserResult ──────────────────────────────────
-  AdminUserResult _fromDoc(
-      QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+  AdminUserResult _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data();
     return AdminUserResult(
       uid: doc.id,
       name: d['name'] as String? ?? 'مستخدم',
       email: d['email'] as String? ?? '',
       phone: d['phone'] as String? ?? '',
-      role: d['role'] as String? ?? AppRole.user,
+      role: d['role'] as String? ?? UserRole.customer.toFirestoreValue(),
     );
   }
 
-  // ── تحويل كودات Firestore إلى رسائل عربية ───────────────────────────────
   String _mapFirestoreError(String code) {
     switch (code) {
       case 'permission-denied':
