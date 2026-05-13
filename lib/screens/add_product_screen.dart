@@ -1,10 +1,14 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:my_fashion_app/constants/category_constants.dart';
+import 'package:my_fashion_app/core/di/injection_container.dart';
+import 'package:my_fashion_app/core/utils/color_utils.dart';
+import 'package:my_fashion_app/features/products/domain/repositories/product_repository.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/add_product.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/update_product.dart';
 
 class AddProductScreen extends StatefulWidget {
   final Map<String, dynamic>? productData;
@@ -26,7 +30,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
   static const Color _surface = Color(0xFF121212);
   static const Color _inputFill = Color(0xFF1B1B1B);
   static const Color _chipBase = Color(0xFF4A1F1F);
-  static const Color _grey = Color(0xFF8E8E8E);
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _titleController = TextEditingController();
@@ -44,13 +47,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String? _selectedCategory;
   String? _selectedState; // Sudanese state where product is located
 
-  final List<String> _clothingSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
-  final List<String> _shoeSizes = ['36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46'];
-  final List<String> _availableColors = [
-    'Black', 'White', 'Red', 'Blue', 'Maroon', 'Gold', 'Grey',
-    'Green', 'Navy', 'Brown', 'Orange', 'Yellow', 'Pink',
-    'Purple', 'Beige', 'Turquoise', 'Burgundy', 'Cream', 'Khaki',
+  final List<String> _clothingSizes = [
+    'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL', '5XL', '6XL',
+    'Free Size',
   ];
+  final List<String> _shoeSizes = [
+    '34', '35', '36', '37', '38', '39', '40', '41', '42',
+    '43', '44', '45', '46', '47', '48',
+  ];
+  // الألوان أصبحت hex codes (مثلاً '#FFC62828') عبر ColorPicker —
+  // لا حاجة لقائمة ثابتة. حذفنا _availableColors و _colorPalette.
   final List<String> _sudanStates = [
     'الخرطوم', 'الجزيرة', 'النيل الأبيض', 'النيل الأزرق', 'نهر النيل',
     'البحر الأحمر', 'الشمالية', 'كسلا', 'القضارف', 'سنار',
@@ -58,27 +64,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
     'شمال دارفور', 'جنوب دارفور', 'وسط دارفور', 'شرق دارفور', 'غرب دارفور',
   ];
   final List<String> _genders = ['رجالي', 'نسائي', 'للجنسين'];
-  late final Map<String, Color> _colorPalette = <String, Color>{
-    'Black': Colors.black,
-    'White': Colors.white,
-    'Red': const Color(0xFFC62828),
-    'Blue': const Color(0xFF0D47A1),
-    'Maroon': _maroon,
-    'Gold': _gold,
-    'Grey': _grey,
-    'Green': const Color(0xFF2E7D32),
-    'Navy': const Color(0xFF1A237E),
-    'Brown': const Color(0xFF5D4037),
-    'Orange': const Color(0xFFE65100),
-    'Yellow': const Color(0xFFF9A825),
-    'Pink': const Color(0xFFE91E8C),
-    'Purple': const Color(0xFF6A1B9A),
-    'Beige': const Color(0xFFF5F0DC),
-    'Turquoise': const Color(0xFF00897B),
-    'Burgundy': const Color(0xFF880E4F),
-    'Cream': const Color(0xFFFFFDD0),
-    'Khaki': const Color(0xFFBDB76B),
-  };
+  // الألوان السريعة المقترَحة في الـ picker (للوصول السريع)
+  static const List<Color> _quickColors = [
+    Colors.black, Colors.white, Color(0xFFC62828), Color(0xFF0D47A1),
+    Color(0xFF2E7D32), Color(0xFFF9A825), Color(0xFFE91E8C),
+    Color(0xFF6A1B9A), Color(0xFFE65100), Color(0xFF00897B),
+    Color(0xFFD4AF37), Color(0xFF5D4037), Color(0xFF8E8E8E),
+    Color(0xFFC0C0C0), Color(0xFF880E4F),
+  ];
 
   @override
   void initState() {
@@ -226,72 +219,166 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
   }
 
-  Widget _buildColorOption(String colorName) {
-    final colorValue = _colorPalette[colorName] ?? _grey;
-    final isSelected = _selectedColors.contains(colorName);
-    final isLightColor =
-        ThemeData.estimateBrightnessForColor(colorValue) == Brightness.light;
-
-    return GestureDetector(
-      onTap: () => _toggleSelection(_selectedColors, colorName),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: isSelected ? 0.08 : 0.03),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isSelected ? _gold : Colors.white10,
+  // ── عرض لون مختار (swatch + زر حذف) ─────────────────────────────────
+  Widget _buildColorChip(String colorCode) {
+    final color = ColorUtils.parse(colorCode);
+    final isLight =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.light;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isLight ? Colors.white54 : Colors.white24,
+                width: 1,
+              ),
+            ),
           ),
+          const SizedBox(width: 6),
+          Text(
+            ColorUtils.displayLabel(colorCode),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 2),
+          GestureDetector(
+            onTap: () =>
+                setState(() => _selectedColors.remove(colorCode)),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.close, size: 14, color: Colors.white54),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── زر "+ إضافة لون" — يفتح الـ ColorPicker dialog ──────────────────
+  Widget _buildAddColorButton() {
+    return GestureDetector(
+      onTap: _showColorPicker,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: _gold.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _gold.withValues(alpha: 0.5)),
         ),
-        child: Column(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: colorValue,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected
-                          ? _gold
-                          : (colorName == 'White' ? Colors.white54 : Colors.white24),
-                      width: isSelected ? 2.5 : 1.2,
-                    ),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 10,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isSelected)
-                  Icon(
-                    Icons.check_rounded,
-                    size: 20,
-                    color: isLightColor ? Colors.black : Colors.white,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
+            Icon(Icons.add, color: _gold, size: 18),
+            SizedBox(width: 4),
             Text(
-              colorName,
-              style: const TextStyle(
-                color: Colors.white,
+              'إضافة لون',
+              style: TextStyle(
+                color: _gold,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _showColorPicker() async {
+    Color picked = _gold;
+    final result = await showDialog<Color>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'اختر لوناً',
+          style: TextStyle(color: _gold, fontWeight: FontWeight.w700),
+          textAlign: TextAlign.center,
+        ),
+        content: SingleChildScrollView(
+          child: ColorPicker(
+            pickerColor: picked,
+            onColorChanged: (c) => picked = c,
+            enableAlpha: false,
+            displayThumbColor: true,
+            paletteType: PaletteType.hsvWithHue,
+            labelTypes: const [ColorLabelType.hex, ColorLabelType.rgb],
+            pickerAreaHeightPercent: 0.7,
+            pickerAreaBorderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        actions: [
+          // الألوان السريعة
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _quickColors
+                  .map((c) => GestureDetector(
+                        onTap: () => Navigator.pop(ctx, c),
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: c,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: Colors.white24, width: 1),
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء',
+                    style: TextStyle(color: Colors.white54)),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, picked),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _gold,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text('إضافة',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || !mounted) return;
+    final hex = ColorUtils.toHex(result);
+    if (!_selectedColors.contains(hex)) {
+      setState(() => _selectedColors.add(hex));
+    }
   }
 
   Future<void> _saveProduct() async {
@@ -341,73 +428,52 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final String category = _selectedCategory!;
       final int stock = int.parse(_stockController.text.trim());
 
-      String imageUrl = '';
-
-      // Upload new image if selected
-      if (_pickedImage != null) {
-        final File imageFile = File(_pickedImage!.path);
-        final String timestamp =
-            DateTime.now().millisecondsSinceEpoch.toString();
-        final String storagePath = 'products/prod_$timestamp.jpg';
-
-        final Reference storageRef = FirebaseStorage.instance.ref(storagePath);
-        final UploadTask uploadTask = storageRef.putFile(imageFile);
-
-        await uploadTask.whenComplete(() {
-          debugPrint('Upload task completed successfully');
-        });
-
-        imageUrl = await storageRef.getDownloadURL();
-      } else if (widget.productData != null) {
-        imageUrl = widget.productData!['imageUrl'] ?? '';
-      }
-
-      final productData = {
-        'title': title,
-        'price': price,
-        'description': description,
-        'imageUrl': imageUrl,
-        'category': category,
-        'stockQuantity': stock,
-        'sizes': _needsVariants ? _selectedSizes : <String>[],
-        'colors': _needsVariants ? _selectedColors : <String>[],
-        'gender': _selectedGender,
-        'state': _selectedState ?? '',
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
+      final existingImageUrl =
+          widget.productData?['imageUrl'] as String? ?? '';
+      final input = ProductInput(
+        title: title,
+        price: price,
+        description: description,
+        category: category,
+        stockQuantity: stock,
+        sizes: _needsVariants ? _selectedSizes : const <String>[],
+        colors: _needsVariants ? _selectedColors : const <String>[],
+        gender: _selectedGender,
+        state: _selectedState ?? '',
+        imageUrl: existingImageUrl,
+        newImage:
+            _pickedImage != null ? File(_pickedImage!.path) : null,
+      );
 
       if (widget.productId != null) {
-        // Update existing product
-        await FirebaseFirestore.instance
-            .collection('products')
-            .doc(widget.productId)
-            .update(productData);
+        final res = await sl<UpdateProduct>()(UpdateProductParams(
+          docId: widget.productId!,
+          input: input,
+        ));
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم تحديث المنتج بنجاح!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        final ok = res.isRight();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok
+              ? 'تم تحديث المنتج بنجاح!'
+              : res.fold((f) => f.message, (_) => '')),
+          backgroundColor: ok ? Colors.green : Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+        if (ok && mounted) Navigator.of(context).pop();
       } else {
-        // Create new product
-        productData['createdAt'] = FieldValue.serverTimestamp();
-        await FirebaseFirestore.instance
-            .collection('products')
-            .add(productData);
+        final res = await sl<AddProduct>()(input);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تمت إضافة المنتج بنجاح!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        final ok = res.isRight();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok
+              ? 'تمت إضافة المنتج بنجاح!'
+              : res.fold((f) => f.message, (_) => '')),
+          backgroundColor: ok ? Colors.green : Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+        if (ok && mounted) Navigator.of(context).pop();
       }
-
-      if (!mounted) return;
-      Navigator.of(context).pop();
+      return;
     } catch (e, stackTrace) {
       debugPrint('Error saving product: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -748,15 +814,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
                   // ── ألوان — تظهر فقط للملابس والأحذية ───────────────
                   if (_needsVariants) ...[
                     _buildSectionHeading(
-                      'اختر الألوان',
+                      'ألوان المنتج',
                       subtitle:
-                          'استخدم دوائر الألوان بالأسفل لتحديد الخيارات المتاحة.',
+                          'اضغط "إضافة لون" لاختيار أي درجة لون من palette الكامل أو من الـ Quick Colors.',
                     ),
                     const SizedBox(height: 12),
                     Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: _availableColors.map(_buildColorOption).toList(),
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        ..._selectedColors.map(_buildColorChip),
+                        _buildAddColorButton(),
+                      ],
                     ),
                     const SizedBox(height: 24),
                   ],

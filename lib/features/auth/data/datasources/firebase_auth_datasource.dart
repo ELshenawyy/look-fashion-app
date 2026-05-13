@@ -49,7 +49,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
           .doc(user.uid)
           .snapshots()
           .map((doc) => doc.exists
-              ? UserModel.fromFirestore(doc)
+              ? UserModel.fromFirestore(doc, emailVerified: user.emailVerified)
               : _fromFirebaseUser(user));
     });
   }
@@ -59,6 +59,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         email: user.email,
         phone: user.phoneNumber,
         displayName: user.displayName,
+        emailVerified: user.emailVerified,
       );
 
   @override

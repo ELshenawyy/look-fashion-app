@@ -1,10 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
 import 'package:my_fashion_app/features/admin/data/repositories/admin_repository.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/watch_products.dart';
+import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
 import 'package:my_fashion_app/screens/admin_orders_screen.dart';
-import 'package:my_fashion_app/utils/order_utils.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -21,15 +21,14 @@ class AdminDashboard extends StatefulWidget {
 class _AdminDashboardState extends State<AdminDashboard> {
   static const Color _gold = Color(0xFFD4AF37);
 
-  late Stream<QuerySnapshot> _productsStream;
+  late final Stream<List<Product>> _productsStream;
   String _searchQuery = '';
   final _adminRepo = sl<AdminRepository>();
 
   @override
   void initState() {
     super.initState();
-    _productsStream =
-        FirebaseFirestore.instance.collection('products').snapshots();
+    _productsStream = sl<WatchProducts>()();
   }
 
   Future<void> _deleteProduct(String docId, String imageUrl) async {
@@ -80,13 +79,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
-  void _editProduct(String docId, Map<String, dynamic> productData) {
+  void _editProductFromEntity(Product product) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => AddProductScreen(
-          productId: docId,
-          productData: productData,
+          productId: product.docId,
+          productData: {
+            'title': product.title,
+            'price': product.price,
+            'description': product.description,
+            'imageUrl': product.imageUrl,
+            'category': product.category,
+            'stockQuantity': product.stockQuantity,
+            'sizes': product.sizes,
+            'colors': product.colors,
+            'gender': product.gender,
+            'state': product.state,
+          },
         ),
       ),
     );
@@ -162,7 +172,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             ),
           ),
         ],
-        body: StreamBuilder<QuerySnapshot>(
+        body: StreamBuilder<List<Product>>(
           stream: _productsStream,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -180,7 +190,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
               );
             }
 
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            var products = List<Product>.of(snapshot.data ?? const []);
+
+            if (products.isEmpty) {
               return const Center(
                 child: Text(
                   'لا توجد منتجات',
@@ -189,26 +201,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
               );
             }
 
-            // ترتيب ثم تصفية بالبحث
-            var products = snapshot.data!.docs.toList()
-              ..sort((a, b) {
-                final aDate =
-                    OrderUtils.resolveDate(a.data() as Map<String, dynamic>);
-                final bDate =
-                    OrderUtils.resolveDate(b.data() as Map<String, dynamic>);
-                return bDate.compareTo(aDate);
-              });
-
             if (_searchQuery.trim().isNotEmpty) {
               final q = _searchQuery.trim().toLowerCase();
-              products = products.where((doc) {
-                final data = doc.data() as Map<String, dynamic>;
-                final title =
-                    (data['title'] as String? ?? '').toLowerCase();
-                final category =
-                    (data['category'] as String? ?? '').toLowerCase();
-                return title.contains(q) || category.contains(q);
-              }).toList();
+              products = products
+                  .where((p) =>
+                      p.title.toLowerCase().contains(q) ||
+                      p.category.toLowerCase().contains(q))
+                  .toList();
             }
 
             if (products.isEmpty) {
@@ -232,23 +231,21 @@ class _AdminDashboardState extends State<AdminDashboard> {
               padding: const EdgeInsets.all(8),
               itemCount: products.length,
               itemBuilder: (context, index) {
-                final doc = products[index];
-                final data = doc.data() as Map<String, dynamic>;
-
+                final p = products[index];
                 return Card(
                   color: Colors.grey[900],
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
                   child: ListTile(
                     contentPadding: const EdgeInsets.all(12),
-                    leading: ((data['imageUrl'] as String?) ?? '').isNotEmpty
+                    leading: p.imageUrl.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(8),
                             child: SizedBox(
                               width: 60,
                               height: 60,
                               child: Image.network(
-                                data['imageUrl'] as String,
+                                p.imageUrl,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Container(
                                   color: Colors.white12,
@@ -269,7 +266,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 color: Colors.white38),
                           ),
                     title: Text(
-                      data['title'] ?? 'غير معروف',
+                      p.title.isEmpty ? 'غير معروف' : p.title,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -282,7 +279,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       children: [
                         const SizedBox(height: 4),
                         Text(
-                          '${data['price'] ?? 0} ج.س',
+                          '${p.price} ج.س',
                           style: const TextStyle(
                             color: _gold,
                             fontWeight: FontWeight.bold,
@@ -290,14 +287,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'المخزون: ${data['stockQuantity'] ?? 0}',
+                          'المخزون: ${p.stockQuantity}',
                           style: const TextStyle(
                               color: Colors.white70, fontSize: 12),
                         ),
-                        if (data['sizes'] != null &&
-                            (data['sizes'] as List).isNotEmpty)
+                        if (p.sizes.isNotEmpty)
                           Text(
-                            'المقاسات: ${(data['sizes'] as List).join(', ')}',
+                            'المقاسات: ${p.sizes.join(', ')}',
                             style: const TextStyle(
                                 color: Colors.white54, fontSize: 11),
                             maxLines: 1,
@@ -311,10 +307,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           IconButton(
-                            icon:
-                                const Icon(Icons.edit, color: Colors.blue),
+                            icon: const Icon(Icons.edit,
+                                color: Colors.blue),
                             tooltip: 'تعديل',
-                            onPressed: () => _editProduct(doc.id, data),
+                            onPressed: () => _editProductFromEntity(p),
                           ),
                           if (widget.isSuperAdmin)
                             IconButton(
@@ -322,7 +318,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   color: Colors.red),
                               tooltip: 'حذف',
                               onPressed: () => _deleteProduct(
-                                  doc.id, data['imageUrl'] ?? ''),
+                                  p.docId ?? '', p.imageUrl),
                             ),
                         ],
                       ),

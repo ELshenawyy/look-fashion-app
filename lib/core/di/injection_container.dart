@@ -14,6 +14,24 @@ import 'package:my_fashion_app/features/favorites/domain/usecases/watch_favorite
 import 'package:my_fashion_app/features/favorites/domain/usecases/watch_favorites.dart';
 import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
 
+// Chat
+import 'package:my_fashion_app/features/chat/data/datasources/chat_remote_datasource.dart';
+import 'package:my_fashion_app/features/chat/data/repositories/chat_repository_impl.dart';
+import 'package:my_fashion_app/features/chat/domain/repositories/chat_repository.dart';
+import 'package:my_fashion_app/features/chat/domain/usecases/send_chat_message.dart';
+import 'package:my_fashion_app/features/chat/domain/usecases/watch_chat_messages.dart';
+import 'package:my_fashion_app/features/chat/presentation/providers/chat_provider.dart';
+
+// Profile
+import 'package:my_fashion_app/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:my_fashion_app/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:my_fashion_app/features/profile/domain/repositories/profile_repository.dart';
+import 'package:my_fashion_app/features/profile/domain/usecases/change_password.dart';
+import 'package:my_fashion_app/features/profile/domain/usecases/update_display_name.dart';
+import 'package:my_fashion_app/features/profile/domain/usecases/upload_profile_image.dart';
+import 'package:my_fashion_app/features/profile/presentation/providers/profile_provider.dart'
+    as profile_p;
+
 // Admin
 import 'package:my_fashion_app/features/admin/data/repositories/admin_repository.dart';
 
@@ -49,9 +67,12 @@ import 'package:my_fashion_app/features/cart/presentation/providers/cart_provide
 
 // Products
 import 'package:my_fashion_app/features/products/data/datasources/product_remote_datasource.dart';
+import 'package:my_fashion_app/features/products/data/datasources/product_storage_datasource.dart';
 import 'package:my_fashion_app/features/products/data/repositories/product_repository_impl.dart';
 import 'package:my_fashion_app/features/products/domain/repositories/product_repository.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/add_product.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/fetch_products_page.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/update_product.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_category_counts.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_products.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/categories_provider.dart';
@@ -94,7 +115,41 @@ Future<void> init() async {
   _initNotifications();
   _initAddresses();
   _initFavorites();
+  _initProfile();
+  _initChat();
   _initAdmin();
+}
+
+void _initChat() {
+  sl.registerFactory(() => ChatProvider(
+        watchMessages: sl(),
+        sendMessage: sl(),
+      ));
+  sl.registerLazySingleton(() => WatchChatMessages(sl()));
+  sl.registerLazySingleton(() => SendChatMessage(sl()));
+  sl.registerLazySingleton<ChatRepository>(
+    () => ChatRepositoryImpl(remote: sl(), network: sl()),
+  );
+  sl.registerLazySingleton<ChatRemoteDataSource>(
+    () => ChatRemoteDataSourceImpl(sl()),
+  );
+}
+
+void _initProfile() {
+  sl.registerLazySingleton(() => profile_p.ProfileProvider(
+        uploadProfileImage: sl(),
+        updateDisplayName: sl(),
+        changePassword: sl(),
+      ));
+  sl.registerLazySingleton(() => UploadProfileImage(sl()));
+  sl.registerLazySingleton(() => UpdateDisplayName(sl()));
+  sl.registerLazySingleton(() => ChangePassword(sl()));
+  sl.registerLazySingleton<ProfileRepository>(
+    () => ProfileRepositoryImpl(remote: sl(), network: sl()),
+  );
+  sl.registerLazySingleton<ProfileRemoteDataSource>(
+    () => ProfileRemoteDataSourceImpl(sl(), sl(), sl()),
+  );
 }
 
 void _initAdmin() {
@@ -162,13 +217,18 @@ void _initProducts() {
   sl.registerLazySingleton(() => FetchProductsPage(sl()));
   sl.registerLazySingleton(() => WatchCategoryCounts(sl()));
   sl.registerLazySingleton(() => WatchProducts(sl()));
+  sl.registerLazySingleton(() => AddProduct(sl()));
+  sl.registerLazySingleton(() => UpdateProduct(sl()));
 
   sl.registerLazySingleton<ProductRepository>(
-    () => ProductRepositoryImpl(remote: sl(), network: sl()),
+    () => ProductRepositoryImpl(remote: sl(), storage: sl(), network: sl()),
   );
 
   sl.registerLazySingleton<ProductRemoteDataSource>(
     () => ProductRemoteDataSourceImpl(sl()),
+  );
+  sl.registerLazySingleton<ProductStorageDataSource>(
+    () => ProductStorageDataSourceImpl(sl()),
   );
 }
 

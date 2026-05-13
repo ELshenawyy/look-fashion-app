@@ -1,8 +1,8 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:my_fashion_app/providers/profile_provider.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:my_fashion_app/features/profile/presentation/providers/profile_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/user_avatar.dart';
 import 'package:provider/provider.dart';
@@ -31,7 +31,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _nameController.text =
-        FirebaseAuth.instance.currentUser?.displayName ?? '';
+        context.read<AuthProvider>().user?.displayName ?? '';
   }
 
   @override
@@ -55,7 +55,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (picked == null || !mounted) return;
 
     final provider = context.read<ProfileProvider>();
-    final success = await provider.uploadProfileImage(File(picked.path));
+    final uid = context.read<AuthProvider>().user?.uid;
+    if (uid == null) return;
+    final success = await provider.uploadProfileImage(uid, File(picked.path));
 
     if (!mounted) return;
     if (success) {
@@ -127,7 +129,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     final provider = context.read<ProfileProvider>();
-    final success = await provider.updateName(name);
+    final uid = context.read<AuthProvider>().user?.uid;
+    if (uid == null) return;
+    final success = await provider.updateName(uid, name);
 
     if (!mounted) return;
     if (success) {

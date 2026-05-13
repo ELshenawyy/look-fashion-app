@@ -10,7 +10,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart'
     as cart_p;
-import 'package:my_fashion_app/providers/profile_provider.dart';
+import 'package:my_fashion_app/features/profile/presentation/providers/profile_provider.dart'
+    as profile_p;
 import 'package:my_fashion_app/core/di/injection_container.dart' as di;
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart'
     as auth_p;
@@ -53,9 +54,9 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        // Legacy providers (سيتم نقلها تباعاً للـ features/)
-        ChangeNotifierProvider(create: (_) => ProfileProvider()),
         // Clean Architecture providers (يُحقَنون من DI)
+        ChangeNotifierProvider<profile_p.ProfileProvider>.value(
+            value: di.sl<profile_p.ProfileProvider>()),
         ChangeNotifierProvider<auth_p.AuthProvider>.value(
             value: di.sl<auth_p.AuthProvider>()),
         ChangeNotifierProvider<cart_p.CartProvider>.value(

@@ -9,6 +9,7 @@ class UserEntity extends Equatable {
   final String? displayName;
   final String? photoUrl;
   final UserRole role;
+  final bool emailVerified;
   final DateTime? createdAt;
   final DateTime? revokedAt; // إذا كان != null → الحساب مُلغى
 
@@ -19,6 +20,7 @@ class UserEntity extends Equatable {
     this.displayName,
     this.photoUrl,
     this.role = UserRole.customer,
+    this.emailVerified = false,
     this.createdAt,
     this.revokedAt,
   });
@@ -35,6 +37,7 @@ class UserEntity extends Equatable {
         displayName,
         photoUrl,
         role,
+        emailVerified,
         createdAt,
         revokedAt,
       ];

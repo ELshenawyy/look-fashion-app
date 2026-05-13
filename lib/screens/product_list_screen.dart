@@ -46,6 +46,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   ];
   late Timer _bannerTimer;
   int _bannerIndex = 0;
+  final PageController _bannerController = PageController();
 
   // ── Scroll ────────────────────────────────────────────────────────────
   final ScrollController _scrollController = ScrollController();
@@ -62,14 +63,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
   void initState() {
     super.initState();
 
-    // Banner auto-scroll
-    _bannerTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (mounted) {
-        setState(() {
-          _bannerIndex = (_bannerIndex + 1) % _bannerImages.length;
-        });
-      }
-    });
+    // Banner auto-scroll — يستخدم الـ PageController حتى يتزامن مع
+    // أي سحب يدوي ولا يفرض re-render على كل الصفحات.
+    _bannerTimer = Timer.periodic(const Duration(seconds: 4), _onBannerTick);
 
     // Scroll pagination trigger
     _scrollController.addListener(_onScroll);
@@ -80,9 +76,27 @@ class _ProductListScreenState extends State<ProductListScreen> {
     });
   }
 
+  void _onBannerTick(Timer _) {
+    if (!mounted || !_bannerController.hasClients) return;
+    final next = (_bannerIndex + 1) % _bannerImages.length;
+    _bannerController.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  /// يُعاد تشغيل الـ Timer عند أي تفاعل يدوي حتى لا يفرض الـ auto-scroll
+  /// نفسه فوراً بعد سحب المستخدم.
+  void _restartBannerTimer() {
+    _bannerTimer.cancel();
+    _bannerTimer = Timer.periodic(const Duration(seconds: 4), _onBannerTick);
+  }
+
   @override
   void dispose() {
     _bannerTimer.cancel();
+    _bannerController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
@@ -387,10 +401,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
       margin: const EdgeInsets.only(top: 16),
       height: h * 0.27,
       child: PageView.builder(
+        controller: _bannerController,
         itemCount: _bannerImages.length,
+        onPageChanged: (newIndex) {
+          if (!mounted) return;
+          // تحديث dots indicator + إعادة تشغيل timer لتجنّب التعارض
+          setState(() => _bannerIndex = newIndex);
+          _restartBannerTimer();
+        },
         itemBuilder: (context, index) {
-          final imgIndex =
-              (index + _bannerIndex) % _bannerImages.length;
           return Stack(
             children: [
               Container(
@@ -402,7 +421,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: Image.asset(
-                    _bannerImages[imgIndex],
+                    _bannerImages[index],
                     fit: BoxFit.cover,
                     width: double.infinity,
                   ),
@@ -451,23 +470,22 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               ),
                             ),
                           ),
-                          // Dots indicator
+                          // Dots indicator — نقطة واحدة لكل صورة بانر
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: List.generate(
-                              _bannerImages.length > 5
-                                  ? 5
-                                  : _bannerImages.length,
-                              (i) => Container(
-                                width: 6,
+                              _bannerImages.length,
+                              (i) => AnimatedContainer(
+                                duration:
+                                    const Duration(milliseconds: 250),
+                                width: i == _bannerIndex ? 14 : 6,
                                 height: 6,
-                                margin:
-                                    const EdgeInsets.only(left: 4),
+                                margin: const EdgeInsets.only(left: 3),
                                 decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color:
-                                      i == (_bannerIndex % (_bannerImages.length > 5 ? 5 : _bannerImages.length))
-                                          ? _gold
-                                          : Colors.white38,
+                                  borderRadius: BorderRadius.circular(3),
+                                  color: i == _bannerIndex
+                                      ? _gold
+                                      : Colors.white38,
                                 ),
                               ),
                             ),

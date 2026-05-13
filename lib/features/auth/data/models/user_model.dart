@@ -10,12 +10,15 @@ class UserModel extends UserEntity {
     super.displayName,
     super.photoUrl,
     super.role,
+    super.emailVerified,
     super.createdAt,
     super.revokedAt,
   });
 
   factory UserModel.fromFirestore(
-      DocumentSnapshot<Map<String, dynamic>> doc) {
+    DocumentSnapshot<Map<String, dynamic>> doc, {
+    bool emailVerified = false,
+  }) {
     final data = doc.data() ?? const <String, dynamic>{};
     return UserModel(
       uid: doc.id,
@@ -24,6 +27,7 @@ class UserModel extends UserEntity {
       displayName: data['name'] as String? ?? data['displayName'] as String?,
       photoUrl: data['photoUrl'] as String? ?? data['avatar'] as String?,
       role: UserRole.fromString(data['role'] as String?),
+      emailVerified: emailVerified,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       revokedAt: (data['revokedAt'] as Timestamp?)?.toDate(),
     );

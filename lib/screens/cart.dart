@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:my_fashion_app/core/utils/color_utils.dart';
 import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/screens/checkout_screen.dart';
@@ -220,13 +221,13 @@ class _CartItemCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
-                      if (item.size != 'افتراضي') ...[
-                        _tag(item.size),
-                        const SizedBox(width: 6),
-                      ],
-                      if (item.color != 'افتراضي') _tag(item.color),
+                      if (item.size != 'افتراضي') _tag(item.size),
+                      if (item.color != 'افتراضي')
+                        _tag(ColorUtils.displayLabel(item.color)),
                     ],
                   ),
                   const SizedBox(height: 8),

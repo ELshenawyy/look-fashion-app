@@ -1,6 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:provider/provider.dart';
 
 class AccountInfoScreen extends StatelessWidget {
   const AccountInfoScreen({super.key});
@@ -9,7 +10,7 @@ class AccountInfoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = context.watch<AuthProvider>().user;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -61,7 +62,7 @@ class AccountInfoScreen extends StatelessWidget {
                 _InfoTile(
                   icon: Icons.phone_outlined,
                   label: 'رقم الهاتف',
-                  value: user?.phoneNumber ?? 'غير مضاف',
+                  value: user?.phone ?? 'غير مضاف',
                 ),
                 const SizedBox(height: 24),
               ]),

@@ -1,8 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/constants/app_config.dart';
-import 'package:my_fashion_app/services/role_service.dart';
+import 'package:my_fashion_app/core/di/injection_container.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:my_fashion_app/features/chat/domain/entities/chat_message_entity.dart';
+import 'package:my_fashion_app/features/chat/presentation/providers/chat_provider.dart';
+import 'package:my_fashion_app/features/orders/domain/entities/order_entity.dart';
+import 'package:my_fashion_app/features/orders/domain/usecases/get_order_by_id.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class OrderChatScreen extends StatefulWidget {
@@ -25,52 +29,45 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  late final ChatProvider _chatProvider;
 
-  bool _isAdmin = false;
-  bool _isAuthorized = true; // يُضبط على false إذا لم يكن المستخدم صاحب الطلب
-  String _customerName = '';
-  String _customerPhone = '';
-  String _customerEmail = '';
+  bool _isAuthorized = true;
+  bool _loading = true;
+  OrderEntity? _order;
 
   @override
   void initState() {
     super.initState();
+    _chatProvider = sl<ChatProvider>();
     _loadOrderInfo();
   }
 
   Future<void> _loadOrderInfo() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
+    if (user == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
 
-    // Check role
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-    final role = userDoc.data()?['role'] as String? ?? '';
-    final isAdmin = AppRole.isAdminLevel(role);
-
-    // Load order data
-    final orderDoc = await FirebaseFirestore.instance
-        .collection('orders')
-        .doc(widget.orderId)
-        .get();
-    final orderData = orderDoc.data();
-
-    // ── فحص الملكية ─────────────────────────────────────────────────
-    // المستخدم العادي لا يجب أن يقرأ محادثة طلب لا يخصه
-    final orderOwnerId = orderData?['userId'] as String? ?? '';
-    final authorized = isAdmin || user.uid == orderOwnerId;
-
+    final res = await sl<GetOrderById>()(widget.orderId);
     if (!mounted) return;
-    setState(() {
-      _isAdmin = isAdmin;
-      _isAuthorized = authorized;
-      _customerName = orderData?['userName'] as String? ??
-          orderData?['userEmail'] as String? ??
-          'العميل';
-      _customerPhone = orderData?['phone'] as String? ?? '';
-      _customerEmail = orderData?['userEmail'] as String? ?? '';
+
+    res.fold((f) {
+      setState(() {
+        _loading = false;
+        _isAuthorized = false;
+      });
+    }, (order) {
+      final authorized = user.isAdmin || order.userId == user.uid;
+      setState(() {
+        _order = order;
+        _isAuthorized = authorized;
+        _loading = false;
+      });
+      if (authorized) {
+        _chatProvider.watchOrder(widget.orderId);
+      }
     });
   }
 
@@ -81,53 +78,38 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     super.dispose();
   }
 
-  CollectionReference get _messagesRef => FirebaseFirestore.instance
-      .collection('orders')
-      .doc(widget.orderId)
-      .collection('messages');
-
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    final user = FirebaseAuth.instance.currentUser;
+    final auth = context.read<AuthProvider>();
+    final user = auth.user;
     if (user == null) return;
 
     _messageController.clear();
+    final senderName =
+        user.displayName ?? user.email ?? user.phone ?? 'مستخدم';
 
-    await _messagesRef.add({
-      'text': text,
-      'senderId': user.uid,
-      'senderEmail': user.email,
-      'senderName': user.displayName ?? user.email ?? 'مستخدم',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    final ok = await _chatProvider.send(
+      orderId: widget.orderId,
+      text: text,
+      senderId: user.uid,
+      senderName: senderName,
+      senderEmail: user.email,
+      isAdminSender: user.isAdmin,
+    );
 
-    // Create notification for the other party
-    final orderDoc = await FirebaseFirestore.instance
-        .collection('orders')
-        .doc(widget.orderId)
-        .get();
-    final orderData = orderDoc.data();
-    if (orderData != null) {
-      final orderUserId = orderData['userId'] as String? ?? '';
-      final customerName = orderData['userName'] as String? ?? 'العميل';
-
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'type': 'chat_message',
-        'title': _isAdmin ? 'رسالة من الإدارة' : 'رسالة من $customerName',
-        'body': text.length > 50 ? '${text.substring(0, 50)}...' : text,
-        'orderId': widget.orderId,
-        'forRole': _isAdmin ? null : 'admin',
-        'forUserId': _isAdmin ? orderUserId : null,
-        'read': false,
-        'senderName': user.displayName ?? user.email ?? 'مستخدم',
-        'senderId': user.uid,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+    if (!mounted) return;
+    if (!ok && _chatProvider.failure != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_chatProvider.failure!.message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ));
+      _chatProvider.clearFailure();
+    } else {
+      _scrollToBottom();
     }
-
-    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -143,8 +125,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   }
 
   Future<void> _openWhatsApp() async {
-    // Admin contacts customer, User contacts admin
-    final phone = _isAdmin ? _formatPhone(_customerPhone) : AppConfig.adminWhatsApp;
+    final isAdmin = context.read<AuthProvider>().user?.isAdmin ?? false;
+    final phone =
+        isAdmin ? _formatPhone(_order?.phone ?? '') : AppConfig.adminWhatsApp;
 
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -172,23 +155,25 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     }
   }
 
-  /// Formats Egyptian phone number to international format for WhatsApp
   String _formatPhone(String phone) {
     phone = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    if (phone.startsWith('0')) {
-      return '2$phone'; // 01200507628 → 201200507628
-    }
-    if (phone.startsWith('+')) {
-      return phone.substring(1);
-    }
+    if (phone.startsWith('0')) return '2$phone';
+    if (phone.startsWith('+')) return phone.substring(1);
     return phone;
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = context.watch<AuthProvider>().user;
+    final isAdmin = user?.isAdmin ?? false;
 
-    // ── وصول مرفوض: المستخدم ليس صاحب الطلب ولا أدمن ──────────────
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator(color: _gold)),
+      );
+    }
+
     if (!_isAuthorized) {
       return Scaffold(
         backgroundColor: Colors.black,
@@ -208,10 +193,8 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             children: [
               Icon(Icons.lock_outline, color: Colors.white24, size: 72),
               SizedBox(height: 16),
-              Text(
-                'غير مصرح بالوصول',
-                style: TextStyle(color: Colors.white54, fontSize: 18),
-              ),
+              Text('غير مصرح بالوصول',
+                  style: TextStyle(color: Colors.white54, fontSize: 18)),
               SizedBox(height: 8),
               Text(
                 'هذه المحادثة تخص طلباً لا يعود لك.',
@@ -223,250 +206,242 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       );
     }
 
-    // Build the title based on admin/user role
-    final chatTitle = _isAdmin
-        ? 'محادثة مع $_customerName'
+    final customerName = _order?.userName.isNotEmpty == true
+        ? _order!.userName
+        : (_order?.userEmail ?? 'العميل');
+    final customerPhone = _order?.phone ?? '';
+    final customerEmail = _order?.userEmail ?? '';
+
+    final chatTitle = isAdmin
+        ? 'محادثة مع $customerName'
         : (widget.otherUserName.isNotEmpty
             ? 'محادثة مع ${widget.otherUserName}'
             : 'محادثة الطلب');
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
+    return ChangeNotifierProvider<ChatProvider>.value(
+      value: _chatProvider,
+      child: Scaffold(
         backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(chatTitle,
-                style: const TextStyle(fontSize: 15, color: Colors.white)),
-            if (_isAdmin && _customerPhone.isNotEmpty)
-              Text(_customerPhone,
-                  style:
-                      const TextStyle(color: Colors.white54, fontSize: 12))
-            else if (_isAdmin && _customerEmail.isNotEmpty)
-              Text(_customerEmail,
-                  style:
-                      const TextStyle(color: Colors.white54, fontSize: 12)),
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(chatTitle,
+                  style: const TextStyle(fontSize: 15, color: Colors.white)),
+              if (isAdmin && customerPhone.isNotEmpty)
+                Text(customerPhone,
+                    style: const TextStyle(
+                        color: Colors.white54, fontSize: 12))
+              else if (isAdmin && customerEmail.isNotEmpty)
+                Text(customerEmail,
+                    style: const TextStyle(
+                        color: Colors.white54, fontSize: 12)),
+            ],
+          ),
+          actions: [
+            IconButton(
+              onPressed: _openWhatsApp,
+              icon: const Icon(Icons.chat,
+                  color: Color(0xFF25D366), size: 26),
+              tooltip: 'تواصل عبر واتساب',
+            ),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: _openWhatsApp,
-            icon:
-                const Icon(Icons.chat, color: Color(0xFF25D366), size: 26),
-            tooltip: 'تواصل عبر واتساب',
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Admin info banner showing customer phone
-          if (_isAdmin && _customerPhone.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: _panel,
-              child: Row(
-                children: [
-                  const Icon(Icons.phone_outlined, color: _gold, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    'رقم العميل: $_customerPhone',
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 13),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: _openWhatsApp,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF25D366)
-                            .withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: const Color(0xFF25D366)
-                                .withValues(alpha: 0.4)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.chat,
-                              color: Color(0xFF25D366), size: 14),
-                          SizedBox(width: 4),
-                          Text('واتساب',
-                              style: TextStyle(
-                                  color: Color(0xFF25D366), fontSize: 12)),
-                        ],
+        body: Column(
+          children: [
+            if (isAdmin && customerPhone.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: _panel,
+                child: Row(
+                  children: [
+                    const Icon(Icons.phone_outlined, color: _gold, size: 16),
+                    const SizedBox(width: 8),
+                    Text('رقم العميل: $customerPhone',
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 13)),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: _openWhatsApp,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF25D366)
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: const Color(0xFF25D366)
+                                  .withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.chat,
+                                color: Color(0xFF25D366), size: 14),
+                            SizedBox(width: 4),
+                            Text('واتساب',
+                                style: TextStyle(
+                                    color: Color(0xFF25D366),
+                                    fontSize: 12)),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-
-          // Messages list — Expanded so it fills remaining space
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _messagesRef.orderBy('createdAt').snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                      child: CircularProgressIndicator(color: _gold));
-                }
-
-                final docs = snapshot.data?.docs ?? [];
-
-                if (docs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.chat_bubble_outline,
-                            color: Colors.white24, size: 64),
-                        const SizedBox(height: 12),
-                        const Text('ابدأ المحادثة',
-                            style: TextStyle(
-                                color: Colors.white54, fontSize: 16)),
-                        const SizedBox(height: 4),
-                        Text(
-                            _isAdmin
+            Expanded(
+              child: Consumer<ChatProvider>(
+                builder: (context, provider, _) {
+                  final messages = provider.messages;
+                  if (messages.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.chat_bubble_outline,
+                              color: Colors.white24, size: 64),
+                          const SizedBox(height: 12),
+                          const Text('ابدأ المحادثة',
+                              style: TextStyle(
+                                  color: Colors.white54, fontSize: 16)),
+                          const SizedBox(height: 4),
+                          Text(
+                            isAdmin
                                 ? 'أرسل رسالة للعميل بخصوص هذا الطلب'
                                 : 'أرسل رسالة للتواصل بخصوص هذا الطلب',
                             style: const TextStyle(
-                                color: Colors.white30, fontSize: 13)),
-                        const SizedBox(height: 16),
-                        GestureDetector(
-                          onTap: _openWhatsApp,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF25D366)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                  color: const Color(0xFF25D366)
-                                      .withValues(alpha: 0.4)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.chat,
-                                    color: Color(0xFF25D366), size: 20),
-                                const SizedBox(width: 8),
-                                Text(
-                                    _isAdmin
-                                        ? 'تواصل مع العميل عبر واتساب'
-                                        : 'أو تواصل عبر واتساب',
-                                    style: const TextStyle(
-                                        color: Color(0xFF25D366),
-                                        fontSize: 14)),
-                              ],
+                                color: Colors.white30, fontSize: 13),
+                          ),
+                          const SizedBox(height: 16),
+                          GestureDetector(
+                            onTap: _openWhatsApp,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF25D366)
+                                    .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                    color: const Color(0xFF25D366)
+                                        .withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.chat,
+                                      color: Color(0xFF25D366), size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                      isAdmin
+                                          ? 'تواصل مع العميل عبر واتساب'
+                                          : 'أو تواصل عبر واتساب',
+                                      style: const TextStyle(
+                                          color: Color(0xFF25D366),
+                                          fontSize: 14)),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                WidgetsBinding.instance
-                    .addPostFrameCallback((_) => _scrollToBottom());
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data =
-                        docs[index].data() as Map<String, dynamic>;
-                    final isMe = data['senderId'] == user?.uid;
-                    return _MessageBubble(data: data, isMe: isMe);
-                  },
-                );
-              },
-            ),
-          ),
-
-          // Input bar — pinned at the bottom
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-            decoration: const BoxDecoration(
-              color: _panel,
-              border: Border(top: BorderSide(color: Colors.white10)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _messageController,
-                      style: const TextStyle(color: Colors.white),
-                      maxLines: null,
-                      decoration: InputDecoration(
-                        hintText: 'اكتب رسالة...',
-                        hintStyle:
-                            const TextStyle(color: Colors.white38),
-                        filled: true,
-                        fillColor:
-                            Colors.white.withValues(alpha: 0.06),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
-                        ),
+                        ],
                       ),
-                      onSubmitted: (_) => _sendMessage(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: _gold,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send_rounded,
-                          color: Colors.black, size: 20),
-                      onPressed: _sendMessage,
-                    ),
-                  ),
-                ],
+                    );
+                  }
+
+                  WidgetsBinding.instance
+                      .addPostFrameCallback((_) => _scrollToBottom());
+
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                    itemCount: messages.length,
+                    itemBuilder: (_, i) {
+                      final msg = messages[i];
+                      final isMe = msg.senderId == user?.uid;
+                      return _MessageBubble(message: msg, isMe: isMe);
+                    },
+                  );
+                },
               ),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+              decoration: const BoxDecoration(
+                color: _panel,
+                border: Border(top: BorderSide(color: Colors.white10)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _messageController,
+                        style: const TextStyle(color: Colors.white),
+                        maxLines: null,
+                        decoration: InputDecoration(
+                          hintText: 'اكتب رسالة...',
+                          hintStyle:
+                              const TextStyle(color: Colors.white38),
+                          filled: true,
+                          fillColor:
+                              Colors.white.withValues(alpha: 0.06),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: _gold,
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.send_rounded,
+                            color: Colors.black, size: 20),
+                        onPressed: _sendMessage,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _MessageBubble extends StatelessWidget {
-  final Map<String, dynamic> data;
+  final ChatMessageEntity message;
   final bool isMe;
 
-  const _MessageBubble({required this.data, required this.isMe});
+  const _MessageBubble({required this.message, required this.isMe});
 
   static const Color _gold = Color(0xFFD4AF37);
 
   @override
   Widget build(BuildContext context) {
-    final text = data['text'] as String? ?? '';
-    final senderName = data['senderName'] as String? ?? '';
-    final createdAt = data['createdAt'] as Timestamp?;
-    final timeStr = createdAt != null
-        ? '${createdAt.toDate().hour}:${createdAt.toDate().minute.toString().padLeft(2, '0')}'
+    final timeStr = message.createdAt != null
+        ? '${message.createdAt!.hour}:${message.createdAt!.minute.toString().padLeft(2, '0')}'
         : '';
 
     return Align(
@@ -483,10 +458,12 @@ class _MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16),
             topRight: const Radius.circular(16),
-            bottomLeft:
-                isMe ? const Radius.circular(16) : const Radius.circular(4),
-            bottomRight:
-                isMe ? const Radius.circular(4) : const Radius.circular(16),
+            bottomLeft: isMe
+                ? const Radius.circular(16)
+                : const Radius.circular(4),
+            bottomRight: isMe
+                ? const Radius.circular(4)
+                : const Radius.circular(16),
           ),
           border: Border.all(
             color: isMe
@@ -502,7 +479,7 @@ class _MessageBubble extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  senderName,
+                  message.senderName,
                   style: TextStyle(
                     color: _gold.withValues(alpha: 0.8),
                     fontSize: 11,
@@ -511,7 +488,7 @@ class _MessageBubble extends StatelessWidget {
                 ),
               ),
             Text(
-              text,
+              message.text,
               style: const TextStyle(
                   color: Colors.white, fontSize: 14, height: 1.4),
             ),

@@ -1,9 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 
-/// Widget مشترك يعرض صورة المستخدم من Firestore بشكل فوري (Real-time).
+/// Widget مشترك يعرض صورة المستخدم من AuthProvider (Real-time عبر stream).
 /// - إن وُجدت صورة: يعرضها عبر CachedNetworkImage
 /// - إن لم توجد: يعرض أول حرف من الاسم داخل دائرة ملونة
 class UserAvatarWidget extends StatelessWidget {
@@ -15,22 +15,15 @@ class UserAvatarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return _InitialAvatar(initial: 'م', radius: radius);
-    }
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        final user = auth.user;
+        if (user == null) {
+          return _InitialAvatar(initial: 'م', radius: radius);
+        }
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
-      builder: (context, snap) {
-        final data = snap.data?.data();
-        final photoUrl =
-            data?['photoUrl'] as String? ?? user.photoURL ?? '';
-        final name = data?['name'] as String? ??
-            user.displayName ??
+        final photoUrl = user.photoUrl ?? '';
+        final name = user.displayName ??
             user.email?.split('@').first ??
             '';
         final initial =

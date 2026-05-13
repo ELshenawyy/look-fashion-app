@@ -1,8 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/screens/notifications_screen.dart';
-import 'package:my_fashion_app/services/role_service.dart';
+import 'package:provider/provider.dart';
 
 /// AppBar موحد لكل صفحات التطبيق — يدعم تأثير الـ Sliver
 class AppSliverBar extends StatelessWidget {
@@ -101,34 +100,17 @@ class NotificationBellAction extends StatefulWidget {
 }
 
 class _NotificationBellActionState extends State<NotificationBellAction> {
-  Stream<DocumentSnapshot>? _userStream;
-  final _user = FirebaseAuth.instance.currentUser;
-
-  @override
-  void initState() {
-    super.initState();
-    if (_user != null) {
-      _userStream = FirebaseFirestore.instance
-          .collection('users')
-          .doc(_user.uid)
-          .snapshots();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_user == null || _userStream == null) return const SizedBox.shrink();
-
-    return StreamBuilder<DocumentSnapshot>(
-      stream: _userStream,
-      builder: (context, userSnap) {
-        final role =
-            (userSnap.data?.data() as Map?)?['role']?.toString() ?? '';
-        final isAdmin = AppRole.isAdminLevel(role);
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        final user = auth.user;
+        if (user == null) return const SizedBox.shrink();
+        final isAdmin = user.isAdmin;
 
         return StreamBuilder<int>(
           stream: NotificationsScreen.getUnreadCount(
-            userId: _user.uid,
+            userId: user.uid,
             isAdmin: isAdmin,
           ),
           builder: (context, countSnap) {

@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
 import 'package:my_fashion_app/features/admin/data/repositories/admin_repository.dart';
-import 'package:my_fashion_app/services/role_service.dart';
+import 'package:my_fashion_app/features/auth/domain/entities/user_role.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
 /// شاشة إدارة الموظفين — متاحة للـ superAdmin فقط.
@@ -224,9 +224,9 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       if (result == null) {
         errorMsg = 'لا يوجد حساب مرتبط بهذا البريد أو الرقم.\n'
             'تأكد من أن المستخدم سجّل في التطبيق أولاً.';
-      } else if (AppRole.isSuperAdmin(result.role)) {
+      } else if (UserRole.fromString(result.role).isSuperAdmin) {
         errorMsg = 'لا يمكن تغيير دور السوبر أدمن';
-      } else if (result.role == AppRole.subAdmin) {
+      } else if (result.role == UserRole.subAdmin.toFirestoreValue()) {
         errorMsg = '"${result.name}" موظف بالفعل.';
       } else {
         await _repo.promoteToSubAdmin(result.uid);
@@ -319,7 +319,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
         body: StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('users')
-              .where('role', isEqualTo: AppRole.subAdmin)
+              .where('role', isEqualTo: UserRole.subAdmin.toFirestoreValue())
               .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {

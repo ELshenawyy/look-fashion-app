@@ -1,10 +1,9 @@
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:my_fashion_app/firebase/login.dart';
-import 'package:my_fashion_app/providers/profile_provider.dart';
+import 'package:my_fashion_app/features/profile/presentation/providers/profile_provider.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/screens/about.dart';
 import 'package:my_fashion_app/screens/addresses_screen.dart';
 import 'package:my_fashion_app/screens/admin_orders_screen.dart';
@@ -14,7 +13,6 @@ import 'package:my_fashion_app/screens/privacy_policy_screen.dart';
 import 'package:my_fashion_app/screens/staff_management_screen.dart';
 import 'package:my_fashion_app/screens/terms_screen.dart';
 import 'package:my_fashion_app/constants/app_config.dart';
-import 'package:my_fashion_app/services/role_service.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/user_avatar.dart';
 import 'package:provider/provider.dart';
@@ -50,8 +48,9 @@ class ProfileScreen extends StatelessWidget {
     if (picked == null || !context.mounted) return;
 
     final provider = context.read<ProfileProvider>();
-    final success =
-        await provider.uploadProfileImage(File(picked.path));
+    final uid = context.read<AuthProvider>().user?.uid;
+    if (uid == null) return;
+    final success = await provider.uploadProfileImage(uid, File(picked.path));
 
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -139,54 +138,38 @@ class ProfileScreen extends StatelessWidget {
 
     if (confirmed != true || !context.mounted) return;
 
-    try {
-      await FirebaseAuth.instance.signOut();
-      if (!context.mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-        (_) => false,
-      );
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('فشل تسجيل الخروج: $e'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ));
-    }
+    await context.read<AuthProvider>().signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (_) => false,
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const CustomScrollView(
-        slivers: [
-          AppSliverBar(title: 'الملف الشخصي'),
-          SliverFillRemaining(
-            child: Center(
-              child: Text('يرجى تسجيل الدخول',
-                  style: TextStyle(color: Colors.white54)),
-            ),
-          ),
-        ],
-      );
-    }
+    return Consumer<AuthProvider>(
+      builder: (context, auth, _) {
+        final user = auth.user;
+        if (user == null) {
+          return const CustomScrollView(
+            slivers: [
+              AppSliverBar(title: 'الملف الشخصي'),
+              SliverFillRemaining(
+                child: Center(
+                  child: Text('يرجى تسجيل الدخول',
+                      style: TextStyle(color: Colors.white54)),
+                ),
+              ),
+            ],
+          );
+        }
 
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .snapshots(),
-      builder: (context, snap) {
-        final data = snap.data?.data();
-        final role = data?['role'] as String? ?? AppRole.user;
-        final isAdmin = AppRole.isAdminLevel(role);
-        final isSuperAdmin = AppRole.isSuperAdmin(role);
+        final isAdmin = user.isAdmin;
+        final isSuperAdmin = user.isSuperAdmin;
 
-        final displayName = data?['name'] as String? ??
-            user.displayName ??
+        final displayName = user.displayName ??
             user.email?.split('@').first ??
             'مستخدم';
         final email = user.email ?? '';

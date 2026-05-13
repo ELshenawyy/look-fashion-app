@@ -1,8 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/core/di/injection_container.dart';
+import 'package:my_fashion_app/features/orders/domain/entities/order_entity.dart';
+import 'package:my_fashion_app/features/orders/domain/usecases/get_order_by_id.dart';
+import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
 import 'package:my_fashion_app/screens/order_chat_screen.dart';
 import 'package:my_fashion_app/utils/order_utils.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:provider/provider.dart';
 
 /// شاشة تفاصيل طلب واحد — للأدمن (تُفتح من الإشعارات)
 class AdminOrderDetailScreen extends StatefulWidget {
@@ -18,7 +22,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _panel = Color(0xFF180808);
 
-  Map<String, dynamic>? _orderData;
+  OrderEntity? _order;
   bool _loading = true;
   String? _error;
 
@@ -29,80 +33,50 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   }
 
   Future<void> _loadOrder() async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.orderId)
-          .get();
-      if (!mounted) return;
-      if (!doc.exists) {
-        setState(() {
-          _error = 'الطلب غير موجود';
-          _loading = false;
-        });
-        return;
-      }
+    final res = await sl<GetOrderById>()(widget.orderId);
+    if (!mounted) return;
+    res.fold((f) {
       setState(() {
-        _orderData = doc.data();
+        _error = f.message;
         _loading = false;
       });
-    } catch (e) {
-      if (!mounted) return;
+    }, (order) {
       setState(() {
-        _error = 'خطأ: $e';
+        _order = order;
         _loading = false;
       });
-    }
+    });
   }
 
-  // ── تغيير الحالة ─────────────────────────────────────────────────────
-  Future<void> _updateStatus(String newStatus) async {
-    final userId = _orderData?['userId'] as String? ?? '';
-    try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(widget.orderId)
-          .update({'status': newStatus});
-
-      await FirebaseFirestore.instance.collection('notifications').add({
-        'type': 'order_status',
-        'title': 'تحديث حالة الطلب',
-        'body': 'تم تحديث حالة طلبك إلى: ${OrderUtils.statusLabel(newStatus)}',
-        'orderId': widget.orderId,
-        'forRole': null,
-        'forUserId': userId,
-        'read': false,
-        'senderName': 'فريق خدمة العملاء',
-        'senderId': '',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (!mounted) return;
-      setState(() => _orderData = {...?_orderData, 'status': newStatus});
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('تم تحديث الحالة إلى: ${OrderUtils.statusLabel(newStatus)}'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-      ));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('خطأ: $e'),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-      ));
+  Future<void> _updateStatus(OrderStatus newStatus) async {
+    final ok = await context.read<OrdersProvider>().updateStatus(
+          orderId: widget.orderId,
+          status: newStatus,
+        );
+    if (!mounted) return;
+    if (ok && _order != null) {
+      // إعادة تحميل الطلب بعد التحديث
+      await _loadOrder();
     }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? 'تم تحديث الحالة إلى: ${OrderUtils.statusLabel(newStatus.toFirestoreValue())}'
+          : 'فشل تحديث الحالة'),
+      backgroundColor: ok ? Colors.green : Colors.red,
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
-  void _showStatusDialog(String currentStatus) {
-    const statuses = [
-      'pending',
-      'confirmed',
-      'shipped',
-      'delivered',
-      'cancelled',
+  void _showStatusDialog(OrderStatus current) {
+    final statuses = [
+      OrderStatus.pending,
+      OrderStatus.preparing,
+      OrderStatus.shipped,
+      OrderStatus.delivered,
+      OrderStatus.cancelled,
     ];
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: _panel,
       isScrollControlled: true,
@@ -125,27 +99,30 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
-                    children: statuses.map((s) => ListTile(
-                          leading: Icon(
-                            s == currentStatus
-                                ? Icons.radio_button_checked
-                                : Icons.radio_button_off,
-                            color: OrderUtils.statusColor(s),
-                          ),
-                          title: Text(
-                            OrderUtils.statusLabel(s),
-                            style: TextStyle(
-                              color: s == currentStatus ? _gold : Colors.white,
-                              fontWeight: s == currentStatus
-                                  ? FontWeight.w700
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                          onTap: () {
-                            Navigator.pop(context);
-                            if (s != currentStatus) _updateStatus(s);
-                          },
-                        )).toList(),
+                    children: statuses
+                        .map((s) => ListTile(
+                              leading: Icon(
+                                s == current
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_off,
+                                color: OrderUtils.statusColor(
+                                    s.toFirestoreValue()),
+                              ),
+                              title: Text(
+                                OrderUtils.statusLabel(s.toFirestoreValue()),
+                                style: TextStyle(
+                                  color: s == current ? _gold : Colors.white,
+                                  fontWeight: s == current
+                                      ? FontWeight.w700
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                              onTap: () {
+                                Navigator.pop(context);
+                                if (s != current) _updateStatus(s);
+                              },
+                            ))
+                        .toList(),
                   ),
                 ),
               ),
@@ -157,7 +134,6 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     );
   }
 
-  // ── helpers ──────────────────────────────────────────────────────────
   Widget _infoRow(IconData icon, String text) => Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Row(
@@ -167,7 +143,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
             const SizedBox(width: 8),
             Expanded(
                 child: Text(text,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13))),
+                    style:
+                        const TextStyle(color: Colors.white70, fontSize: 13))),
           ],
         ),
       );
@@ -200,22 +177,14 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
   }
 
   Widget _buildBody() {
-    final data = _orderData!;
-    final status = data['status'] as String? ?? 'pending';
-    final userName = data['userName'] as String? ??
-        data['userEmail'] as String? ??
-        'العميل';
-    final userEmail = data['userEmail'] as String? ?? '';
-    final phone = data['phone'] as String? ?? '';
-    final address = data['address'] as String? ?? '';
-    final state = data['state'] as String? ?? '';
-    final subtotal = (data['subtotal'] as num?)?.toDouble() ?? 0.0;
-    final deliveryCost = (data['deliveryCost'] as num?)?.toDouble() ?? 0.0;
-    final total = (data['total'] as num?)?.toDouble() ?? 0.0;
-    final items = data['items'] as List<dynamic>? ?? [];
-    final createdAt = data['createdAt'] as Timestamp?;
-    final dateStr = createdAt != null
-        ? OrderUtils.formatDateTime(createdAt.toDate())
+    final order = _order!;
+    final statusStr = order.status.toFirestoreValue();
+    final userName = order.userName.isNotEmpty
+        ? order.userName
+        : (order.userEmail ?? 'العميل');
+    final userEmail = order.userEmail ?? '';
+    final dateStr = order.createdAt != null
+        ? OrderUtils.formatDateTime(order.createdAt!)
         : 'غير محدد';
 
     return SingleChildScrollView(
@@ -223,7 +192,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Header: status + date ───────────────────────────────────
+          // Header: status + date
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -253,20 +222,22 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                   ),
                 ),
                 GestureDetector(
-                  onTap: () => _showStatusDialog(status),
+                  onTap: () => _showStatusDialog(order.status),
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: OrderUtils.statusColor(status).withValues(alpha: 0.15),
+                      color: OrderUtils.statusColor(statusStr)
+                          .withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: OrderUtils.statusColor(status).withValues(alpha: 0.5)),
+                          color: OrderUtils.statusColor(statusStr)
+                              .withValues(alpha: 0.5)),
                     ),
                     child: Text(
-                      OrderUtils.statusLabel(status),
+                      OrderUtils.statusLabel(statusStr),
                       style: TextStyle(
-                        color: OrderUtils.statusColor(status),
+                        color: OrderUtils.statusColor(statusStr),
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -278,7 +249,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           ),
           const SizedBox(height: 12),
 
-          // ── Customer info ───────────────────────────────────────────
+          // Customer info
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -297,10 +268,12 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                 const SizedBox(height: 10),
                 if (userEmail.isNotEmpty)
                   _infoRow(Icons.email_outlined, userEmail),
-                if (phone.isNotEmpty) _infoRow(Icons.phone_outlined, phone),
-                if (address.isNotEmpty)
-                  _infoRow(Icons.location_on_outlined, address),
-                if (state.isNotEmpty) _infoRow(Icons.map_outlined, state),
+                if (order.phone.isNotEmpty)
+                  _infoRow(Icons.phone_outlined, order.phone),
+                if (order.address.isNotEmpty)
+                  _infoRow(Icons.location_on_outlined, order.address),
+                if ((order.state ?? '').isNotEmpty)
+                  _infoRow(Icons.map_outlined, order.state!),
                 _infoRow(
                     Icons.schedule_rounded, 'مدة التوصيل: من 1 إلى 15 يوم'),
               ],
@@ -308,7 +281,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           ),
           const SizedBox(height: 12),
 
-          // ── Items ───────────────────────────────────────────────────
+          // Items
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -319,23 +292,22 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('المنتجات (${items.length})',
+                Text('المنتجات (${order.items.length})',
                     style: const TextStyle(
                         color: _gold,
                         fontWeight: FontWeight.w700,
                         fontSize: 14)),
                 const SizedBox(height: 10),
-                ...items.map((item) {
-                  final m = item as Map<String, dynamic>;
+                ...order.items.map((item) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        if (m['image'] != null)
+                        if (item.image.isNotEmpty)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(6),
                             child: Image.network(
-                              m['image'],
+                              item.image,
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,
@@ -348,11 +320,15 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(m['name'] ?? '',
+                              Text(item.name,
                                   style: const TextStyle(
                                       color: Colors.white, fontSize: 13)),
                               Text(
-                                OrderUtils.buildItemLabel(m),
+                                OrderUtils.buildItemLabel({
+                                  'quantity': item.quantity,
+                                  'size': item.size,
+                                  'color': item.color,
+                                }),
                                 style: const TextStyle(
                                     color: Colors.white54, fontSize: 11),
                               ),
@@ -360,7 +336,7 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                           ),
                         ),
                         Text(
-                          '${(m['price'] as num?)?.toStringAsFixed(2) ?? 0} ج.س',
+                          '${item.price.toStringAsFixed(2)} ج.س',
                           style: const TextStyle(
                               color: _gold,
                               fontSize: 13,
@@ -371,22 +347,21 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                   );
                 }),
                 const Divider(color: Colors.white10, height: 20),
-                // Totals
-                _totalRow('المجموع الفرعي', subtotal),
-                _totalRow('التوصيل', deliveryCost),
+                _totalRow('المجموع الفرعي', order.subtotal),
+                _totalRow('التوصيل', order.deliveryCost),
                 const Divider(color: Colors.white10, height: 12),
-                _totalRow('الإجمالي', total, bold: true),
+                _totalRow('الإجمالي', order.total, bold: true),
               ],
             ),
           ),
           const SizedBox(height: 16),
 
-          // ── Action buttons ──────────────────────────────────────────
+          // Action buttons
           Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => _showStatusDialog(status),
+                  onPressed: () => _showStatusDialog(order.status),
                   icon: const Icon(Icons.swap_horiz, size: 18),
                   label: const Text('تغيير الحالة'),
                   style: ElevatedButton.styleFrom(
@@ -429,7 +404,8 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     );
   }
 
-  Widget _totalRow(String label, double amount, {bool bold = false}) => Padding(
+  Widget _totalRow(String label, double amount, {bool bold = false}) =>
+      Padding(
         padding: const EdgeInsets.only(bottom: 4),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

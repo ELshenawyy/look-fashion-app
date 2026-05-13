@@ -13,6 +13,13 @@ abstract class ProductRemoteDataSource {
 
   Stream<Map<String, int>> watchCategoryCounts();
   Stream<List<Product>> watchProducts({String? category});
+
+  /// إنشاء منتج جديد. يرجع docId الجديد.
+  Future<String> addProduct(Map<String, dynamic> productData);
+
+  /// تحديث منتج موجود.
+  Future<void> updateProduct(
+      String docId, Map<String, dynamic> productData);
 }
 
 class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
@@ -93,5 +100,31 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       'category': d['category'] ?? '',
       'state': d['state'] ?? '',
     });
+  }
+
+  @override
+  Future<String> addProduct(Map<String, dynamic> productData) async {
+    try {
+      final ref = await _db.collection('products').add({
+        ...productData,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? e.code);
+    }
+  }
+
+  @override
+  Future<void> updateProduct(
+      String docId, Map<String, dynamic> productData) async {
+    try {
+      await _db.collection('products').doc(docId).update({
+        ...productData,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? e.code);
+    }
   }
 }

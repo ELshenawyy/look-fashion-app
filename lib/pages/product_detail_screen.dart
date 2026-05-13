@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:my_fashion_app/core/utils/color_utils.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
@@ -15,7 +16,6 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   static const Color _gold = Color(0xFFD4AF37);
-  static const Color _maroon = Color(0xFF5A1010);
   static const Color _panel = Color(0xFF180808);
 
   late final Product product;
@@ -30,27 +30,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     _selectedColor = product.colors.isNotEmpty ? product.colors.first : null;
   }
 
-  Color _resolveColor(String colorName) {
-    switch (colorName.toLowerCase()) {
-      case 'black':
-        return Colors.black;
-      case 'white':
-        return Colors.white;
-      case 'red':
-        return const Color(0xFFC62828);
-      case 'blue':
-        return const Color(0xFF0D47A1);
-      case 'maroon':
-        return _maroon;
-      case 'gold':
-        return _gold;
-      case 'grey':
-      case 'gray':
-        return const Color(0xFF8E8E8E);
-      default:
-        return const Color(0xFF616161);
-    }
-  }
+  Color _resolveColor(String colorCode) => ColorUtils.parse(colorCode);
 
   void _handleAddToCart() {
     if (product.stockQuantity <= 0) {
@@ -206,7 +186,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              colorName,
+              ColorUtils.displayLabel(colorName),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 12,
