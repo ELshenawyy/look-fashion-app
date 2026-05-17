@@ -59,20 +59,33 @@ class _ProductListScreenState extends State<ProductListScreen> {
   bool _isListening = false;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────
+  ProductsProvider? _productsProviderRef;
+  VoidCallback? _productsListener;
+
   @override
   void initState() {
     super.initState();
 
-    // Banner auto-scroll — يستخدم الـ PageController حتى يتزامن مع
-    // أي سحب يدوي ولا يفرض re-render على كل الصفحات.
     _bannerTimer = Timer.periodic(const Duration(seconds: 4), _onBannerTick);
-
-    // Scroll pagination trigger
     _scrollController.addListener(_onScroll);
 
-    // Load initial products
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ProductsProvider>().init();
+      if (!mounted) return;
+      final provider = context.read<ProductsProvider>();
+      _productsProviderRef = provider;
+
+      // ⚠️ Sync controller مع provider state — إذا تم reset (signOut)
+      // → searchQuery يصبح '' → نُفرغ controller text لمنع تسرّب فلتر
+      // الحساب القديم (مثلاً "أطفال" تظل في خانة البحث).
+      _productsListener = () {
+        if (!mounted) return;
+        if (provider.searchQuery.isEmpty &&
+            _searchController.text.isNotEmpty) {
+          _searchController.clear();
+        }
+      };
+      provider.addListener(_productsListener!);
+      provider.init();
     });
   }
 
@@ -95,6 +108,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   void dispose() {
+    if (_productsListener != null && _productsProviderRef != null) {
+      _productsProviderRef!.removeListener(_productsListener!);
+    }
     _bannerTimer.cancel();
     _bannerController.dispose();
     _scrollController.removeListener(_onScroll);

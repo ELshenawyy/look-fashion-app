@@ -33,6 +33,7 @@ class ProductsProvider extends ChangeNotifier {
   Failure? get failure => _failure;
   String? get selectedCategory => _selectedCategory;
   HomeSortMode get sortMode => _sortMode;
+  String get searchQuery => _searchQuery;
 
   List<Product> get products {
     if (_searchQuery.isEmpty) return List.unmodifiable(_products);
@@ -124,6 +125,23 @@ class ProductsProvider extends ChangeNotifier {
   String get _sortField =>
       _sortMode == HomeSortMode.newArrivals ? 'createdAt' : 'stockQuantity';
   bool get _sortDescending => _sortMode == HomeSortMode.newArrivals;
+
+  /// يُستدعى عند signOut — تصفير كل الفلاتر والقوائم لمنع تسرّبها
+  /// للحساب التالي (مثلاً: لا تبقى تصفية "أطفال" نشطة بعد signOut).
+  void reset() {
+    _searchDebounce?.cancel();
+    _searchDebounce = null;
+    _products = [];
+    _isLoading = false;
+    _isLoadingMore = false;
+    _hasMore = true;
+    _failure = null;
+    _selectedCategory = null;
+    _sortMode = HomeSortMode.newArrivals;
+    _lastDoc = null;
+    _searchQuery = '';
+    notifyListeners();
+  }
 
   @override
   void dispose() {

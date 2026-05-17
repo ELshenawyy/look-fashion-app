@@ -10,10 +10,15 @@ class OTPScreen extends StatefulWidget {
   final String verificationId;
   final String phoneNumber;
 
+  /// إذا مُرَّر → flow التسجيل بالهاتف: عند نجاح OTP يُنشأ مستند users
+  /// تلقائياً بهذا الاسم. إذا null → flow الدخول العادي.
+  final String? pendingDisplayName;
+
   const OTPScreen({
     super.key,
     required this.verificationId,
     required this.phoneNumber,
+    this.pendingDisplayName,
   });
 
   @override
@@ -107,6 +112,7 @@ class _OTPScreenState extends State<OTPScreen> {
     final ok = await auth.verifyOtp(
       verificationId: _verificationId,
       smsCode: smsCode,
+      displayName: widget.pendingDisplayName,
     );
     if (!mounted) return;
     setState(() => _isVerifying = false);

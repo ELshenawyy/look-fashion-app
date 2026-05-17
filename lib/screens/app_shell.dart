@@ -25,6 +25,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _selectedIndex = 0;
   bool _revokedHandled = false;
+  String? _lastUid; // لاكتشاف تبديل الحساب
 
   void _onItemTapped(int index) {
     setState(() => _selectedIndex = index);
@@ -85,6 +86,16 @@ class _AppShellState extends State<AppShell> {
         final isAdminLevel = user.isAdmin;
         final isSuperAdmin = user.isSuperAdmin;
 
+        // ⚠️ تبديل حساب: صفّر التاب الحالي + reset state الشاشات.
+        // KeyedSubtree(key: ValueKey(user.uid)) يجبر Flutter على
+        // إنشاء State جديد لكل شاشة → لا تسرّب من الحساب القديم.
+        if (_lastUid != null && _lastUid != user.uid) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _selectedIndex = 0);
+          });
+        }
+        _lastUid = user.uid;
+
         final pages = <Widget>[
           const ProductListScreen(),
           const CategoriesScreen(),
@@ -95,7 +106,10 @@ class _AppShellState extends State<AppShell> {
 
         return Scaffold(
           backgroundColor: Colors.black,
-          body: pages[_selectedIndex],
+          body: KeyedSubtree(
+            key: ValueKey('shell_${user.uid}'),
+            child: pages[_selectedIndex],
+          ),
           floatingActionButton: isAdminLevel
               ? Column(
                   mainAxisAlignment: MainAxisAlignment.end,

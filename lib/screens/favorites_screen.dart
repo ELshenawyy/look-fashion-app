@@ -1,5 +1,5 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/favorites/domain/entities/favorite_entity.dart';
 import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:my_fashion_app/models/cartt.dart';
@@ -9,6 +9,7 @@ import 'package:my_fashion_app/features/cart/presentation/providers/cart_provide
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/product_card.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 
 /// شاشة المفضلة — لا تستدعي Firebase مباشرةً.
 /// كل البيانات تأتي من FavoritesProvider الذي يستدعي use cases.
@@ -28,7 +29,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = context.read<AuthProvider>().user?.uid;
     if (uid != null) {
       // ابدأ مراقبة المفضلات فور فتح الشاشة
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -47,7 +48,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     await Future.delayed(const Duration(milliseconds: 350));
     if (!mounted) return;
 
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = context.read<AuthProvider>().user?.uid;
     if (uid == null) return;
 
     await context.read<FavoritesProvider>().toggle(
@@ -111,7 +112,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = context.watch<AuthProvider>().user;
     final ratio = _cardRatio(context);
 
     if (user == null) {
@@ -134,6 +135,30 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       builder: (context, provider, _) {
         final products = provider.favorites;
         final failure = provider.failure;
+
+        // ── Loading: Shimmer placeholders بدل الـ red flash ─────────────
+        if (provider.isLoading && products.isEmpty && failure == null) {
+          return CustomScrollView(
+            slivers: [
+              _appBar,
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: ratio,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (_, __) => const _ShimmerFavoriteCard(),
+                    childCount: 4,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }
 
         if (failure != null && products.isEmpty) {
           return CustomScrollView(
@@ -317,6 +342,56 @@ class _EmptyState extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shimmer placeholder — يظهر أثناء تحميل المفضلات بدل الوميض الأبيض.
+class _ShimmerFavoriteCard extends StatelessWidget {
+  const _ShimmerFavoriteCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFF1A1A1A),
+      highlightColor: const Color(0xFF2A2A2A),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1A1A1A),
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                      height: 12,
+                      width: double.infinity,
+                      color: const Color(0xFF2A2A2A)),
+                  const SizedBox(height: 6),
+                  Container(
+                      height: 10,
+                      width: 80,
+                      color: const Color(0xFF2A2A2A)),
+                ],
               ),
             ),
           ],

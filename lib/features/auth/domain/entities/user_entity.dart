@@ -13,6 +13,11 @@ class UserEntity extends Equatable {
   final DateTime? createdAt;
   final DateTime? revokedAt; // إذا كان != null → الحساب مُلغى
 
+  /// `true` فقط عندما تكون كل البيانات مقروءة من Firestore (الدور صحيح).
+  /// `false` يعني تسجيل دخول حدث في FirebaseAuth لكن مستند users/ لم
+  /// يحمَّل بعد — لا يجب الاعتماد على `role` في هذه الحالة.
+  final bool isLoaded;
+
   const UserEntity({
     required this.uid,
     this.email,
@@ -23,6 +28,7 @@ class UserEntity extends Equatable {
     this.emailVerified = false,
     this.createdAt,
     this.revokedAt,
+    this.isLoaded = true,
   });
 
   bool get isRevoked => revokedAt != null;
@@ -40,5 +46,6 @@ class UserEntity extends Equatable {
         emailVerified,
         createdAt,
         revokedAt,
+        isLoaded,
       ];
 }

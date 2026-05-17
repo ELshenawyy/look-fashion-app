@@ -8,10 +8,25 @@ import 'package:my_fashion_app/screens/product_listing_page.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:provider/provider.dart';
 
-class CategoriesScreen extends StatelessWidget {
+class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 
+  @override
+  State<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends State<CategoriesScreen> {
   static const Color _bg = Color(0xFF0D1117);
+
+  @override
+  void initState() {
+    super.initState();
+    // يبدأ الـ stream إن كان متوقفاً (بعد signOut/reset).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<CategoriesProvider>().ensureStarted();
+    });
+  }
 
   void _navigateToCategory(BuildContext context, String category) {
     Navigator.push(
@@ -61,19 +76,49 @@ class CategoriesScreen extends StatelessWidget {
           ),
           Consumer<CategoriesProvider>(
             builder: (context, provider, _) {
-              if (provider.error != null) {
+              if (provider.loading) {
                 return const SliverFillRemaining(
+                  child: Center(
+                    child: CircularProgressIndicator(
+                        color: Color(0xFFD4AF37)),
+                  ),
+                );
+              }
+
+              if (provider.error != null) {
+                return SliverFillRemaining(
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.error_outline,
+                        const Icon(Icons.error_outline,
                             color: Colors.white24, size: 56),
-                        SizedBox(height: 12),
-                        Text(
+                        const SizedBox(height: 12),
+                        const Text(
                           'خطأ في تحميل الأقسام',
                           style: TextStyle(
                               color: Colors.white54, fontSize: 16),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'تحقق من اتصال الإنترنت ثم حاول مجدداً',
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.4),
+                              fontSize: 13),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: provider.retry,
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('إعادة المحاولة'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFD4AF37),
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
                         ),
                       ],
                     ),

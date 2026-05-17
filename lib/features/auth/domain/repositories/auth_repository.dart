@@ -32,10 +32,13 @@ abstract class AuthRepository {
   /// إرسال OTP لرقم الهاتف
   Future<Either<Failure, PhoneVerificationResult>> sendOtp(String phoneNumber);
 
-  /// تأكيد رمز OTP
+  /// تأكيد رمز OTP — flow الدخول العادي.
+  /// [displayName] اختياري: إذا مُرَّر يفعّل flow التسجيل بالهاتف
+  /// (ينشئ مستند users إن لم يكن موجوداً بدور 'user').
   Future<Either<Failure, UserEntity>> verifyOtp({
     required String verificationId,
     required String smsCode,
+    String? displayName,
   });
 
   /// إرسال رابط استعادة كلمة المرور

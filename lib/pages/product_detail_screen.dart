@@ -1,9 +1,11 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:my_fashion_app/core/utils/color_utils.dart';
-import 'package:my_fashion_app/models/product.dart';
-import 'package:my_fashion_app/models/cartt.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
+import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
+import 'package:my_fashion_app/models/cartt.dart';
+import 'package:my_fashion_app/models/product.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
@@ -28,6 +30,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     product = widget.product;
     _selectedSize = product.sizes.isNotEmpty ? product.sizes.first : null;
     _selectedColor = product.colors.isNotEmpty ? product.colors.first : null;
+
+    // ابدأ مراقبة المفضلة (إن لم تكن مفعّلة) حتى أيقونة القلب تعكس
+    // الحالة الصحيحة فور فتح الشاشة.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final uid = context.read<AuthProvider>().user?.uid;
+      if (uid != null) {
+        context.read<FavoritesProvider>().startWatching(uid);
+      }
+    });
   }
 
   Color _resolveColor(String colorCode) => ColorUtils.parse(colorCode);
@@ -216,6 +228,59 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          // ── أيقونة المفضلة ──────────────────────────────────────────
+          Consumer<FavoritesProvider>(
+            builder: (context, favProvider, _) {
+              final productId = product.docId ?? product.id.toString();
+              final isFav = favProvider.isFavorite(productId);
+              return IconButton(
+                tooltip:
+                    isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة',
+                icon: Icon(
+                  isFav
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: isFav ? Colors.redAccent : Colors.white,
+                  size: 26,
+                ),
+                onPressed: () async {
+                  final auth = context.read<AuthProvider>();
+                  final uid = auth.user?.uid;
+                  if (uid == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('يرجى تسجيل الدخول أولاً'),
+                        backgroundColor: Colors.orange,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+                  await favProvider.toggle(
+                    userId: uid,
+                    productId: productId,
+                    title: product.title,
+                    imageUrl: product.imageUrl,
+                    price: product.price,
+                  );
+                  if (!context.mounted) return;
+                  final f = favProvider.failure;
+                  if (f != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(f.message),
+                        backgroundColor: Colors.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    favProvider.clearFailure();
+                  }
+                },
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(

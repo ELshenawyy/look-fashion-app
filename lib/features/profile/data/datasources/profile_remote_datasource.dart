@@ -35,13 +35,20 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
     required File imageFile,
   }) async {
     try {
-      final ref = _storage.ref('profiles/$userId/avatar.jpg');
+      // ⚠️ نستخدم timestamp في اسم الملف لضمان أن الـ URL الجديد يختلف
+      // عن القديم 100% — يضمن أن CachedNetworkImage يجلب الصورة الجديدة
+      // فوراً بدون cache stale.
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final ref = _storage.ref('profiles/$userId/avatar_$ts.jpg');
       await ref.putFile(imageFile);
       final url = await ref.getDownloadURL();
 
-      // تحديث Firebase Auth + Firestore
-      await _auth.currentUser?.updatePhotoURL(url);
+      // تحديث Firestore أولاً → يُطلق snapshot stream في AuthProvider
+      // فوراً → UserAvatarWidget يلتقطه عبر Consumer ويُعاد رسمه.
       await _db.collection('users').doc(userId).update({'photoUrl': url});
+
+      // ثم Firebase Auth (للحفاظ على التزامن).
+      await _auth.currentUser?.updatePhotoURL(url);
 
       return url;
     } on FirebaseException catch (e) {

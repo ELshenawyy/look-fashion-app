@@ -83,12 +83,14 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, UserEntity>> verifyOtp({
     required String verificationId,
     required String smsCode,
+    String? displayName,
   }) async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {
       final uid = await remote.verifyOtp(
         verificationId: verificationId,
         smsCode: smsCode,
+        displayName: displayName,
       );
       return await _fetchUser(uid);
     } on FirebaseAuthException catch (e) {
@@ -124,10 +126,17 @@ class AuthRepositoryImpl implements AuthRepository {
   // ── Helpers ─────────────────────────────────────────────────────────────
   Future<Either<Failure, UserEntity>> _fetchUser(String uid) async {
     try {
-      // ننتظر أول قيمة من stream للحصول على البيانات الكاملة
-      final user = await remote.watchCurrentUser().firstWhere(
-            (u) => u != null && u.uid == uid,
+      // ⚠️ Critical: ننتظر القيمة المكتملة من Firestore (isLoaded:true)
+      // وليس placeholder الـ FirebaseAuth — حتى لا نرجّع دور خاطئ.
+      final user = await remote
+          .watchCurrentUser()
+          .firstWhere(
+            (u) => u != null && u.uid == uid && u.isLoaded,
             orElse: () => null,
+          )
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => null,
           );
       if (user == null) {
         return const Left(NotFoundFailure('تعذر جلب بيانات المستخدم'));

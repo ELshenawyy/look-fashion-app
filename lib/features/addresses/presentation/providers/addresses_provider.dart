@@ -76,6 +76,17 @@ class AddressesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// يُستدعى عند signOut — مسح كل العناوين المخزنة في الذاكرة.
+  void reset() {
+    _sub?.cancel();
+    _sub = null;
+    _addresses = const [];
+    _failure = null;
+    _loading = true;
+    _activeUserId = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _sub?.cancel();

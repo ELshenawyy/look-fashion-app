@@ -25,6 +25,7 @@ abstract class FirebaseAuthDataSource {
   Future<String> verifyOtp({
     required String verificationId,
     required String smsCode,
+    String? displayName, // إذا مُرَّر → flow التسجيل بالهاتف (ينشئ مستند users إن لم يكن موجوداً)
   });
 
   Future<void> sendPasswordReset(String email);
@@ -42,24 +43,83 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
 
   @override
   Stream<UserModel?> watchCurrentUser() {
-    return _auth.authStateChanges().asyncExpand((user) {
-      if (user == null) return Stream<UserModel?>.value(null);
-      return _db
+    // ⚠️ Critical: نستخدم StreamController يدوي مع stream switching صحيح،
+    // لأن `async*` + `yield*` لا تُلغي اشتراك Firestore عند تغيير
+    // المستخدم → كان يحتفظ ببيانات الحساب القديم بعد تسجيل خروج/دخول.
+    late StreamController<UserModel?> controller;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? userDocSub;
+    StreamSubscription<User?>? authSub;
+    String? activeUid;
+
+    Future<void> closeUserDocSub() async {
+      await userDocSub?.cancel();
+      userDocSub = null;
+    }
+
+    void subscribeToUserDoc(User user) {
+      userDocSub = _db
           .collection('users')
           .doc(user.uid)
           .snapshots()
-          .map((doc) => doc.exists
-              ? UserModel.fromFirestore(doc, emailVerified: user.emailVerified)
-              : _fromFirebaseUser(user));
-    });
+          .listen(
+        (doc) {
+          // تحقق إضافي: إذا تغيّر uid أثناء وصول snapshot قديم، تجاهل
+          if (controller.isClosed || activeUid != user.uid) return;
+          if (!doc.exists) {
+            controller.add(_fromFirebaseUser(user));
+          } else {
+            controller.add(UserModel.fromFirestore(
+              doc,
+              emailVerified: user.emailVerified,
+            ));
+          }
+        },
+        onError: (Object e) {
+          if (!controller.isClosed) controller.addError(e);
+        },
+      );
+    }
+
+    controller = StreamController<UserModel?>(
+      onListen: () {
+        authSub = _auth.authStateChanges().listen((user) async {
+          // ⚠️ ألغِ subscription المستخدم القديم فوراً (root cause fix)
+          await closeUserDocSub();
+          activeUid = user?.uid;
+
+          if (user == null) {
+            if (!controller.isClosed) controller.add(null);
+            return;
+          }
+
+          // 1) placeholder فوري بـ isLoaded:false → AuthProvider يبقى loading
+          if (!controller.isClosed) {
+            controller.add(_fromFirebaseUser(user));
+          }
+
+          // 2) اشتراك جديد للمستخدم الحالي
+          subscribeToUserDoc(user);
+        });
+      },
+      onCancel: () async {
+        await closeUserDocSub();
+        await authSub?.cancel();
+        authSub = null;
+      },
+    );
+
+    return controller.stream;
   }
 
+  /// placeholder بـ `isLoaded:false` — يستخدمه AuthProvider للبقاء في
+  /// حالة "loading" حتى يصل الدور الفعلي من Firestore.
   UserModel _fromFirebaseUser(User user) => UserModel(
         uid: user.uid,
         email: user.email,
         phone: user.phoneNumber,
         displayName: user.displayName,
         emailVerified: user.emailVerified,
+        isLoaded: false,
       );
 
   @override
@@ -112,13 +172,39 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   Future<String> verifyOtp({
     required String verificationId,
     required String smsCode,
+    String? displayName,
   }) async {
     final cred = PhoneAuthProvider.credential(
       verificationId: verificationId,
       smsCode: smsCode,
     );
     final result = await _auth.signInWithCredential(cred);
-    return result.user!.uid;
+    final uid = result.user!.uid;
+
+    // ── Phone signup flow ──────────────────────────────────────────────
+    // إذا مُرَّر displayName → نتأكد من وجود مستند users/{uid}.
+    // إن لم يكن موجوداً → ننشئه بدور 'user' (مستخدم جديد سجَّل بالهاتف).
+    // إن كان موجوداً → لا نعدّله (احتراماً للحساب الموجود).
+    if (displayName != null && displayName.trim().isNotEmpty) {
+      final docRef = _db.collection('users').doc(uid);
+      final doc = await docRef.get();
+      if (!doc.exists) {
+        await docRef.set({
+          'uid': uid,
+          'name': displayName.trim(),
+          'phone': result.user!.phoneNumber,
+          'role': 'user',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        try {
+          await result.user!.updateDisplayName(displayName.trim());
+        } catch (_) {
+          // غير حرج
+        }
+      }
+    }
+
+    return uid;
   }
 
   @override

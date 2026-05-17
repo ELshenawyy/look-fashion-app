@@ -11,6 +11,9 @@ abstract class OrderUtils {
         return Colors.orange;
       case 'confirmed':
         return Colors.blue;
+      case 'preparing':
+      case 'prepared':
+        return Colors.teal;
       case 'shipped':
         return Colors.purple;
       case 'delivered':
@@ -29,6 +32,9 @@ abstract class OrderUtils {
         return 'قيد المعالجة';
       case 'confirmed':
         return 'تم التأكيد';
+      case 'preparing':
+      case 'prepared':
+        return 'تم التجهيز';
       case 'shipped':
         return 'تم الشحن';
       case 'delivered':

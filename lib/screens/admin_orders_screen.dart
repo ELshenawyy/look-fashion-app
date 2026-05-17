@@ -22,7 +22,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   static const _statusOptions = [
     {'value': 'all', 'label': 'الكل'},
     {'value': 'pending', 'label': 'قيد المعالجة'},
-    {'value': 'preparing', 'label': 'قيد التحضير'},
+    {'value': 'preparing', 'label': 'تم التجهيز'},
     {'value': 'shipped', 'label': 'تم الشحن'},
     {'value': 'delivered', 'label': 'تم التسليم'},
     {'value': 'cancelled', 'label': 'ملغي'},
@@ -180,6 +180,20 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           builder: (context, provider, _) {
             final orders = _filtered(provider.allOrders);
 
+            // ── حساب لحظي للمبالغ من الـ stream ───────────────────────
+            // عند تغيير حالة طلب من "تم الشحن" إلى "تم التسليم"،
+            // OrdersProvider يصدر القائمة الجديدة عبر StreamBuilder —
+            // فينتقل المبلغ تلقائياً من pendingCash إلى deliveredCash.
+            final activeOrders = orders.where((o) =>
+                o.status != OrderStatus.delivered &&
+                o.status != OrderStatus.cancelled);
+            final pendingCash =
+                activeOrders.fold<double>(0, (sum, o) => sum + o.total);
+            final pendingCount = activeOrders.length;
+            final deliveredCash = orders
+                .where((o) => o.status == OrderStatus.delivered)
+                .fold<double>(0, (sum, o) => sum + o.total);
+
             if (orders.isEmpty) {
               return const Center(
                 child: Column(
@@ -196,11 +210,23 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               );
             }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(12),
-              itemCount: orders.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _buildOrderCard(orders[i]),
+            return Column(
+              children: [
+                _CashFlowBanner(
+                  pendingCash: pendingCash,
+                  pendingCount: pendingCount,
+                  deliveredCash: deliveredCash,
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: orders.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (_, i) => _buildOrderCard(orders[i]),
+                  ),
+                ),
+              ],
             );
           },
         ),
@@ -281,6 +307,45 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           if (order.address.isNotEmpty)
             _infoRow(Icons.location_on_outlined, order.address),
           _infoRow(Icons.schedule_rounded, 'مدة التوصيل: من 1 إلى 15 يوم'),
+          // ── المبلغ المستحق عند التسليم ─────────────────────────────
+          Padding(
+            padding: const EdgeInsets.only(top: 4, bottom: 6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4CAF50).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: const Color(0xFF4CAF50).withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.payments_outlined,
+                      color: Color(0xFF4CAF50), size: 16),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'إجمالي المبلغ المستحق عند التسليم',
+                      style: TextStyle(
+                        color: Color(0xFF4CAF50),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${order.total.toStringAsFixed(2)} ج.س',
+                    style: const TextStyle(
+                      color: Color(0xFF4CAF50),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const Divider(color: Colors.white10, height: 20),
           ...order.items.map((item) {
             return Padding(
@@ -376,6 +441,127 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                   style: const TextStyle(color: Colors.white70, fontSize: 13))),
         ],
       ),
+    );
+  }
+}
+
+/// Banner ملخّص ثابت أعلى شاشة إدارة الطلبات — يعرض إجمالي المبلغ
+/// المتوقع تحصيله من الطلبات النشطة (cash flow متوقع للأدمن).
+class _CashFlowBanner extends StatelessWidget {
+  final double pendingCash;
+  final int pendingCount;
+  final double deliveredCash;
+
+  const _CashFlowBanner({
+    required this.pendingCash,
+    required this.pendingCount,
+    required this.deliveredCash,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF4CAF50).withValues(alpha: 0.18),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _statBlock(
+              icon: Icons.account_balance_wallet,
+              title: 'مستحق عند التسليم',
+              subtitle: '$pendingCount طلب نشط',
+              amount: pendingCash,
+              accent: Colors.white,
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 50,
+            color: Colors.white.withValues(alpha: 0.25),
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+          ),
+          Expanded(
+            child: _statBlock(
+              icon: Icons.check_circle,
+              title: 'إجمالي المُسلَّم',
+              subtitle: 'تم التحصيل',
+              amount: deliveredCash,
+              accent: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statBlock({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required double amount,
+    required Color accent,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: accent, size: 16),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${amount.toStringAsFixed(0)} ج.س',
+          style: TextStyle(
+            color: accent,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: TextStyle(
+            color: accent.withValues(alpha: 0.7),
+            fontSize: 10,
+          ),
+        ),
+      ],
     );
   }
 }

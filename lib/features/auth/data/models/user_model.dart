@@ -13,6 +13,7 @@ class UserModel extends UserEntity {
     super.emailVerified,
     super.createdAt,
     super.revokedAt,
+    super.isLoaded,
   });
 
   factory UserModel.fromFirestore(

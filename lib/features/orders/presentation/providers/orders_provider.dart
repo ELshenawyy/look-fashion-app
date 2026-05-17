@@ -102,6 +102,19 @@ class OrdersProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// يُستدعى عند signOut — مسح طلبات المستخدم القديم من الذاكرة.
+  void reset() {
+    _userSub?.cancel();
+    _allSub?.cancel();
+    _userSub = null;
+    _allSub = null;
+    _userOrders = const [];
+    _allOrders = const [];
+    _failure = null;
+    _placing = false;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _userSub?.cancel();

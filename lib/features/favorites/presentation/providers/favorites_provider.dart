@@ -28,10 +28,15 @@ class FavoritesProvider extends ChangeNotifier {
   List<FavoriteEntity> _favorites = [];
   Failure? _failure;
   String? _activeUserId;
+  bool _loadingDetails = false; // قائمة كاملة لشاشة المفضلة
 
   Set<String> get favoriteIds => _favoriteIds;
   List<FavoriteEntity> get favorites => _favorites;
   Failure? get failure => _failure;
+
+  /// `true` قبل وصول أول snapshot — يُستخدمه favorites_screen لإظهار
+  /// shimmer/loader بدل state فارغة وامضة.
+  bool get isLoading => _loadingDetails;
 
   bool isFavorite(String productId) => _favoriteIds.contains(productId);
 
@@ -55,13 +60,17 @@ class FavoritesProvider extends ChangeNotifier {
 
     if (_watchFavorites != null) {
       _detailsSub?.cancel();
+      _loadingDetails = true;
+      notifyListeners();
       _detailsSub = _watchFavorites(userId).listen(
         (list) {
           _favorites = list;
+          _loadingDetails = false;
           notifyListeners();
         },
         onError: (e) {
           _failure = UnknownFailure(e.toString());
+          _loadingDetails = false;
           notifyListeners();
         },
       );
@@ -106,6 +115,20 @@ class FavoritesProvider extends ChangeNotifier {
 
   void clearFailure() {
     _failure = null;
+    notifyListeners();
+  }
+
+  /// يُستدعى عند signOut — مسح كل بيانات المفضلة لمنع تسرّبها للحساب التالي.
+  void reset() {
+    _idsSub?.cancel();
+    _detailsSub?.cancel();
+    _idsSub = null;
+    _detailsSub = null;
+    _favoriteIds = {};
+    _favorites = [];
+    _failure = null;
+    _activeUserId = null;
+    _loadingDetails = false;
     notifyListeners();
   }
 

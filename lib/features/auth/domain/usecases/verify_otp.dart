@@ -8,11 +8,16 @@ import 'package:my_fashion_app/features/auth/domain/repositories/auth_repository
 class VerifyOtpParams extends Equatable {
   final String verificationId;
   final String smsCode;
-  const VerifyOtpParams(
-      {required this.verificationId, required this.smsCode});
+  final String? displayName; // signup-by-phone flow
+
+  const VerifyOtpParams({
+    required this.verificationId,
+    required this.smsCode,
+    this.displayName,
+  });
 
   @override
-  List<Object?> get props => [verificationId, smsCode];
+  List<Object?> get props => [verificationId, smsCode, displayName];
 }
 
 class VerifyOtp implements UseCase<UserEntity, VerifyOtpParams> {
@@ -24,5 +29,6 @@ class VerifyOtp implements UseCase<UserEntity, VerifyOtpParams> {
       repository.verifyOtp(
         verificationId: params.verificationId,
         smsCode: params.smsCode,
+        displayName: params.displayName,
       );
 }

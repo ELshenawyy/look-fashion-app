@@ -121,7 +121,9 @@ Future<void> init() async {
 }
 
 void _initChat() {
-  sl.registerFactory(() => ChatProvider(
+  // ChatProvider singleton — مرتبط بـ orderId وقت الاستخدام، state يصفّر
+  // بـ watchOrder(newOrderId) → آمن كـ singleton.
+  sl.registerLazySingleton(() => ChatProvider(
         watchMessages: sl(),
         sendMessage: sl(),
       ));
@@ -191,7 +193,10 @@ void _initOrders() {
 }
 
 void _initAddresses() {
-  sl.registerFactory(() => AddressesProvider(sl()));
+  // ⚠️ singleton — instance واحد مرتبط بالـ MultiProvider.
+  // لو كان factory → كل sl<X>() ينشئ instance جديد → reset() على
+  // instance لا علاقة له بالواجهة → فلاتر/state لا تُمسح فعلياً.
+  sl.registerLazySingleton(() => AddressesProvider(sl()));
   sl.registerLazySingleton<AddressRepository>(
     () => AddressRepositoryImpl(remote: sl(), network: sl()),
   );
@@ -211,8 +216,11 @@ void _initCart() {
 }
 
 void _initProducts() {
-  sl.registerFactory(() => ProductsProvider(fetchProductsPage: sl()));
-  sl.registerFactory(() => CategoriesProvider(watchCategoryCounts: sl()));
+  // ⚠️ singletons — instance واحد فقط لكل provider مرتبط بالـ MultiProvider.
+  // factory هنا كانت تعطّل reset() المستدعى من signOut.
+  sl.registerLazySingleton(() => ProductsProvider(fetchProductsPage: sl()));
+  sl.registerLazySingleton(
+      () => CategoriesProvider(watchCategoryCounts: sl()));
 
   sl.registerLazySingleton(() => FetchProductsPage(sl()));
   sl.registerLazySingleton(() => WatchCategoryCounts(sl()));
@@ -265,8 +273,10 @@ void _initAuth() {
 }
 
 void _initFavorites() {
-  // Provider — factory: instance جديد لكل screen mount
-  sl.registerFactory(() => FavoritesProvider(
+  // ⚠️ singleton — instance واحد مشترك مرتبط بالـ MultiProvider.
+  // factory كانت تعطّل reset() المستدعى من signOut → بيانات
+  // المفضلات للحساب القديم تظل ظاهرة بعد تبديل الحسابات.
+  sl.registerLazySingleton(() => FavoritesProvider(
         toggleFavorite: sl(),
         watchFavoriteIds: sl(),
         watchFavorites: sl(),

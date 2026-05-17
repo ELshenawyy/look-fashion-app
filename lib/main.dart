@@ -61,10 +61,17 @@ void main() async {
             value: di.sl<auth_p.AuthProvider>()),
         ChangeNotifierProvider<cart_p.CartProvider>.value(
             value: di.sl<cart_p.CartProvider>()),
-        ChangeNotifierProvider(create: (_) => di.sl<FavoritesProvider>()),
-        ChangeNotifierProvider(create: (_) => di.sl<ProductsProvider>()),
-        ChangeNotifierProvider(create: (_) => di.sl<CategoriesProvider>()),
-        ChangeNotifierProvider(create: (_) => di.sl<AddressesProvider>()),
+        // ⚠️ نستخدم .value لأن كل هذه أصبحت singletons في DI.
+        // مع .value، نفس الـ instance تُحقن في كل مكان — يضمن أن
+        // reset() المستدعى من signOut يصل للـ instance المرتبط بالشاشات.
+        ChangeNotifierProvider<FavoritesProvider>.value(
+            value: di.sl<FavoritesProvider>()),
+        ChangeNotifierProvider<ProductsProvider>.value(
+            value: di.sl<ProductsProvider>()),
+        ChangeNotifierProvider<CategoriesProvider>.value(
+            value: di.sl<CategoriesProvider>()),
+        ChangeNotifierProvider<AddressesProvider>.value(
+            value: di.sl<AddressesProvider>()),
         ChangeNotifierProvider<OrdersProvider>.value(
             value: di.sl<OrdersProvider>()),
         ChangeNotifierProvider<NotificationsProvider>.value(

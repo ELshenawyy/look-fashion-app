@@ -625,7 +625,7 @@ class _LoginPageState extends State<LoginPage> {
 
                     // ── Title ──
                     const Text(
-                      'مرحبًا بعودتك',
+                      'أناقتك تبدأ من هنا',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 30,

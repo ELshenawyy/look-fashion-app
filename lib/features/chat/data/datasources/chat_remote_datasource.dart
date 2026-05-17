@@ -50,7 +50,47 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 2) إنشاء إشعار للطرف الآخر — non-fatal
+      // 1.b) ── رد تلقائي من فريق الدعم ───────────────────────────────────
+      // يظهر مرة واحدة فقط: إذا أرسل المستخدم العادي رسالة ولم يردّ الإدمن
+      // بعد + لم يُنشَر رد تلقائي سابقاً → نضيف رسالة نظام تلقائية.
+      if (!isAdminSender) {
+        try {
+          final orderDoc = await _db.collection('orders').doc(orderId).get();
+          final orderUserId =
+              (orderDoc.data()?['userId'] as String?) ?? '';
+
+          // اقرأ كل الرسائل لتحديد: هل الإدمن ردّ من قبل؟ هل وُجد رد تلقائي؟
+          final allMessages = await _messagesRef(orderId).get();
+          bool hasAdminReply = false;
+          bool hasAutoReply = false;
+          for (final m in allMessages.docs) {
+            final sid = (m.data()['senderId'] as String?) ?? '';
+            if (sid == 'system') {
+              hasAutoReply = true;
+            } else if (sid.isNotEmpty && sid != orderUserId) {
+              hasAdminReply = true;
+            }
+          }
+
+          if (!hasAdminReply && !hasAutoReply) {
+            await _messagesRef(orderId).add({
+              'text': 'يرجى الانتظار حتى أقرب رد من فريق التواصل',
+              'senderId': 'system',
+              'senderName': 'فريق الدعم',
+              'isAutoReply': true,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        } catch (_) {
+          // الرد التلقائي غير حرج — تجاهل الفشل
+        }
+      }
+
+      // 2) إنشاء/تحديث إشعار للطرف الآخر — non-fatal
+      // ⚠️ تجميع: إذا كان هناك إشعار chat_message غير مقروء سابق
+      // لنفس الطلب والمستلم → نحدّثه (نزيد العداد + نحدّث body) بدلاً
+      // من إنشاء إشعار جديد لكل رسالة. النتيجة: "لديك 3 رسائل من X"
+      // بدل 3 إشعارات منفصلة.
       try {
         final orderDoc =
             await _db.collection('orders').doc(orderId).get();
@@ -60,19 +100,56 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
           final customerName =
               orderData['userName'] as String? ?? 'العميل';
 
-          await _db.collection('notifications').add({
-            'type': 'chat_message',
-            'title':
-                isAdminSender ? 'رسالة من الإدارة' : 'رسالة من $customerName',
-            'body': text.length > 50 ? '${text.substring(0, 50)}...' : text,
-            'orderId': orderId,
-            'forRole': isAdminSender ? null : 'admin',
-            'forUserId': isAdminSender ? orderUserId : null,
-            'read': false,
-            'senderName': senderName,
-            'senderId': senderId,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+          final notifsCol = _db.collection('notifications');
+          Query<Map<String, dynamic>> query = notifsCol
+              .where('type', isEqualTo: 'chat_message')
+              .where('orderId', isEqualTo: orderId)
+              .where('read', isEqualTo: false);
+          if (isAdminSender) {
+            query = query.where('forUserId', isEqualTo: orderUserId);
+          } else {
+            query = query.where('forRole', isEqualTo: 'admin');
+          }
+
+          final existing = await query.limit(1).get();
+
+          final shortBody =
+              text.length > 50 ? '${text.substring(0, 50)}...' : text;
+
+          if (existing.docs.isNotEmpty) {
+            // ── تحديث الإشعار الموجود ──
+            final docRef = existing.docs.first.reference;
+            final currentCount =
+                (existing.docs.first.data()['count'] as num?)?.toInt() ?? 1;
+            final newCount = currentCount + 1;
+            await docRef.update({
+              'title': isAdminSender
+                  ? 'لديك $newCount رسائل من الإدارة'
+                  : 'لديك $newCount رسائل من $customerName',
+              'body': shortBody,
+              'count': newCount,
+              'senderName': senderName,
+              'senderId': senderId,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          } else {
+            // ── إنشاء إشعار جديد ──
+            await notifsCol.add({
+              'type': 'chat_message',
+              'title': isAdminSender
+                  ? 'رسالة من الإدارة'
+                  : 'رسالة من $customerName',
+              'body': shortBody,
+              'count': 1,
+              'orderId': orderId,
+              'forRole': isAdminSender ? null : 'admin',
+              'forUserId': isAdminSender ? orderUserId : null,
+              'read': false,
+              'senderName': senderName,
+              'senderId': senderId,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
         }
       } catch (_) {
         // الإشعار غير حرج — تجاهل الفشل

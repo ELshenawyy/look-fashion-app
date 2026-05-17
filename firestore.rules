@@ -23,16 +23,12 @@ service cloud.firestore {
 
     // ─── مجموعة المستخدمين ──────────────────────────────────────────────
     match /users/{userId} {
-      // القراءة: المستخدم يقرأ بياناته فقط — السوبر-أدمن يقرأ الكل
       allow read: if request.auth.uid == userId || isSuperAdmin();
 
-      // الإنشاء: عند التسجيل فقط — يُمنع تعيين role أي شيء غير 'user'
       allow create: if request.auth.uid == userId
                     && (!('role' in request.resource.data)
                         || request.resource.data.role == 'user');
 
-      // التحديث: المستخدم يحدّث بياناته (بدون تغيير role)
-      //           السوبر-أدمن يستطيع تغيير أي حقل
       allow update: if (request.auth.uid == userId
                         && !('role' in request.resource.data.diff(resource.data).affectedKeys()))
                     || isSuperAdmin();
@@ -43,13 +39,24 @@ service cloud.firestore {
       match /favorites/{favId} {
         allow read, write: if request.auth.uid == userId;
       }
+
+      // العناوين — subcollection
+      match /addresses/{addressId} {
+        allow read, write: if request.auth.uid == userId;
+      }
     }
 
     // ─── مجموعة المنتجات ────────────────────────────────────────────────
     match /products/{productId} {
       allow read: if true;                    // الكل يقرأ المنتجات
-      allow create, update: if isAdmin();     // الأدمن والموظفون يكتبون
-      allow delete: if isSuperAdmin();        // الحذف للسوبر-أدمن فقط
+      allow create, update: if isAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // ─── مجموعة الفئات ──────────────────────────────────────────────────
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // ─── مجموعة الطلبات ─────────────────────────────────────────────────
@@ -60,13 +67,47 @@ service cloud.firestore {
                     && request.resource.data.userId == request.auth.uid;
       allow update: if isAdmin();
       allow delete: if isSuperAdmin();
+
+      // ── رسائل الشات داخل كل طلب ──
+      match /messages/{messageId} {
+        // القراءة: صاحب الطلب أو الأدمن
+        allow read: if isSignedIn() &&
+                    (get(/databases/$(database)/documents/orders/$(orderId)).data.userId
+                        == request.auth.uid
+                     || isAdmin());
+        // الإنشاء: صاحب الطلب أو الأدمن، senderId يجب أن يطابق uid
+        // أو 'system' للرد التلقائي (يُكتب من الـ datasource بعد رسالة المستخدم)
+        allow create: if isSignedIn() &&
+                      (request.resource.data.senderId == request.auth.uid
+                       || request.resource.data.senderId == 'system'
+                       || isAdmin());
+      }
     }
 
     // ─── مجموعة الإشعارات ───────────────────────────────────────────────
+    // ⚠️ الإشعارات تستخدم forUserId و forRole للتوجيه (وليس userId)
     match /notifications/{notificationId} {
+      // القراءة: المستخدم يقرأ إشعاراته الموجَّهة له (forUserId) أو
+      // إشعارات الإدمن إذا كان هو نفسه أدمن (forRole == 'admin')
       allow read: if isSignedIn() &&
-                  resource.data.userId == request.auth.uid;
-      allow write: if isAdmin();
+                  (resource.data.forUserId == request.auth.uid
+                   || (resource.data.forRole == 'admin' && isAdmin()));
+
+      // الإنشاء: أي مستخدم مسجَّل دخول (مطلوب لـ:
+      //   - إنشاء طلب جديد → إشعار للأدمن
+      //   - إرسال رسالة شات → إشعار للطرف الآخر
+      //   - الأدمن يحدّث حالة طلب → إشعار للعميل)
+      allow create: if isSignedIn();
+
+      // التحديث: المستلم يستطيع التحديث (لتعليم كمقروء) + grouping
+      // chat notifications + الأدمن يستطيع كل شيء
+      allow update: if isSignedIn() &&
+                    (resource.data.forUserId == request.auth.uid
+                     || (resource.data.forRole == 'admin' && isAdmin())
+                     || isAdmin());
+
+      allow delete: if isSignedIn() &&
+                    (resource.data.forUserId == request.auth.uid || isAdmin());
     }
   }
 }

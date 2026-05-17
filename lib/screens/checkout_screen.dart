@@ -610,13 +610,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: Colors.white12),
                 ),
-                child: const Row(
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.schedule_rounded, color: Colors.white54, size: 16),
-                    SizedBox(width: 8),
-                    Text(
-                      'مدة التوصيل المتوقعة: من 1 إلى 15 يوم',
-                      style: TextStyle(color: Colors.white54, fontSize: 13),
+                    Row(
+                      children: [
+                        Icon(Icons.schedule_rounded,
+                            color: Colors.white54, size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'مدة التوصيل المتوقعة: من 1 إلى 15 يوم',
+                          style: TextStyle(
+                              color: Colors.white54, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.payments_outlined,
+                            color: Color(0xFF4CAF50), size: 16),
+                        SizedBox(width: 8),
+                        Text(
+                          'الدفع عند الاستلام',
+                          style: TextStyle(
+                            color: Color(0xFF4CAF50),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

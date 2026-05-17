@@ -83,6 +83,18 @@ class NotificationsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// يُستدعى عند signOut — مسح إشعارات المستخدم القديم من الذاكرة.
+  void reset() {
+    _sub?.cancel();
+    _sub = null;
+    _notifications = const [];
+    _failure = null;
+    _loading = true;
+    _activeUserId = null;
+    _activeIsAdmin = false;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
