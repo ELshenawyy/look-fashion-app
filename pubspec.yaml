@@ -23,7 +23,6 @@ environment:
   sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
-  device_preview: ^1.2.0
   firebase_core: ^3.0.0
   firebase_auth: ^5.0.0
   cloud_firestore: ^5.0.0
@@ -57,6 +56,36 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
   mocktail: ^1.0.4
+  # ── Branding generators (production-ready icons + splash) ──
+  flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.4.0
+
+# ── Launcher Icons Config ──────────────────────────────────────────────
+# يُولّد كل أحجام أيقونة التطبيق لـ Android + iOS من assets/icon.png
+# تشغيل: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/icon.png"
+  min_sdk_android: 23
+  remove_alpha_ios: true   # App Store يرفض الأيقونات بقناة alpha
+  adaptive_icon_background: "#0D0D0D"
+  adaptive_icon_foreground: "assets/icon.png"
+
+# ── Native Splash Config ───────────────────────────────────────────────
+# يُولّد splash screen مخصّص لكل المنصات
+# تشغيل: dart run flutter_native_splash:create
+flutter_native_splash:
+  # ── Native splash = خلفية سوداء فقط، بدون صورة. ──
+  # الأنيميشن الفعلي يُرسم بـ Flutter في SplashScreen widget لأن الـ
+  # native splash يدعم صور ثابتة فقط، والمطلوب نص متحرّك بألوان متعددة.
+  color: "#000000"
+  color_dark: "#000000"
+  android_12:
+    color: "#000000"
+    icon_background_color: "#000000"
+  android: true
+  ios: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
