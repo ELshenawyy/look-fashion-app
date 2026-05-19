@@ -31,18 +31,18 @@ class _ProductListScreenState extends State<ProductListScreen> {
   static const Color _panel = Color(0xFF180808);
 
   // ── Banner ────────────────────────────────────────────────────────────
+  // 10 صور lifestyle متنوّعة من JPGs (أصغر من PNGs السابقة بـ ~70%).
   final List<String> _bannerImages = [
-    'assets/mobile.png',
-    'assets/aa.png',
-    'assets/aaa.png',
-    'assets/bb.png',
-    'assets/bbb.png',
-    'assets/cc.png',
-    'assets/ccc.png',
-    'assets/dd.png',
-    'assets/ddd.png',
-    'assets/ee.png',
-    'assets/eee.png',
+    'assets/banners/banner_1.jpg', // رجالي راقي
+    'assets/banners/banner_2.jpg', // نسائي elegant
+    'assets/banners/banner_3.jpg', // أطفال
+    'assets/banners/banner_4.jpg', // أحذية
+    'assets/banners/banner_5.jpg', // مجوهرات artistic
+    'assets/banners/banner_6.jpg', // تجميل
+    'assets/banners/banner_7.jpg', // إلكترونيات lifestyle
+    'assets/banners/banner_8.jpg', // ساعة close-up
+    'assets/banners/banner_9.jpg',  // ثياب سودانية نسائي
+    'assets/banners/banner_10.jpg', // جلابيات سودانية رجالي
   ];
   late Timer _bannerTimer;
   int _bannerIndex = 0;
@@ -436,6 +436,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
+                  // الصور كلها 1280×720 (16:9) — تملأ كامل البانر
+                  // بـ BoxFit.cover بدون قصّ ولا blur.
                   child: Image.asset(
                     _bannerImages[index],
                     fit: BoxFit.cover,

@@ -5,6 +5,17 @@ import 'package:my_fashion_app/features/admin/data/repositories/admin_repository
 import 'package:my_fashion_app/features/auth/domain/entities/user_role.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 
+/// نتيجة عملية async (success/error) — تُمرَّر من الـ Firebase action
+/// إلى الـ caller لعرض SnackBar **بعد** إغلاق الـ loader، تجنباً
+/// لتداخل overlays وأخطاء "presented off screen".
+class _OpResult {
+  final String? success;
+  final String? error;
+  const _OpResult._({this.success, this.error});
+  factory _OpResult.success(String msg) => _OpResult._(success: msg);
+  factory _OpResult.error(String msg) => _OpResult._(error: msg);
+}
+
 /// شاشة إدارة الموظفين — متاحة للـ superAdmin فقط.
 /// تعرض قائمة الـ subAdmins وتتيح إضافتهم أو إلغاء صلاحياتهم.
 class StaffManagementScreen extends StatefulWidget {
@@ -19,6 +30,59 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
   static const Color _panel = Color(0xFF180808);
 
   final _repo = sl<AdminRepository>();
+
+  // ─── Blocking Loader ───────────────────────────────────────────────────
+  /// يعرض overlay يحجب التفاعل ويُظهر "جاري المعالجة..."
+  /// يُستخدم أثناء أي عملية async مع Firebase لمنع الـ user من
+  /// التفاعل ولتوضيح أن النظام يعمل.
+  Future<T> _runWithBlockingLoader<T>(
+    Future<T> Function() action, {
+    String message = 'جاري المعالجة...',
+  }) async {
+    // اعرض overlay غير قابل للإغلاق
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.55),
+      builder: (_) => PopScope(
+        canPop: false,
+        child: Center(
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            decoration: BoxDecoration(
+              color: _panel,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _gold.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: CircularProgressIndicator(
+                      color: _gold, strokeWidth: 3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  message,
+                  style:
+                      const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      return await action();
+    } finally {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
 
   // ── إلغاء صلاحيات الموظف ───────────────────────────────────────────────
   Future<void> _revokeAccess(String uid, String name) async {
@@ -51,34 +115,36 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
-    try {
-      await _repo.revokeAdmin(uid);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تم إلغاء صلاحيات "$name" بنجاح'),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('خطأ: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    // مسك messenger قبل أي pop
+    final messenger = ScaffoldMessenger.of(context);
+
+    // انتظر إطار لينتهي dispose الـ AlertDialog
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted) return;
+
+    final result = await _runWithBlockingLoader<_OpResult>(
+      () async {
+        try {
+          await _repo.revokeAdmin(uid);
+          return _OpResult.success('تم إلغاء صلاحيات "$name" بنجاح');
+        } catch (e) {
+          return _OpResult.error('خطأ: $e');
+        }
+      },
+      message: 'جاري إلغاء الصلاحيات...',
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+    _showResultSnackBar(messenger, result);
   }
 
   // ── إضافة موظف جديد ────────────────────────────────────────────────────
   void _showAddStaffDialog() {
     final inputCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    bool isLoading = false;
     bool isEmail = true; // toggle بين إيميل ورقم هاتف
 
     showDialog<void>(
@@ -184,70 +250,83 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   style: TextStyle(color: Colors.white54)),
             ),
             TextButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      if (!formKey.currentState!.validate()) return;
-                      setDialogState(() => isLoading = true);
-                      await _promoteToSubAdmin(
-                          ctx, inputCtrl.text.trim());
-                      if (ctx.mounted) {
-                        setDialogState(() => isLoading = false);
-                      }
-                    },
-              child: isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                          color: _gold, strokeWidth: 2),
-                    )
-                  : const Text('ترقية',
-                      style: TextStyle(
-                          color: _gold, fontWeight: FontWeight.w700)),
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) return;
+                final identifier = inputCtrl.text.trim();
+                // مسك الـ messenger من الـ State context (مش من dialog ctx)
+                // قبل أي pop لأن الـ context هيبقى deactivated بعدين.
+                final messenger = ScaffoldMessenger.of(context);
+                Navigator.pop(ctx); // يقفل الـ dialog + يفعّل .then() → dispose
+
+                // انتظر إطار واحد لكي تنتهي animation الـ dispose قبل
+                // فتح overlay الـ loader (يمنع _dependents.isEmpty assertion).
+                await Future<void>.delayed(
+                    const Duration(milliseconds: 250));
+                if (!mounted) return;
+
+                // نفّذ العملية مع overlay وأرجع النتيجة
+                final result = await _runWithBlockingLoader<_OpResult>(
+                  () => _doPromote(identifier),
+                  message: 'جاري ترقية الموظف...',
+                );
+
+                // الـ loader اتقفل. أنتظر إطار قبل عرض SnackBar
+                // (يضمن أن messenger مش بيدوّر على dialog منسحب).
+                await Future<void>.delayed(
+                    const Duration(milliseconds: 50));
+                if (!mounted) return;
+                _showResultSnackBar(messenger, result);
+              },
+              child: const Text('ترقية',
+                  style: TextStyle(
+                      color: _gold, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
       ),
-    ).then((_) => inputCtrl.dispose());
+    ).then((_) {
+      // أجّل dispose للإطار التالي لتفادي السباق مع validators/builders
+      // اللي بتشتغل أثناء animation الإغلاق.
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => inputCtrl.dispose());
+    });
   }
 
   // ── منطق الترقية عبر AdminRepository ──────────────────────────────────
-  Future<void> _promoteToSubAdmin(
-      BuildContext dialogCtx, String identifier) async {
-    String? errorMsg;
-    String? successMsg;
-
+  Future<_OpResult> _doPromote(String identifier) async {
     try {
       final result = await _repo.findUserByEmailOrPhone(identifier);
 
       if (result == null) {
-        errorMsg = 'لا يوجد حساب مرتبط بهذا البريد أو الرقم.\n'
-            'تأكد من أن المستخدم سجّل في التطبيق أولاً.';
+        return _OpResult.error(
+            'لا يوجد حساب مرتبط بهذا البريد أو الرقم.\n'
+            'تأكد من أن المستخدم سجّل في التطبيق أولاً.');
       } else if (UserRole.fromString(result.role).isSuperAdmin) {
-        errorMsg = 'لا يمكن تغيير دور السوبر أدمن';
+        return _OpResult.error('لا يمكن تغيير دور السوبر أدمن');
       } else if (result.role == UserRole.subAdmin.toFirestoreValue()) {
-        errorMsg = '"${result.name}" موظف بالفعل.';
+        return _OpResult.error('"${result.name}" موظف بالفعل.');
       } else {
         await _repo.promoteToSubAdmin(result.uid);
-        successMsg = 'تمت ترقية "${result.name}" إلى موظف بنجاح ✓';
+        return _OpResult.success(
+            'تمت ترقية "${result.name}" إلى موظف بنجاح ✓');
       }
     } catch (e) {
-      errorMsg = 'خطأ: $e';
+      return _OpResult.error('خطأ: $e');
     }
+  }
 
-    if (!mounted) return;
-    if (dialogCtx.mounted) Navigator.pop(dialogCtx);
-
-    if (successMsg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(successMsg),
+  // ── عرض SnackBar نتيجة عبر messenger مُلتقَط مسبقاً ───────────────────
+  void _showResultSnackBar(
+      ScaffoldMessengerState messenger, _OpResult result) {
+    if (result.success != null) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(result.success!),
         backgroundColor: Colors.green,
         behavior: SnackBarBehavior.floating,
       ));
-    } else if (errorMsg != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(errorMsg),
+    } else if (result.error != null) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(result.error!),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 5),
@@ -322,15 +401,19 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
               .where('role', isEqualTo: UserRole.subAdmin.toFirestoreValue())
               .snapshots(),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            // أوّل تحميل فقط — لا data بعد ولا error دائم
+            if (snapshot.connectionState == ConnectionState.waiting &&
+                !snapshot.hasData) {
               return const Center(
                   child: CircularProgressIndicator(color: _gold));
             }
+
+            // لا نُظهر الـ stream error كشاشة حمراء كاملة:
+            // Firestore يُصدر errors transient بعد كل update يلمس حقل في where().
+            // نُسجّل للـ debug فقط ونستمر بعرض آخر cached data.
             if (snapshot.hasError) {
-              return Center(
-                child: Text('خطأ: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red)),
-              );
+              debugPrint(
+                  'staff stream transient error: ${snapshot.error}');
             }
 
             final docs = snapshot.data?.docs ?? [];

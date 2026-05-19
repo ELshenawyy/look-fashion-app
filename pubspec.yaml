@@ -100,40 +100,27 @@ flutter:
   # To add assets to your application, add an assets section, like this:
 
   assets:
-    - assets/underc.png
-    - assets/mobile.png
-    - assets/aa.png
-    - assets/bb.png
-    - assets/cc.png
-    - assets/dd.png
-    - assets/ee.png
-    - assets/ff.png
-    - assets/gg.png
-    - assets/hh.png
-    - assets/ii.png
-    - assets/jj.png
-    - assets/aaa.png
-    - assets/bbb.png
-    - assets/ccc.png
-    - assets/ddd.png
-    - assets/eee.png
-    - assets/fff.png
-    - assets/ggg.png
-    - assets/hhh.png
+    # ── Categories & Banners (JPG — optimized for photos) ──
+    - assets/categories/
+    - assets/banners/
+    # ── Backgrounds for login/signup/splash ──
     - assets/back.png
     - assets/backk.png
     - assets/backkk.png
     - assets/backkkk.png
     - assets/backkkkk.png
+    - assets/backc.png
+    - assets/backcc.png
+    # ── Branding & misc ──
     - assets/icon.png
     - assets/login.png
     - assets/draw.png
+    - assets/underc.png
+    # ── Social login icons ──
     - assets/apple.png
     - assets/google.png
     - assets/ig.png
     - assets/facebook.png
-    - assets/backc.png
-    - assets/backcc.png
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
