@@ -19,6 +19,7 @@ import 'package:my_fashion_app/screens/notifications_screen.dart' as notif_scree
 import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/categories_provider.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
+import 'package:my_fashion_app/features/home/presentation/providers/home_ui_provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -73,6 +74,9 @@ void main() async {
             value: di.sl<OrdersProvider>()),
         ChangeNotifierProvider<NotificationsProvider>.value(
             value: di.sl<NotificationsProvider>()),
+        // UI-only state (لا يحتاج DI لأنه transient لـ HomeScreen)
+        ChangeNotifierProvider<HomeUIProvider>(
+            create: (_) => HomeUIProvider()),
       ],
       child: const MyApp(),
     ),

@@ -1,18 +1,20 @@
 import 'dart:async';
-import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:my_fashion_app/constants/banner_constants.dart';
 import 'package:my_fashion_app/constants/category_constants.dart';
+import 'package:my_fashion_app/features/home/presentation/providers/home_ui_provider.dart';
 import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:my_fashion_app/widgets/quick_add_sheet.dart';
 import 'package:my_fashion_app/widgets/user_avatar.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
@@ -31,21 +33,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
   static const Color _panel = Color(0xFF180808);
 
   // ── Banner ────────────────────────────────────────────────────────────
-  // 10 صور lifestyle متنوّعة من JPGs (أصغر من PNGs السابقة بـ ~70%).
-  final List<String> _bannerImages = [
-    'assets/banners/banner_1.jpg', // رجالي راقي
-    'assets/banners/banner_2.jpg', // نسائي elegant
-    'assets/banners/banner_3.jpg', // أطفال
-    'assets/banners/banner_4.jpg', // أحذية
-    'assets/banners/banner_5.jpg', // مجوهرات artistic
-    'assets/banners/banner_6.jpg', // تجميل
-    'assets/banners/banner_7.jpg', // إلكترونيات lifestyle
-    'assets/banners/banner_8.jpg', // ساعة close-up
-    'assets/banners/banner_9.jpg',  // ثياب سودانية نسائي
-    'assets/banners/banner_10.jpg', // جلابيات سودانية رجالي
-  ];
+  // قائمة الصور في lib/constants/banner_constants.dart (kBannerImages).
+  // الـ banner page index في HomeUIProvider (notifier) بدل setState.
   late Timer _bannerTimer;
-  int _bannerIndex = 0;
   final PageController _bannerController = PageController();
 
   // ── Scroll ────────────────────────────────────────────────────────────
@@ -55,8 +45,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   // ── Voice Search ──────────────────────────────────────────────────────
+  // حالة _isListening في HomeUIProvider (notifier) بدل setState.
   final SpeechToText _speech = SpeechToText();
-  bool _isListening = false;
 
   // ── Lifecycle ─────────────────────────────────────────────────────────
   ProductsProvider? _productsProviderRef;
@@ -91,7 +81,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   void _onBannerTick(Timer _) {
     if (!mounted || !_bannerController.hasClients) return;
-    final next = (_bannerIndex + 1) % _bannerImages.length;
+    final currentIndex = context.read<HomeUIProvider>().bannerIndex;
+    final next = (currentIndex + 1) % kBannerImages.length;
     _bannerController.animateToPage(
       next,
       duration: const Duration(milliseconds: 350),
@@ -133,13 +124,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
     final isAvailable = await _speech.initialize(
       onStatus: (status) {
         if (!mounted) return;
-        setState(() => _isListening = status == 'listening');
+        context
+            .read<HomeUIProvider>()
+            .setListening(status == 'listening');
       },
       onError: (error) {
         if (!mounted) return;
-        setState(() {
-          _isListening = false;
-        });
+        context.read<HomeUIProvider>().setListening(false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -158,11 +149,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
     _speech.listen(onResult: (result) {
       if (!mounted) return;
       final words = result.recognizedWords;
-      setState(() {
-        _searchController.text = words;
-        _searchController.selection =
-            TextSelection.fromPosition(TextPosition(offset: words.length));
-      });
+      // TextEditingController له notifier خاص — لا يحتاج Provider
+      _searchController.text = words;
+      _searchController.selection =
+          TextSelection.fromPosition(TextPosition(offset: words.length));
       context.read<ProductsProvider>().setSearchQuery(words);
     });
   }
@@ -170,7 +160,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   void _stopListening() {
     _speech.stop();
     if (!mounted) return;
-    setState(() => _isListening = false);
+    context.read<HomeUIProvider>().setListening(false);
   }
 
   Future<void> _showSpeechPermissionDialog() async {
@@ -198,17 +188,24 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   // ── Quick Add to Cart ─────────────────────────────────────────────────
+  /// إذا المنتج له variants فعلية (مقاس/لون متعدد) أو فئته من
+  /// `kCategoriesWithVariants` → نفتح bottom sheet للاختيار.
+  /// خلاف ذلك (عطور، تجميل، إلكترونيات...) → إضافة فورية.
   void _quickAddToCart(Product product) {
+    if (_productNeedsSelection(product)) {
+      showQuickAddSheet(context, product);
+      return;
+    }
+
+    // Path سريع للمنتجات بلا variants
     final cart = context.read<CartProvider>();
-    final size = product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي';
-    final color = product.colors.isNotEmpty ? product.colors.first : 'افتراضي';
     cart.addItem(CartItem(
       productId: product.docId ?? '',
       name: product.title,
       price: product.price,
       image: product.imageUrl,
-      size: size,
-      color: color,
+      size: product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي',
+      color: product.colors.isNotEmpty ? product.colors.first : 'افتراضي',
       productState: product.state,
       stockQuantity: product.stockQuantity,
       quantity: 1,
@@ -221,6 +218,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
         duration: Duration(seconds: 1),
       ),
     );
+  }
+
+  bool _productNeedsSelection(Product p) {
+    return kCategoriesWithVariants.contains(p.category) ||
+        p.sizes.length > 1 ||
+        p.colors.length > 1;
   }
 
   // ── Build ─────────────────────────────────────────────────────────────
@@ -397,12 +400,16 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 },
               ),
             ),
-            IconButton(
-              icon: Icon(
-                _isListening ? Icons.mic : Icons.mic_none,
-                color: _isListening ? _gold : Colors.white38,
+            // أيقونة الميكروفون — تستمع لـ HomeUIProvider
+            Consumer<HomeUIProvider>(
+              builder: (context, ui, _) => IconButton(
+                icon: Icon(
+                  ui.isListening ? Icons.mic : Icons.mic_none,
+                  color: ui.isListening ? _gold : Colors.white38,
+                ),
+                onPressed:
+                    ui.isListening ? _stopListening : _startListening,
               ),
-              onPressed: _isListening ? _stopListening : _startListening,
             ),
           ],
         ),
@@ -418,42 +425,63 @@ class _ProductListScreenState extends State<ProductListScreen> {
       height: h * 0.27,
       child: PageView.builder(
         controller: _bannerController,
-        itemCount: _bannerImages.length,
+        itemCount: kBannerImages.length,
         onPageChanged: (newIndex) {
           if (!mounted) return;
-          // تحديث dots indicator + إعادة تشغيل timer لتجنّب التعارض
-          setState(() => _bannerIndex = newIndex);
+          context.read<HomeUIProvider>().setBannerIndex(newIndex);
           _restartBannerTimer();
         },
         itemBuilder: (context, index) {
-          return Stack(
-            children: [
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  // الصور كلها 1280×720 (16:9) — تملأ كامل البانر
-                  // بـ BoxFit.cover بدون قصّ ولا blur.
-                  child: Image.asset(
-                    _bannerImages[index],
-                    fit: BoxFit.cover,
-                    width: double.infinity,
+          // Scale ناعم للصفحة الجانبية (Zara-style parallax)
+          return AnimatedBuilder(
+            animation: _bannerController,
+            builder: (context, child) {
+              double scale = 1.0;
+              if (_bannerController.position.haveDimensions) {
+                final page = _bannerController.page ?? 0;
+                scale = (1 - (page - index).abs() * 0.06).clamp(0.94, 1.0);
+              }
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Stack(
+              children: [
+                Container(
+                  margin: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      // ظلّ سفلي ناعم لرفع البانر بصرياً
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                      // glow ذهبي خفيف جداً (لمسة برمنج)
+                      BoxShadow(
+                        color: _gold.withValues(alpha: 0.10),
+                        blurRadius: 28,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      kBannerImages[index],
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                    ),
                   ),
                 ),
-              ),
-              Positioned(
-                bottom: 0,
-                left: 16,
-                right: 16,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(16)),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+                Positioned(
+                  bottom: 6,
+                  left: 16,
+                  right: 16,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(20)),
                     child: Container(
                       height: 60,
                       decoration: BoxDecoration(
@@ -474,10 +502,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                                horizontal: 12, vertical: 5),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.white.withValues(alpha: 0.22),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                  color:
+                                      Colors.white.withValues(alpha: 0.15)),
                             ),
                             child: const Text(
                               'استكشف',
@@ -488,33 +519,53 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               ),
                             ),
                           ),
-                          // Dots indicator — نقطة واحدة لكل صورة بانر
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: List.generate(
-                              _bannerImages.length,
-                              (i) => AnimatedContainer(
-                                duration:
-                                    const Duration(milliseconds: 250),
-                                width: i == _bannerIndex ? 14 : 6,
-                                height: 6,
-                                margin: const EdgeInsets.only(left: 3),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(3),
-                                  color: i == _bannerIndex
-                                      ? _gold
-                                      : Colors.white38,
+                          // Dots indicator — مرتبط بـ HomeUIProvider
+                          Consumer<HomeUIProvider>(
+                            builder: (context, ui, _) {
+                              return Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: List.generate(
+                                  kBannerImages.length,
+                                  (i) {
+                                    final active = i == ui.bannerIndex;
+                                    return AnimatedContainer(
+                                      duration: const Duration(
+                                          milliseconds: 280),
+                                      curve: Curves.easeOutCubic,
+                                      width: active ? 18 : 6,
+                                      height: 6,
+                                      margin:
+                                          const EdgeInsets.only(left: 3),
+                                      decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(4),
+                                        color: active
+                                            ? _gold
+                                            : Colors.white38,
+                                        boxShadow: active
+                                            ? [
+                                                BoxShadow(
+                                                  color: _gold.withValues(
+                                                      alpha: 0.55),
+                                                  blurRadius: 6,
+                                                  offset: Offset.zero,
+                                                ),
+                                              ]
+                                            : null,
+                                      ),
+                                    );
+                                  },
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
