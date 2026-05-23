@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_fashion_app/core/error/failures.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/fetch_products_page.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/get_product_by_id.dart';
 import 'package:my_fashion_app/models/product.dart';
 
 enum HomeSortMode { newArrivals, topSelling }
@@ -12,9 +13,20 @@ enum HomeSortMode { newArrivals, topSelling }
 /// لا يستدعي Firebase مباشرة — يعتمد على use cases.
 class ProductsProvider extends ChangeNotifier {
   final FetchProductsPage _fetchProductsPage;
+  final GetProductById _getProductById;
 
-  ProductsProvider({required FetchProductsPage fetchProductsPage})
-      : _fetchProductsPage = fetchProductsPage;
+  ProductsProvider({
+    required FetchProductsPage fetchProductsPage,
+    required GetProductById getProductById,
+  })  : _fetchProductsPage = fetchProductsPage,
+        _getProductById = getProductById;
+
+  /// يجلب منتج واحد بـ docId — مُستخدم من المفضلة لجلب بيانات كاملة.
+  /// يرجع null لو المنتج محذوف أو فيه خطأ شبكة.
+  Future<Product?> getProductById(String docId) async {
+    final res = await _getProductById(GetProductByIdParams(docId));
+    return res.fold((_) => null, (p) => p);
+  }
 
   List<Product> _products = [];
   bool _isLoading = false;

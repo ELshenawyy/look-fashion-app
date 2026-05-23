@@ -14,6 +14,9 @@ abstract class ProductRemoteDataSource {
   Stream<Map<String, int>> watchCategoryCounts();
   Stream<List<Product>> watchProducts({String? category});
 
+  /// يجلب منتج واحد بـ docId. يرجع null إن لم يوجد.
+  Future<Product?> getProductById(String docId);
+
   /// إنشاء منتج جديد. يرجع docId الجديد.
   Future<String> addProduct(Map<String, dynamic> productData);
 
@@ -84,11 +87,15 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
     return query.snapshots().map((snap) => snap.docs.map(_fromDoc).toList());
   }
 
-  Product _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
-    final d = doc.data();
+  Product _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) =>
+      _buildProduct(doc.id, doc.data());
+
+  /// Builder موحَّد من map → Product. مُستخدَم من كل من `_fromDoc`
+  /// (للـ pagination/streams) و `getProductById` (للـ DocumentSnapshot).
+  Product _buildProduct(String docId, Map<String, dynamic> d) {
     return Product.fromJson({
       'id': 0,
-      'docId': doc.id,
+      'docId': docId,
       'price': d['price'] ?? 0.0,
       'title': d['title'] ?? '',
       'imageUrl': d['imageUrl'] ?? '',
@@ -100,6 +107,18 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       'category': d['category'] ?? '',
       'state': d['state'] ?? '',
     });
+  }
+
+  @override
+  Future<Product?> getProductById(String docId) async {
+    try {
+      final snap = await _db.collection('products').doc(docId).get();
+      final data = snap.data();
+      if (!snap.exists || data == null) return null;
+      return _buildProduct(snap.id, data);
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? e.code);
+    }
   }
 
   @override

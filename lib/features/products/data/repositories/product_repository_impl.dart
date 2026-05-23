@@ -50,6 +50,19 @@ class ProductRepositoryImpl implements ProductRepository {
       remote.watchProducts(category: category);
 
   @override
+  Future<Either<Failure, Product?>> getProductById(String docId) async {
+    if (!await network.isConnected) return const Left(NetworkFailure());
+    try {
+      final product = await remote.getProductById(docId);
+      return Right(product);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, String>> addProduct(ProductInput input) async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {

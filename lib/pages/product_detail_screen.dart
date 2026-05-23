@@ -1,5 +1,6 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/core/utils/color_utils.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
@@ -56,9 +57,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     }
 
     if (product.sizes.isNotEmpty && _selectedSize == null) {
+      final label = sizeLabelForCategory(product.category);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يرجى اختيار المقاس أولًا.'),
+        SnackBar(
+          content: Text('يرجى اختيار $label أولًا.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -386,7 +388,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(height: 24),
                     ],
                     if (product.sizes.isNotEmpty) ...[
-                      _buildSectionTitle('المقاس'),
+                      // "السن" لملابس الأطفال، "المقاس" لباقي الأقسام
+                      _buildSectionTitle(
+                          sizeLabelForCategory(product.category)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,

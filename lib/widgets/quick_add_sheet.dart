@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/core/utils/color_utils.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/models/cartt.dart';
@@ -206,9 +207,9 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
                 // ── Size selector ──
                 if (p.sizes.isNotEmpty) ...[
                   const SizedBox(height: 20),
-                  const Text(
-                    'المقاس',
-                    style: TextStyle(
+                  Text(
+                    sizeLabelForCategory(p.category),
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -402,7 +403,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
                         Text(
                           _canAdd
                               ? 'أضف للسلة'
-                              : 'اختر ${_selectedSize == null && p.sizes.isNotEmpty ? "المقاس" : "اللون"}',
+                              : 'اختر ${_selectedSize == null && p.sizes.isNotEmpty ? sizeLabelForCategory(p.category) : "اللون"}',
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,

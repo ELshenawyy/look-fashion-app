@@ -47,14 +47,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String? _selectedCategory;
   String? _selectedState; // Sudanese state where product is located
 
-  final List<String> _clothingSizes = [
-    'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL', '5XL', '6XL',
-    'Free Size',
-  ];
-  final List<String> _shoeSizes = [
-    '34', '35', '36', '37', '38', '39', '40', '41', '42',
-    '43', '44', '45', '46', '47', '48',
-  ];
+  // المقاسات الآن في lib/constants/category_constants.dart:
+  // - kAdultClothingSizes (للبالغين)
+  // - kKidsAgeSizes (للأطفال — حسب العمر)
+  // - kShoeSizes (للأحذية)
+  // نستخدم availableSizesForCategory(category) للاختيار التلقائي.
   // الألوان أصبحت hex codes (مثلاً '#FFC62828') عبر ColorPicker —
   // لا حاجة لقائمة ثابتة. حذفنا _availableColors و _colorPalette.
   final List<String> _sudanStates = [
@@ -124,14 +121,16 @@ class _AddProductScreenState extends State<AddProductScreen> {
   }
 
   bool get _isShoeCategory => _selectedCategory == 'أحذية';
+  bool get _isKidsCategory => isKidsCategory(_selectedCategory);
 
   /// هل القسم المختار يحتاج مقاسات وألوان؟
   bool get _needsVariants =>
       _selectedCategory != null &&
       kCategoriesWithVariants.contains(_selectedCategory);
 
+  /// المقاسات المتاحة بناءً على القسم — أحذية / أطفال (سن) / ملابس عادية.
   List<String> get _availableSizes =>
-      _isShoeCategory ? _shoeSizes : _clothingSizes;
+      availableSizesForCategory(_selectedCategory);
 
   InputDecoration _buildInputDecoration(String label) {
     return InputDecoration(
@@ -789,12 +788,15 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // ── مقاسات — تظهر فقط للملابس والأحذية ──────────────
+                  // ملابس الأطفال تستخدم فئات عمرية (السن) بدلاً من S/M/L.
                   if (_needsVariants) ...[
                     _buildSectionHeading(
-                      'اختر المقاسات',
-                      subtitle: _isShoeCategory
-                          ? 'اختر مقاسًا واحدًا أو أكثر للأحذية.'
-                          : 'اختر مقاسًا واحدًا أو أكثر للملابس.',
+                      _isKidsCategory ? 'اختر الفئة العمرية' : 'اختر المقاسات',
+                      subtitle: _isKidsCategory
+                          ? 'اختر فئة عمرية واحدة أو أكثر تناسب الطفل.'
+                          : _isShoeCategory
+                              ? 'اختر مقاسًا واحدًا أو أكثر للأحذية.'
+                              : 'اختر مقاسًا واحدًا أو أكثر للملابس.',
                     ),
                     const SizedBox(height: 12),
                     Wrap(

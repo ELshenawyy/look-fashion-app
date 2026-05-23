@@ -9,6 +9,56 @@ const Set<String> kCategoriesWithVariants = {
   'ثياب',
 };
 
+/// اسم قسم ملابس الأطفال — مرجع موحَّد لتجنّب الـ typos.
+const String kKidsClothingCategory = 'ملابس أطفال';
+
+/// هل القسم يستخدم مقاسات حسب العمر (السن) بدلاً من S/M/L؟
+bool isKidsCategory(String? category) => category == kKidsClothingCategory;
+
+/// مقاسات ملابس البالغين (رجالي/نسائي/جلابية/ثياب).
+const List<String> kAdultClothingSizes = [
+  'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', '4XL', '5XL', '6XL',
+  'Free Size',
+];
+
+/// مقاسات الأحذية.
+const List<String> kShoeSizes = [
+  '34', '35', '36', '37', '38', '39', '40', '41', '42',
+  '43', '44', '45', '46', '47', '48',
+];
+
+/// مقاسات ملابس الأطفال — حسب الفئة العمرية.
+/// تغطّي من الرضيع (0 شهر) حتى ما قبل المراهقة (14 سنة).
+const List<String> kKidsAgeSizes = [
+  '0-3 شهور',
+  '3-6 شهور',
+  '6-9 شهور',
+  '9-12 شهر',
+  '1-2 سنة',
+  '2-3 سنوات',
+  '3-4 سنوات',
+  '4-5 سنوات',
+  '5-6 سنوات',
+  '6-7 سنوات',
+  '7-8 سنوات',
+  '8-10 سنوات',
+  '10-12 سنة',
+  '12-14 سنة',
+];
+
+/// يرجع لائحة المقاسات المتاحة بناءً على القسم.
+List<String> availableSizesForCategory(String? category) {
+  if (category == null) return kAdultClothingSizes;
+  if (isKidsCategory(category)) return kKidsAgeSizes;
+  if (category == 'أحذية') return kShoeSizes;
+  return kAdultClothingSizes;
+}
+
+/// تسمية حقل المقاس حسب القسم (للعرض في UI).
+/// "السن" للأطفال، "المقاس" لباقي الأقسام.
+String sizeLabelForCategory(String? category) =>
+    isKidsCategory(category) ? 'السن' : 'المقاس';
+
 const List<String> kProductCategories = [
   'ملابس نسائي',
   'ملابس رجالي',

@@ -57,6 +57,9 @@ abstract class ProductRepository {
   /// Stream لكل المنتجات (مع فلتر فئة اختياري) — للاستخدام في شاشات الفئات.
   Stream<List<Product>> watchProducts({String? category});
 
+  /// يجلب منتج واحد بـ docId. يرجع Right(null) إذا غير موجود.
+  Future<Either<Failure, Product?>> getProductById(String docId);
+
   /// إنشاء منتج جديد. ترفع الصورة إن وُجدت، ثم تحفظ المنتج.
   Future<Either<Failure, String>> addProduct(ProductInput input);
 

@@ -72,6 +72,7 @@ import 'package:my_fashion_app/features/products/data/repositories/product_repos
 import 'package:my_fashion_app/features/products/domain/repositories/product_repository.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/add_product.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/fetch_products_page.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/get_product_by_id.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/update_product.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_category_counts.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_products.dart';
@@ -218,11 +219,15 @@ void _initCart() {
 void _initProducts() {
   // ⚠️ singletons — instance واحد فقط لكل provider مرتبط بالـ MultiProvider.
   // factory هنا كانت تعطّل reset() المستدعى من signOut.
-  sl.registerLazySingleton(() => ProductsProvider(fetchProductsPage: sl()));
+  sl.registerLazySingleton(() => ProductsProvider(
+        fetchProductsPage: sl(),
+        getProductById: sl(),
+      ));
   sl.registerLazySingleton(
       () => CategoriesProvider(watchCategoryCounts: sl()));
 
   sl.registerLazySingleton(() => FetchProductsPage(sl()));
+  sl.registerLazySingleton(() => GetProductById(sl()));
   sl.registerLazySingleton(() => WatchCategoryCounts(sl()));
   sl.registerLazySingleton(() => WatchProducts(sl()));
   sl.registerLazySingleton(() => AddProduct(sl()));
