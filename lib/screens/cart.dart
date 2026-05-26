@@ -1,11 +1,15 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:my_fashion_app/core/utils/color_utils.dart';
+import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
 import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
+import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/screens/checkout_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:my_fashion_app/widgets/blocking_loader.dart';
 
 class CartPage extends StatelessWidget {
   const CartPage({super.key});
@@ -100,6 +104,41 @@ class _CartItemCard extends StatelessWidget {
 
   const _CartItemCard({required this.item, required this.index});
 
+  /// يفتح detail screen بـ edit mode — يحمّل المنتج الكامل من Firestore
+  /// (للحصول على sizes/colors/stock الحالية)، ثم ينتقل بـ القيم الأولية
+  /// من العنصر في السلة. عند الحفظ → يُستبدَل العنصر في نفس index.
+  Future<void> _openInEditMode(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final product = await runWithBlockingLoader(
+      context: context,
+      action: () =>
+          context.read<ProductsProvider>().getProductById(item.productId),
+      message: 'جاري تحميل المنتج...',
+    );
+
+    if (!context.mounted) return;
+    if (product == null) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('المنتج لم يعد متاحاً'),
+        backgroundColor: Colors.orange,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProductDetailScreen(
+          product: product,
+          editCartIndex: index,
+          initialSize: item.size,
+          initialColor: item.color,
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmDelete(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -171,13 +210,21 @@ class _CartItemCard extends StatelessWidget {
     final atStockLimit =
         item.stockQuantity > 0 && item.quantity >= item.stockQuantity;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: _panel,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Row(
+        // ضغط الكارت → يفتح detail بـ edit mode (تعديل size/color)
+        onTap: () => _openInEditMode(context),
+        splashColor: _gold.withValues(alpha: 0.12),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: _panel,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Row(
         children: [
           // Product image
           ClipRRect(
@@ -188,10 +235,14 @@ class _CartItemCard extends StatelessWidget {
               width: 100,
               height: 100,
               fit: BoxFit.cover,
-              placeholder: (_, __) => Container(
-                width: 100,
-                height: 100,
-                color: Colors.grey[900],
+              placeholder: (_, __) => Shimmer.fromColors(
+                baseColor: const Color(0xFF1E1E1E),
+                highlightColor: const Color(0xFF2A2A2A),
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  color: Colors.black,
+                ),
               ),
               errorWidget: (_, __, ___) => Container(
                 width: 100,
@@ -293,6 +344,8 @@ class _CartItemCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
         ],
+      ),
+        ),
       ),
     );
   }

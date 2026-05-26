@@ -46,4 +46,21 @@ abstract class AuthRepository {
 
   /// تسجيل الخروج
   Future<Either<Failure, void>> signOut();
+
+  /// إعادة إرسال رابط تفعيل البريد (للمستخدم الحالي).
+  Future<Either<Failure, void>> sendEmailVerification();
+
+  /// يرسل OTP للرقم الجديد قبل ربطه بالحساب.
+  Future<Either<Failure, PhoneVerificationResult>> sendOtpForPhoneUpdate(
+      String newPhoneNumber);
+
+  /// يحدّث رقم هاتف المستخدم الحالي.
+  Future<Either<Failure, void>> updatePhoneNumber({
+    required String verificationId,
+    required String smsCode,
+  });
+
+  /// يُعيد تحميل بيانات المستخدم من Firebase ويرجع نسخة محدّثة.
+  /// يُستخدم بعد تفعيل البريد لتحديث `emailVerified` في الـ state.
+  Future<Either<Failure, UserEntity?>> reloadCurrentUser();
 }

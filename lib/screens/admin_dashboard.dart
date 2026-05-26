@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
 import 'package:my_fashion_app/features/admin/data/repositories/admin_repository.dart';
@@ -6,6 +7,7 @@ import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
 import 'package:my_fashion_app/screens/admin_orders_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
+import 'package:shimmer/shimmer.dart';
 
 class AdminDashboard extends StatefulWidget {
   /// إن كان true → superAdmin (يرى زر الحذف)
@@ -244,10 +246,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
                             child: SizedBox(
                               width: 60,
                               height: 60,
-                              child: Image.network(
-                                p.imageUrl,
+                              child: CachedNetworkImage(
+                                imageUrl: p.imageUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Container(
+                                placeholder: (_, __) =>
+                                    Shimmer.fromColors(
+                                  baseColor: const Color(0xFF1E1E1E),
+                                  highlightColor: const Color(0xFF2A2A2A),
+                                  child: Container(color: Colors.black),
+                                ),
+                                errorWidget: (_, __, ___) => Container(
                                   color: Colors.white12,
                                   child: const Icon(Icons.broken_image,
                                       color: Colors.white38),

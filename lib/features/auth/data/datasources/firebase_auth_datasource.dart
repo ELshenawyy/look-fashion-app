@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:my_fashion_app/core/error/exceptions.dart';
 import 'package:my_fashion_app/features/auth/data/models/user_model.dart';
 
@@ -30,6 +31,26 @@ abstract class FirebaseAuthDataSource {
 
   Future<void> sendPasswordReset(String email);
   Future<void> signOut();
+
+  /// إعادة إرسال رابط تفعيل البريد للمستخدم الحالي.
+  /// لا يفعل شيئاً لو المستخدم مُفعَّل بالفعل.
+  Future<void> sendEmailVerification();
+
+  /// يرسل OTP للرقم الجديد (للتحقق منه قبل ربطه بالحساب).
+  /// يُستخدم في flow تعديل رقم الهاتف من Profile.
+  /// يرجع verificationId.
+  Future<String> sendOtpForPhoneUpdate(String newPhoneNumber);
+
+  /// يحدّث رقم الهاتف الفعلي للمستخدم الحالي + يحدّث Firestore.
+  /// يجب أن يُسبَق بـ sendOtpForPhoneUpdate ثم إدخال المستخدم الـ OTP.
+  Future<void> updatePhoneNumber({
+    required String verificationId,
+    required String smsCode,
+  });
+
+  /// يُعيد تحميل بيانات المستخدم من Firebase ويرجع UserModel جديد
+  /// يعكس آخر حالة (مهم لالتقاط تحديث emailVerified بعد ضغط الرابط).
+  Future<UserModel?> reloadCurrentUser();
 }
 
 class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
@@ -148,22 +169,133 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     await _db.collection('users').doc(uid).set(
           UserModel.initialFirestoreDoc(uid: uid, email: email, name: name),
         );
+    // إرسال رابط التفعيل تلقائياً (غير قاتل لو فشل — يقدر يطلب resend لاحقاً)
+    try {
+      await cred.user?.sendEmailVerification();
+    } catch (e) {
+      // ignore — Firebase rate-limit أو شبكة. الـ verification screen
+      // ستوفّر زر إعادة الإرسال.
+    }
     return uid;
   }
 
   @override
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const ServerException('not-authenticated');
+    }
+    if (user.emailVerified) return; // مفعَّل بالفعل
+    await user.sendEmailVerification();
+  }
+
+  @override
+  Future<UserModel?> reloadCurrentUser() async {
+    final user = _auth.currentUser;
+    if (user == null) return null;
+    await user.reload();
+    final fresh = _auth.currentUser;
+    if (fresh == null) return null;
+    return _fromFirebaseUser(fresh);
+  }
+
+  @override
+  Future<String> sendOtpForPhoneUpdate(String newPhoneNumber) {
+    // نفس منطق sendOtp لكن مع validation وlogging مختلف للسياق
+    if (!newPhoneNumber.startsWith('+')) {
+      return Future.error(FirebaseAuthException(
+        code: 'invalid-phone-number',
+        message: 'الرقم الجديد لازم يبدأ بـ + ثم رمز الدولة.',
+      ));
+    }
+    debugPrint(
+        '[sendOtpForPhoneUpdate] → verifyPhoneNumber for: $newPhoneNumber');
+    final completer = Completer<String>();
+    _auth.verifyPhoneNumber(
+      phoneNumber: newPhoneNumber,
+      timeout: const Duration(seconds: 60),
+      verificationCompleted: (PhoneAuthCredential _) {
+        debugPrint('[sendOtpForPhoneUpdate] ✓ auto-verified');
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        debugPrint(
+            '[sendOtpForPhoneUpdate] ❌ failed: code=${e.code} msg=${e.message}');
+        if (!completer.isCompleted) completer.completeError(e);
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        debugPrint('[sendOtpForPhoneUpdate] ✓ codeSent');
+        if (!completer.isCompleted) completer.complete(verificationId);
+      },
+      codeAutoRetrievalTimeout: (String _) {},
+    );
+    return completer.future;
+  }
+
+  @override
+  Future<void> updatePhoneNumber({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const ServerException('not-authenticated');
+    }
+    final cred = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+    // قد يرمي 'requires-recent-login' إذا الجلسة قديمة (>5 دقائق).
+    await user.updatePhoneNumber(cred);
+    // تحديث Firestore users/{uid}.phone بالرقم الجديد
+    final updated = _auth.currentUser;
+    if (updated?.phoneNumber != null) {
+      await _db.collection('users').doc(user.uid).update({
+        'phone': updated!.phoneNumber,
+      });
+    }
+  }
+
+  @override
   Future<String> sendOtp(String phoneNumber) {
+    // ⚠ Sanity check: لازم يكون E.164 (+countryCode...). intl_phone_field
+    // يعطي الـ completeNumber صحيحاً، لكن نحرص هنا قبل إرساله لـ Firebase.
+    if (!phoneNumber.startsWith('+')) {
+      debugPrint(
+          '[sendOtp] ❌ INVALID format — must start with +countryCode. got: "$phoneNumber"');
+      return Future.error(FirebaseAuthException(
+        code: 'invalid-phone-number',
+        message: 'الرقم لازم يبدأ بـ + ثم رمز الدولة (E.164 format).',
+      ));
+    }
+
+    debugPrint('[sendOtp] → verifyPhoneNumber for: $phoneNumber');
     final completer = Completer<String>();
     _auth.verifyPhoneNumber(
       phoneNumber: phoneNumber,
-      verificationCompleted: (PhoneAuthCredential _) {},
+      timeout: const Duration(seconds: 60),
+      verificationCompleted: (PhoneAuthCredential _) {
+        // Auto-retrieval على بعض أجهزة Android (يقرأ SMS تلقائياً).
+        // لا نحتاج عمل شيء هنا — verifyOtp اللاحق يستخدم verificationId.
+        debugPrint('[sendOtp] ✓ verificationCompleted (auto-retrieval)');
+      },
       verificationFailed: (FirebaseAuthException e) {
+        // ⚠ Critical: نطبع كل التفاصيل عشان نقدر نشخّص لماذا فشل
+        debugPrint('═══════ [sendOtp] ❌ verificationFailed ═══════');
+        debugPrint('  code:    ${e.code}');
+        debugPrint('  message: ${e.message}');
+        debugPrint('  plugin:  ${e.plugin}');
+        debugPrint('  details: ${e.toString()}');
+        debugPrint('══════════════════════════════════════════════');
         if (!completer.isCompleted) completer.completeError(e);
       },
-      codeSent: (String verificationId, int? _) {
+      codeSent: (String verificationId, int? resendToken) {
+        debugPrint(
+            '[sendOtp] ✓ codeSent. verificationId=${verificationId.substring(0, 8)}... resendToken=$resendToken');
         if (!completer.isCompleted) completer.complete(verificationId);
       },
-      codeAutoRetrievalTimeout: (_) {},
+      codeAutoRetrievalTimeout: (String verificationId) {
+        debugPrint('[sendOtp] ⏱ codeAutoRetrievalTimeout');
+      },
     );
     return completer.future;
   }

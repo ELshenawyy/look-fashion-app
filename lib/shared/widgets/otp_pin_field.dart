@@ -37,25 +37,32 @@ class OtpPinField extends StatelessWidget {
       ),
     );
 
-    return Pinput(
-      length: length,
-      controller: controller,
-      focusNode: focusNode,
-      defaultPinTheme: defaultTheme,
-      focusedPinTheme: defaultTheme.copyWith(
-        decoration: defaultTheme.decoration!.copyWith(
-          color: Colors.white30,
-          border: Border.all(color: themeColor, width: 2),
+    // ⚠ نُجبر LTR لأن الـ Pinput يرث الـ RTL من Scaffold العربي،
+    // فيكتب من اليمين لليسار (الأرقام تظهر مقلوبة بصرياً).
+    // الـ Directionality.ltr يجعل خانات الـ OTP تنملأ من اليسار لليمين
+    // — نفس طريقة كل التطبيقات العالمية.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Pinput(
+        length: length,
+        controller: controller,
+        focusNode: focusNode,
+        defaultPinTheme: defaultTheme,
+        focusedPinTheme: defaultTheme.copyWith(
+          decoration: defaultTheme.decoration!.copyWith(
+            color: Colors.white30,
+            border: Border.all(color: themeColor, width: 2),
+          ),
         ),
-      ),
-      submittedPinTheme: defaultTheme.copyWith(
-        decoration: defaultTheme.decoration!.copyWith(
-          color: Colors.white30,
+        submittedPinTheme: defaultTheme.copyWith(
+          decoration: defaultTheme.decoration!.copyWith(
+            color: Colors.white30,
+          ),
         ),
+        pinAnimationType: PinAnimationType.scale,
+        keyboardType: TextInputType.number,
+        onCompleted: onCompleted,
       ),
-      pinAnimationType: PinAnimationType.scale,
-      keyboardType: TextInputType.number,
-      onCompleted: onCompleted,
     );
   }
 }

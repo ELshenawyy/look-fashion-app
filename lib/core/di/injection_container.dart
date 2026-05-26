@@ -74,6 +74,7 @@ import 'package:my_fashion_app/features/products/domain/usecases/add_product.dar
 import 'package:my_fashion_app/features/products/domain/usecases/fetch_products_page.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/get_product_by_id.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/update_product.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/watch_new_products.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_category_counts.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_products.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/categories_provider.dart';
@@ -85,8 +86,12 @@ import 'package:my_fashion_app/features/auth/data/repositories/auth_repository_i
 import 'package:my_fashion_app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/send_otp.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/send_password_reset.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/reload_user.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/send_email_verification.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/send_otp_for_phone_update.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_in_with_email.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_out.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/update_phone_number.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_up_with_email.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/watch_current_user.dart';
@@ -222,6 +227,7 @@ void _initProducts() {
   sl.registerLazySingleton(() => ProductsProvider(
         fetchProductsPage: sl(),
         getProductById: sl(),
+        watchNewProducts: sl(),
       ));
   sl.registerLazySingleton(
       () => CategoriesProvider(watchCategoryCounts: sl()));
@@ -230,6 +236,7 @@ void _initProducts() {
   sl.registerLazySingleton(() => GetProductById(sl()));
   sl.registerLazySingleton(() => WatchCategoryCounts(sl()));
   sl.registerLazySingleton(() => WatchProducts(sl()));
+  sl.registerLazySingleton(() => WatchNewProducts(sl()));
   sl.registerLazySingleton(() => AddProduct(sl()));
   sl.registerLazySingleton(() => UpdateProduct(sl()));
 
@@ -255,6 +262,10 @@ void _initAuth() {
         verifyOtp: sl(),
         sendPasswordReset: sl(),
         signOut: sl(),
+        sendEmailVerification: sl(),
+        reloadUser: sl(),
+        sendOtpForPhoneUpdate: sl(),
+        updatePhoneNumber: sl(),
       ));
 
   // Use Cases
@@ -265,6 +276,10 @@ void _initAuth() {
   sl.registerLazySingleton(() => VerifyOtp(sl()));
   sl.registerLazySingleton(() => SendPasswordReset(sl()));
   sl.registerLazySingleton(() => SignOut(sl()));
+  sl.registerLazySingleton(() => SendEmailVerification(sl()));
+  sl.registerLazySingleton(() => ReloadUser(sl()));
+  sl.registerLazySingleton(() => SendOtpForPhoneUpdate(sl()));
+  sl.registerLazySingleton(() => UpdatePhoneNumber(sl()));
 
   // Repository
   sl.registerLazySingleton<AuthRepository>(

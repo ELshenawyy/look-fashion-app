@@ -320,7 +320,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       curve: Curves.easeOut,
                       child: ProductCard(
                         product: productView,
-                        isFavorite: true,
                         onTap: () => _openDetail(fav),
                         onFavoriteToggle: () => _removeFavorite(fav),
                         onAddToCart: () => _addToCart(fav),

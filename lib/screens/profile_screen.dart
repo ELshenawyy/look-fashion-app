@@ -25,14 +25,57 @@ class ProfileScreen extends StatelessWidget {
   static const Color _panel = Color(0xFF180808);
 
   // ── Launch URL helpers ────────────────────────────────────────────────
-  static Future<void> _openWhatsApp() async {
-    final uri = Uri.parse('https://wa.me/${AppConfig.supportWhatsApp}');
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  // ⚠ Android 11+: لازم `LaunchMode.externalApplication` + queries في
+  // AndroidManifest. wa.me format يتطلب الرقم بدون 00 leading
+  // (00249... → 249...).
+  static Future<void> _openWhatsApp(BuildContext context) async {
+    // sanitize: شيل أي حرف غير رقمي + 00 leading لو موجودة
+    var phone =
+        AppConfig.supportWhatsApp.replaceAll(RegExp(r'[^\d]'), '');
+    if (phone.startsWith('00')) phone = phone.substring(2);
+    final uri = Uri.parse('https://wa.me/$phone');
+    try {
+      final ok =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('تعذّر فتح واتساب. تأكد من تثبيت التطبيق.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطأ في فتح واتساب: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
   }
 
-  static Future<void> _openEmail() async {
+  static Future<void> _openEmail(BuildContext context) async {
     final uri = Uri.parse('mailto:${AppConfig.supportEmail}');
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+    try {
+      final ok =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('تعذّر فتح تطبيق البريد.'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطأ: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    }
   }
 
   // ── Pick & upload image ───────────────────────────────────────────────
@@ -334,19 +377,19 @@ class ProfileScreen extends StatelessWidget {
                     _sectionLabel('الدعم والمساعدة'),
                     const SizedBox(height: 8),
 
-                    const _ProfileTile(
+                    _ProfileTile(
                       icon: Icons.chat_bubble_outline_rounded,
                       title: 'واتساب',
                       subtitle: '+${AppConfig.supportWhatsApp}',
-                      iconColor: Color(0xFF25D366),
-                      onTap: _openWhatsApp,
+                      iconColor: const Color(0xFF25D366),
+                      onTap: () => _openWhatsApp(context),
                     ),
                     const SizedBox(height: 10),
-                    const _ProfileTile(
+                    _ProfileTile(
                       icon: Icons.email_outlined,
                       title: 'البريد الإلكتروني',
                       subtitle: AppConfig.supportEmail,
-                      onTap: _openEmail,
+                      onTap: () => _openEmail(context),
                     ),
 
                     const SizedBox(height: 24),

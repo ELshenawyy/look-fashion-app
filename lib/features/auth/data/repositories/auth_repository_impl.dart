@@ -123,6 +123,69 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  @override
+  Future<Either<Failure, void>> sendEmailVerification() async {
+    if (!await network.isConnected) return const Left(NetworkFailure());
+    try {
+      await remote.sendEmailVerification();
+      return const Right(null);
+    } on FirebaseAuthException catch (e) {
+      return Left(AuthFailure(_mapAuthError(e.code)));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, PhoneVerificationResult>> sendOtpForPhoneUpdate(
+      String newPhoneNumber) async {
+    if (!await network.isConnected) return const Left(NetworkFailure());
+    try {
+      final id = await remote.sendOtpForPhoneUpdate(newPhoneNumber);
+      return Right(PhoneVerificationResult(id));
+    } on FirebaseAuthException catch (e) {
+      return Left(AuthFailure(_mapAuthError(e.code)));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> updatePhoneNumber({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    if (!await network.isConnected) return const Left(NetworkFailure());
+    try {
+      await remote.updatePhoneNumber(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      return const Right(null);
+    } on FirebaseAuthException catch (e) {
+      return Left(AuthFailure(_mapAuthError(e.code)));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, UserEntity?>> reloadCurrentUser() async {
+    if (!await network.isConnected) return const Left(NetworkFailure());
+    try {
+      final model = await remote.reloadCurrentUser();
+      return Right(model); // UserModel extends UserEntity
+    } on FirebaseAuthException catch (e) {
+      return Left(AuthFailure(_mapAuthError(e.code)));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
   // ── Helpers ─────────────────────────────────────────────────────────────
   Future<Either<Failure, UserEntity>> _fetchUser(String uid) async {
     try {
@@ -149,6 +212,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   String _mapAuthError(String code) {
     switch (code) {
+      // ── البريد ───────────────────────────────────────────────────
       case 'user-not-found':
         return 'لا يوجد حساب مرتبط بهذا البريد الإلكتروني.';
       case 'wrong-password':
@@ -161,14 +225,41 @@ class AuthRepositoryImpl implements AuthRepository {
         return 'هذا البريد الإلكتروني مستخدم بالفعل.';
       case 'weak-password':
         return 'كلمة المرور ضعيفة جداً.';
-      case 'too-many-requests':
-        return 'محاولات كثيرة جداً. حاول لاحقاً.';
+      case 'requires-recent-login':
+        return 'انتهت صلاحية الجلسة. أعد تسجيل الدخول.';
+
+      // ── الهاتف ───────────────────────────────────────────────────
+      case 'invalid-phone-number':
+        return 'رقم الهاتف غير صالح. تأكد من رمز الدولة + الرقم.';
       case 'invalid-verification-code':
         return 'رمز التحقق غير صحيح.';
       case 'invalid-verification-id':
         return 'انتهت صلاحية الجلسة. اطلب رمزاً جديداً.';
-      case 'invalid-phone-number':
-        return 'رقم الهاتف غير صالح.';
+      case 'missing-phone-number':
+        return 'يرجى إدخال رقم الهاتف.';
+      case 'session-expired':
+        return 'انتهت صلاحية الجلسة. اطلب رمزاً جديداً.';
+      case 'quota-exceeded':
+        return 'تجاوز حد إرسال الـ SMS اليومي. حاول غداً.';
+      case 'app-not-authorized':
+        return 'التطبيق غير مُصرَّح له. (SHA-1/SHA-256 ناقص أو خطأ في Firebase Console).';
+      case 'missing-client-identifier':
+      case 'missing-app-credential':
+        return 'إعداد ناقص: تأكد من تفعيل Play Integrity أو reCAPTCHA في Firebase Console.';
+      case 'web-context-cancelled':
+        return 'تم إلغاء عملية التحقق.';
+      case 'captcha-check-failed':
+        return 'فشل التحقّق الأمني. حاول مجدداً.';
+      case 'billing-not-enabled':
+        return 'حساب Firebase يحتاج تفعيل خطة Blaze لإرسال SMS الحقيقية.';
+
+      // ── عام ─────────────────────────────────────────────────────
+      case 'too-many-requests':
+        return 'محاولات كثيرة جداً. حاول لاحقاً.';
+      case 'network-request-failed':
+        return 'لا يوجد اتصال بالإنترنت.';
+      case 'operation-not-allowed':
+        return 'طريقة التسجيل هذه غير مفعّلة في Firebase Console.';
       default:
         return 'خطأ في المصادقة ($code)';
     }

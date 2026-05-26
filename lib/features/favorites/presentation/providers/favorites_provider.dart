@@ -41,8 +41,19 @@ class FavoritesProvider extends ChangeNotifier {
   bool isFavorite(String productId) => _favoriteIds.contains(productId);
 
   /// يبدأ مراقبة المفضلات للمستخدم الحالي (يُستدعى من الشاشة عند initState).
+  ///
+  /// **Caching:** الـ provider singleton عالمياً، فالـ data تبقى في الذاكرة
+  /// بعد أول جلب. عند إعادة فتح تاب المفضلة بنفس الـ user، نتجاوز كل شيء
+  /// (الـ streams لا تزال شغّالة في الخلفية). الـ shimmer يظهر **فقط** عند
+  /// أول دخول للمستخدم (لا توجد بيانات سابقة).
   void startWatching(String userId) {
-    if (_activeUserId == userId && _idsSub != null) return;
+    // نفس المستخدم + كل الـ subscriptions شغّالة → لا داعي لأي عمل
+    if (_activeUserId == userId &&
+        _idsSub != null &&
+        (_watchFavorites == null || _detailsSub != null)) {
+      return;
+    }
+
     _activeUserId = userId;
 
     _idsSub?.cancel();
@@ -60,8 +71,12 @@ class FavoritesProvider extends ChangeNotifier {
 
     if (_watchFavorites != null) {
       _detailsSub?.cancel();
-      _loadingDetails = true;
-      notifyListeners();
+      // shimmer **فقط** لو لا توجد بيانات سابقة لهذا الـ user.
+      // عند تبديل التابات لاحقاً → instant بدون shimmer.
+      if (_favorites.isEmpty) {
+        _loadingDetails = true;
+        notifyListeners();
+      }
       _detailsSub = _watchFavorites(userId).listen(
         (list) {
           _favorites = list;

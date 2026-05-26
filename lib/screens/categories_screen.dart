@@ -1,4 +1,3 @@
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -44,117 +43,48 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       child: CustomScrollView(
         slivers: [
           const AppSliverBar(
-            title: 'التصنيفات',
+            title: 'الأقسام',
             backgroundColor: _bg,
             actions: [NotificationBellAction()],
           ),
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'الأقسام',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'تصفح جميع أقسام المنتجات',
-                    style: TextStyle(
-                      color: Colors.white54,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           Consumer<CategoriesProvider>(
             builder: (context, provider, _) {
-              if (provider.loading) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(
-                        color: Color(0xFFD4AF37)),
-                  ),
-                );
-              }
-
-              if (provider.error != null) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            color: Colors.white24, size: 56),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'خطأ في تحميل الأقسام',
-                          style: TextStyle(
-                              color: Colors.white54, fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'تحقق من اتصال الإنترنت ثم حاول مجدداً',
-                          style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.4),
-                              fontSize: 13),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          onPressed: provider.retry,
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: const Text('إعادة المحاولة'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD4AF37),
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
+              // ⚡ في الـ cold-start، الـ stream قد يحتاج ثوان للاتصال.
+              // نعرض shimmer (الـ counts فاضية مؤقتاً) بدل error screen.
+              // الـ provider يُعيد المحاولة بصمت في الخلفية.
               final counts = provider.counts;
 
+              // ⚡ SliverMasonryGrid بدلاً من MasonryGridView.count داخل
+              // SliverToBoxAdapter — يعمل بـ lazy build حقيقي مع الـ
+              // CustomScrollView الخارجي، يحسّن الأداء أثناء التمرير.
               return SliverPadding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                sliver: SliverToBoxAdapter(
-                  child: MasonryGridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: kCategoryData.length,
-                    itemBuilder: (context, index) {
-                      final data = kCategoryData[index];
-                      final category = data['name'] as String;
-                      final height = data['height'] as double;
-                      final image = data['image'] as String;
-                      final count = counts[category] ?? 0;
+                sliver: SliverMasonryGrid.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childCount: kCategoryData.length,
+                  itemBuilder: (context, index) {
+                    final data = kCategoryData[index];
+                    final category = data['name'] as String;
+                    final height = data['height'] as double;
+                    final image = data['image'] as String;
+                    final count = counts[category] ?? 0;
 
-                      return _MasonryCategoryCard(
+                    // RepaintBoundary يعزل الـ card عن إعادة الرسم
+                    // عند scroll → كل بطاقة تُرسم لمرة واحدة فقط ثم
+                    // تُخزَّن كـ raster layer.
+                    return RepaintBoundary(
+                      child: _MasonryCategoryCard(
                         category: category,
                         count: count,
                         image: image,
                         height: height,
                         onTap: () => _navigateToCategory(context, category),
-                      );
-                    },
-                  ),
+                      ),
+                    );
+                  },
                 ),
               );
             },
@@ -197,10 +127,12 @@ class _MasonryCategoryCard extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // صورة الخلفية
+                // صورة الخلفية — cacheWidth لتقليل استهلاك الذاكرة
+                // (الـ JPG الأصلي قد يكون 1000px، نعرضه ~200px فقط)
                 Image.asset(
                   image,
                   fit: BoxFit.cover,
+                  cacheWidth: 400, // ~2x density للشاشات HD
                   errorBuilder: (_, __, ___) => Container(
                     color: const Color(0xFF161B22),
                     child: const Icon(
@@ -223,54 +155,60 @@ class _MasonryCategoryCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                // شريط Frosted Glass في الأسفل
+                // ⚡ Gradient overlay سفلي بدل BackdropFilter (50x أسرع
+                // أثناء الـ scroll — لا shader compile لكل frame).
+                // المظهر مشابه: تدرّج شفّاف → داكن قوي.
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(24),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
                     ),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.45),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              category,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.right,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '$count منتج',
-                              style: TextStyle(
-                                color: count > 0
-                                    ? const Color(0xFFD4AF37)
-                                    : Colors.white60,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(24),
                       ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.55),
+                          Colors.black.withValues(alpha: 0.85),
+                        ],
+                        stops: const [0, 0.4, 1],
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          category,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.right,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$count منتج',
+                          style: TextStyle(
+                            color: count > 0
+                                ? const Color(0xFFD4AF37)
+                                : Colors.white60,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

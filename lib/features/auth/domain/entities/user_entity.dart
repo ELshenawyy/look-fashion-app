@@ -35,6 +35,32 @@ class UserEntity extends Equatable {
   bool get isAdmin => role.isAdminLevel;
   bool get isSuperAdmin => role.isSuperAdmin;
 
+  UserEntity copyWith({
+    String? uid,
+    String? email,
+    String? phone,
+    String? displayName,
+    String? photoUrl,
+    UserRole? role,
+    bool? emailVerified,
+    DateTime? createdAt,
+    DateTime? revokedAt,
+    bool? isLoaded,
+  }) {
+    return UserEntity(
+      uid: uid ?? this.uid,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      displayName: displayName ?? this.displayName,
+      photoUrl: photoUrl ?? this.photoUrl,
+      role: role ?? this.role,
+      emailVerified: emailVerified ?? this.emailVerified,
+      createdAt: createdAt ?? this.createdAt,
+      revokedAt: revokedAt ?? this.revokedAt,
+      isLoaded: isLoaded ?? this.isLoaded,
+    );
+  }
+
   @override
   List<Object?> get props => [
         uid,

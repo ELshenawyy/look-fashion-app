@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/constants/app_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class About extends StatelessWidget {
@@ -7,14 +8,34 @@ class About extends StatelessWidget {
   static const Color _gold = Color(0xFFD4AF37);
   static const Color _maroon = Color(0xFF570707);
 
-  // ── معلومات التواصل — عدّلها من هنا ─────────────────────────────────
-  static const String _supportEmail = 'support@MyFashionApp.com';
-  static const String _supportPhone = '+249912345678'; // +249 = السودان
+  // ── معلومات التواصل من AppConfig (المصدر الموحَّد) ─────────────────
+  String get _supportEmail => AppConfig.supportEmail;
+  String get _supportPhone {
+    var p = AppConfig.supportWhatsApp.replaceAll(RegExp(r'[^\d]'), '');
+    if (p.startsWith('00')) p = p.substring(2);
+    return '+$p';
+  }
 
-  Future<void> _launchUrl(String url) async {
+  Future<void> _launchUrl(BuildContext context, String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
+    try {
+      final ok =
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('تعذّر فتح التطبيق المطلوب'),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('خطأ: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 
@@ -98,14 +119,15 @@ class About extends StatelessWidget {
                   _ContactRow(
                     icon: Icons.email_outlined,
                     label: _supportEmail,
-                    onTap: () => _launchUrl('mailto:$_supportEmail'),
+                    onTap: () =>
+                        _launchUrl(context, 'mailto:$_supportEmail'),
                   ),
                   const SizedBox(height: 12),
                   // Phone — قابل للنقر
                   _ContactRow(
                     icon: Icons.phone_outlined,
                     label: _supportPhone,
-                    onTap: () => _launchUrl('tel:$_supportPhone'),
+                    onTap: () => _launchUrl(context, 'tel:$_supportPhone'),
                   ),
                 ],
               ),

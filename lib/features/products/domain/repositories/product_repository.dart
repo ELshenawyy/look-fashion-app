@@ -60,6 +60,12 @@ abstract class ProductRepository {
   /// يجلب منتج واحد بـ docId. يرجع Right(null) إذا غير موجود.
   Future<Either<Failure, Product?>> getProductById(String docId);
 
+  /// Stream للمنتجات المُضافة بعد `since` (real-time hook للمنتجات الجديدة).
+  Stream<List<Product>> watchNewProductsSince(
+    DateTime since, {
+    String? category,
+  });
+
   /// إنشاء منتج جديد. ترفع الصورة إن وُجدت، ثم تحفظ المنتج.
   Future<Either<Failure, String>> addProduct(ProductInput input);
 

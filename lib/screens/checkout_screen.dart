@@ -1,6 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/features/orders/domain/repositories/order_repository.dart';
 import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
@@ -170,12 +172,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             children: [
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  item.image,
+                                child: CachedNetworkImage(
+                                  imageUrl: item.image,
                                   width: 48,
                                   height: 48,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Container(
+                                  placeholder: (_, __) => Shimmer.fromColors(
+                                    baseColor: const Color(0xFF1E1E1E),
+                                    highlightColor: const Color(0xFF2A2A2A),
+                                    child: Container(
+                                        width: 48, height: 48, color: Colors.black),
+                                  ),
+                                  errorWidget: (_, __, ___) => Container(
                                     width: 48,
                                     height: 48,
                                     color: Colors.white10,
@@ -439,12 +447,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.network(
-                          item.image,
+                        child: CachedNetworkImage(
+                          imageUrl: item.image,
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          placeholder: (_, __) => Shimmer.fromColors(
+                            baseColor: const Color(0xFF1E1E1E),
+                            highlightColor: const Color(0xFF2A2A2A),
+                            child: Container(
+                                width: 56, height: 56, color: Colors.black),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
                             width: 56,
                             height: 56,
                             color: Colors.grey[900],

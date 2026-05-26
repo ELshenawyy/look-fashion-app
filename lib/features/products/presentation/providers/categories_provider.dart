@@ -18,7 +18,10 @@ class CategoriesProvider extends ChangeNotifier {
   bool _loading = true;
   Object? _error;
   int _retryAttempt = 0;
-  static const int _maxAutoRetries = 3;
+  // ⚠ لا حد أقصى للمحاولات. الأخطاء على Firestore stream عادةً عابرة
+  // (cold start, token refresh, شبكة لحظية). نواصل المحاولة بصمت
+  // مع capped delay، ولا نُظهر error للمستخدم إلا في حالة شديدة جداً.
+  static const int _maxRetryDelaySec = 4;
 
   Map<String, int> get counts => _counts;
   bool get loading => _loading;
@@ -27,6 +30,8 @@ class CategoriesProvider extends ChangeNotifier {
   void _start() {
     _retryTimer?.cancel();
     _sub?.cancel();
+    // نُبقي _loading=true طوال محاولة الاتصال — المستخدم يرى shimmer
+    // بدلاً من error screen أثناء الـ cold start.
     _loading = true;
     _error = null;
     notifyListeners();
@@ -40,25 +45,20 @@ class CategoriesProvider extends ChangeNotifier {
         notifyListeners();
       },
       onError: (e) {
-        _loading = false;
-        // ── Auto-retry بـ exponential backoff ──
-        // الأخطاء عادةً عابرة (انقطاع شبكة لحظي / token refresh).
-        // 3 محاولات تلقائية قبل إظهار خطأ للمستخدم.
-        if (_retryAttempt < _maxAutoRetries) {
-          _retryAttempt++;
-          final delay = Duration(seconds: 1 << _retryAttempt); // 2,4,8s
-          if (kDebugMode) {
-            debugPrint(
-                '[CategoriesProvider] error → auto-retry $_retryAttempt/$_maxAutoRetries in ${delay.inSeconds}s');
-          }
-          _retryTimer = Timer(delay, () {
-            if (_sub == null) return; // تم cancel من الخارج
-            _start();
-          });
-        } else {
-          _error = e;
-          notifyListeners();
+        // لا نوقف الـ loading state — نواصل المحاولة بصمت.
+        // المستخدم يبقى يرى shimmer، لا error screen.
+        _retryAttempt++;
+        // exponential backoff مع cap عند 4 ثوان (1, 2, 4, 4, 4...)
+        final delaySec =
+            (1 << _retryAttempt).clamp(1, _maxRetryDelaySec);
+        if (kDebugMode) {
+          debugPrint(
+              '[CategoriesProvider] stream error #$_retryAttempt → silent retry in ${delaySec}s: $e');
         }
+        _retryTimer = Timer(Duration(seconds: delaySec), () {
+          if (_sub == null) return; // تم cancel من الخارج
+          _start();
+        });
       },
     );
   }

@@ -1,23 +1,24 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:my_fashion_app/models/product.dart';
+import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 
 /// بطاقة منتج موحدة — تُستخدم في صفحة القائمة وصفحة المفضلة
 ///
-/// كل التفاعلات (مفضلة، سلة، تفاصيل) تُمرَّر كـ callbacks لضمان
-/// استقلالية الـ widget عن أي منطق تشغيلي.
+/// تستخدم Selector داخلياً لمراقبة حالة المفضلة لمنتج محدّد فقط
+/// (دون إعادة بناء الـ Card كاملةً عند تغيير أي favorite في القائمة).
 class ProductCard extends StatelessWidget {
   const ProductCard({
     super.key,
     required this.product,
-    required this.isFavorite,
     required this.onTap,
     required this.onFavoriteToggle,
     required this.onAddToCart,
   });
 
   final Product product;
-  final bool isFavorite;
   final VoidCallback onTap;
   final VoidCallback onFavoriteToggle;
   final VoidCallback onAddToCart;
@@ -62,8 +63,12 @@ class ProductCard extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: product.imageUrl,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) =>
-                            Container(color: const Color(0xFF1E1E1E)),
+                        // Shimmer placeholder موحَّد لكل صور المنتجات
+                        placeholder: (_, __) => Shimmer.fromColors(
+                          baseColor: const Color(0xFF1E1E1E),
+                          highlightColor: const Color(0xFF2A2A2A),
+                          child: Container(color: Colors.black),
+                        ),
                         errorWidget: (_, __, ___) => Container(
                           color: const Color(0xFF1E1E1E),
                           child: const Icon(Icons.broken_image,
@@ -73,25 +78,32 @@ class ProductCard extends StatelessWidget {
                     ),
                   ),
                   // Favorite badge — أعلى اليمين
+                  // ⚡ Selector ينعزل عن باقي الـ card: فقط الأيقونة
+                  // تُعاد بنائها عند تغيير الـ favorite، الصورة + السعر
+                  // + الزر يبقون كما هم (لا flicker).
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: GestureDetector(
-                      onTap: onFavoriteToggle,
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.55),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isFavorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color:
-                              isFavorite ? Colors.redAccent : Colors.white70,
-                          size: 17,
+                    child: Selector<FavoritesProvider, bool>(
+                      selector: (_, fav) =>
+                          fav.isFavorite(product.docId ?? ''),
+                      builder: (_, isFav, __) => GestureDetector(
+                        onTap: onFavoriteToggle,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.55),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isFav
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color:
+                                isFav ? Colors.redAccent : Colors.white70,
+                            size: 17,
+                          ),
                         ),
                       ),
                     ),

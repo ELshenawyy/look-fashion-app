@@ -50,6 +50,13 @@ class ProductRepositoryImpl implements ProductRepository {
       remote.watchProducts(category: category);
 
   @override
+  Stream<List<Product>> watchNewProductsSince(
+    DateTime since, {
+    String? category,
+  }) =>
+      remote.watchNewProductsSince(since, category: category);
+
+  @override
   Future<Either<Failure, Product?>> getProductById(String docId) async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {

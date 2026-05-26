@@ -7,11 +7,15 @@ import 'package:my_fashion_app/core/usecase/usecase.dart';
 import 'package:my_fashion_app/features/addresses/presentation/providers/addresses_provider.dart';
 import 'package:my_fashion_app/features/auth/domain/entities/user_entity.dart';
 import 'package:my_fashion_app/features/auth/domain/repositories/auth_repository.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/reload_user.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/send_email_verification.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/send_otp.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/send_otp_for_phone_update.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/send_password_reset.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_in_with_email.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_out.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_up_with_email.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/update_phone_number.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/watch_current_user.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
@@ -31,6 +35,10 @@ class AuthProvider extends ChangeNotifier {
   final VerifyOtp _verifyOtp;
   final SendPasswordReset _sendPasswordReset;
   final SignOut _signOut;
+  final SendEmailVerification _sendEmailVerification;
+  final ReloadUser _reloadUser;
+  final SendOtpForPhoneUpdate _sendOtpForPhoneUpdate;
+  final UpdatePhoneNumber _updatePhoneNumber;
 
   StreamSubscription<UserEntity?>? _userSub;
 
@@ -38,6 +46,9 @@ class AuthProvider extends ChangeNotifier {
   UserEntity? _user;
   Failure? _failure;
   bool _busy = false;
+  // Cooldown لإعادة إرسال رابط التفعيل (يمنع spam Firebase)
+  DateTime? _lastVerificationSentAt;
+  Timer? _cooldownTicker;
 
   AuthProvider({
     required WatchCurrentUser watchCurrentUser,
@@ -47,13 +58,21 @@ class AuthProvider extends ChangeNotifier {
     required VerifyOtp verifyOtp,
     required SendPasswordReset sendPasswordReset,
     required SignOut signOut,
+    required SendEmailVerification sendEmailVerification,
+    required ReloadUser reloadUser,
+    required SendOtpForPhoneUpdate sendOtpForPhoneUpdate,
+    required UpdatePhoneNumber updatePhoneNumber,
   })  : _watchCurrentUser = watchCurrentUser,
         _signInWithEmail = signInWithEmail,
         _signUpWithEmail = signUpWithEmail,
         _sendOtp = sendOtp,
         _verifyOtp = verifyOtp,
         _sendPasswordReset = sendPasswordReset,
-        _signOut = signOut {
+        _signOut = signOut,
+        _sendEmailVerification = sendEmailVerification,
+        _reloadUser = reloadUser,
+        _sendOtpForPhoneUpdate = sendOtpForPhoneUpdate,
+        _updatePhoneNumber = updatePhoneNumber {
     _startWatching();
   }
 
@@ -61,6 +80,15 @@ class AuthProvider extends ChangeNotifier {
   UserEntity? get user => _user;
   Failure? get failure => _failure;
   bool get busy => _busy;
+
+  /// عداد تنازلي بالثواني للزر "إعادة الإرسال". 0 = جاهز للضغط.
+  int get verificationCooldownSec {
+    if (_lastVerificationSentAt == null) return 0;
+    final elapsed =
+        DateTime.now().difference(_lastVerificationSentAt!).inSeconds;
+    const cooldown = 60;
+    return (cooldown - elapsed).clamp(0, cooldown);
+  }
 
   void _startWatching() {
     _userSub?.cancel();
@@ -248,9 +276,114 @@ class AuthProvider extends ChangeNotifier {
     return ok;
   }
 
+  /// إعادة إرسال رابط تفعيل البريد. يفشل لو الـ cooldown نشط.
+  /// يرجع true لو الإرسال نجح، false لو cooldown أو خطأ.
+  Future<bool> resendVerificationEmail() async {
+    if (verificationCooldownSec > 0) return false;
+    final res = await _sendEmailVerification(const NoParams());
+    return res.fold(
+      (f) {
+        _failure = f;
+        notifyListeners();
+        return false;
+      },
+      (_) {
+        _lastVerificationSentAt = DateTime.now();
+        notifyListeners();
+        _startCooldownTicker();
+        return true;
+      },
+    );
+  }
+
+  /// يُعيد تحميل بيانات المستخدم من Firebase (يلتقط تغيير emailVerified).
+  /// يرجع true لو الإيميل فُعّل، false لو لسه.
+  Future<bool> refreshCurrentUser() async {
+    final res = await _reloadUser(const NoParams());
+    return res.fold(
+      (f) {
+        _failure = f;
+        notifyListeners();
+        return false;
+      },
+      (fresh) {
+        if (fresh == null) return false;
+        // نُحدّث user محلياً ليلتقط emailVerified الجديد.
+        // الـ user الناتج من reload يكون isLoaded=false (فقط FirebaseAuth)،
+        // لذا ندمج emailVerified الجديد في الـ _user الحالي للحفاظ على الدور.
+        if (_user != null) {
+          _user = _user!.copyWith(emailVerified: fresh.emailVerified);
+        } else {
+          _user = fresh;
+        }
+        // لو فُعّل وكانت الحالة authenticated نُبقيها — الـ AppShell ينتقل تلقائياً
+        notifyListeners();
+        return fresh.emailVerified;
+      },
+    );
+  }
+
+  /// Timer يُحدّث الـ UI كل ثانية ليُظهر العداد التنازلي.
+  void _startCooldownTicker() {
+    _cooldownTicker?.cancel();
+    _cooldownTicker = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (verificationCooldownSec <= 0) {
+        t.cancel();
+      }
+      notifyListeners();
+    });
+  }
+
+  // ── Phone Number Update (للملف الشخصي) ─────────────────────────────
+  /// يرسل OTP للرقم الجديد. يرجع `PhoneVerificationResult` (verificationId)
+  /// عند النجاح، أو null عند الفشل (failure مُعيَّن).
+  Future<PhoneVerificationResult?> requestPhoneUpdate(
+      String newPhoneNumber) async {
+    _busy = true;
+    _failure = null;
+    notifyListeners();
+    final res = await _sendOtpForPhoneUpdate(newPhoneNumber);
+    _busy = false;
+    return res.fold((f) {
+      _failure = f;
+      notifyListeners();
+      return null;
+    }, (r) {
+      notifyListeners();
+      return r;
+    });
+  }
+
+  /// يحدّث رقم الهاتف الفعلي + يُعيد تحميل المستخدم.
+  /// يرجع true عند النجاح، false عند الفشل.
+  Future<bool> confirmPhoneUpdate({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    _busy = true;
+    _failure = null;
+    notifyListeners();
+    final res = await _updatePhoneNumber(UpdatePhoneNumberParams(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    ));
+    _busy = false;
+    return res.fold((f) {
+      _failure = f;
+      notifyListeners();
+      return false;
+    }, (_) async {
+      // أعد تحميل بيانات المستخدم ليلتقط الرقم الجديد
+      await refreshCurrentUser();
+      notifyListeners();
+      return true;
+    });
+  }
+
   @override
   void dispose() {
     _userSub?.cancel();
+    _cooldownTicker?.cancel();
     super.dispose();
   }
 }

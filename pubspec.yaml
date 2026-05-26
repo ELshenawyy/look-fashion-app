@@ -46,6 +46,8 @@ dependencies:
   url_launcher: ^6.1.11
   # ── Modern Icons (Iconly: bold/light variants لـ active/inactive) ──
   iconly: ^1.0.1
+  # ── Local cart persistence (يحفظ السلة عند إغلاق التطبيق) ──
+  shared_preferences: ^2.2.0
 
   # ── Clean Architecture infrastructure ──
   get_it: ^7.7.0

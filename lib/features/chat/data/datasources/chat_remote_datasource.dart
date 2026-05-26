@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:my_fashion_app/core/error/exceptions.dart';
 import 'package:my_fashion_app/features/chat/data/models/chat_message_model.dart';
 
@@ -24,11 +25,17 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
 
   @override
   Stream<List<ChatMessageModel>> watchMessages(String orderId) {
+    debugPrint('[chat.watch] subscribing to orderId=$orderId');
     return _messagesRef(orderId)
         .orderBy('createdAt')
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((d) => ChatMessageModel.fromFirestore(d)).toList());
+        .map((snap) {
+      debugPrint(
+          '[chat.watch] orderId=$orderId snapshot docs=${snap.docs.length}');
+      return snap.docs.map((d) => ChatMessageModel.fromFirestore(d)).toList();
+    }).handleError((e, st) {
+      debugPrint('[chat.watch] ❌ orderId=$orderId stream error: $e');
+    });
   }
 
   @override
@@ -40,15 +47,18 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
     String? senderEmail,
     required bool isAdminSender,
   }) async {
+    debugPrint(
+        '[chat.send] orderId=$orderId sender=$senderId isAdmin=$isAdminSender text="${text.substring(0, text.length.clamp(0, 30))}"');
     try {
       // 1) إضافة الرسالة
-      await _messagesRef(orderId).add({
+      final docRef = await _messagesRef(orderId).add({
         'text': text,
         'senderId': senderId,
         'senderEmail': senderEmail,
         'senderName': senderName,
         'createdAt': FieldValue.serverTimestamp(),
       });
+      debugPrint('[chat.send] ✓ written docId=${docRef.id}');
 
       // 1.b) ── رد تلقائي من فريق الدعم ───────────────────────────────────
       // يظهر مرة واحدة فقط: إذا أرسل المستخدم العادي رسالة ولم يردّ الإدمن

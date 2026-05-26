@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
@@ -356,13 +357,23 @@ class _LoginPageState extends State<LoginPage> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
-          // Phone field
+          // Phone field — أسماء الدول بالعربي + العلم على اليمين (RTL طبيعي)
+          // الرقم نفسه يُكتب LTR تلقائياً من المكتبة.
           IntlPhoneField(
             controller: _phoneController,
             initialCountryCode: 'SD',
             showCountryFlag: true,
+            languageCode: 'ar',
+            invalidNumberMessage: 'رقم الهاتف غير صحيح',
+            pickerDialogStyle: PickerDialogStyle(
+              searchFieldInputDecoration: const InputDecoration(
+                hintText: 'ابحث عن الدولة',
+                prefixIcon: Icon(Icons.search),
+              ),
+            ),
             dropdownIcon:
                 const Icon(Icons.arrow_drop_down, color: Colors.white70),
+            dropdownTextStyle: const TextStyle(color: Colors.white),
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               filled: true,

@@ -7,8 +7,10 @@ import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_products.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
+import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/product_card.dart';
+import 'package:my_fashion_app/widgets/quick_add_sheet.dart';
 import 'package:provider/provider.dart';
 
 class ProductListingPage extends StatefulWidget {
@@ -110,7 +112,15 @@ class _ProductListingPageState extends State<ProductListingPage> {
   }
 
   // ── Cart logic ────────────────────────────────────────────────────────
+  /// نفس منطق `_quickAddToCart` في product_list_screen — يفتح
+  /// QuickAddSheet للمنتجات اللي تحتاج اختيار size/color، ويُضيف
+  /// مباشرة للمنتجات بدون variants (عطور، تجميل، إلكترونيات).
   void _addToCart(Product product) {
+    if (_productNeedsSelection(product)) {
+      showQuickAddSheet(context, product);
+      return;
+    }
+
     final cart = context.read<CartProvider>();
     cart.addItem(CartItem(
       productId: product.docId ?? '',
@@ -131,6 +141,12 @@ class _ProductListingPageState extends State<ProductListingPage> {
         duration: Duration(seconds: 1),
       ),
     );
+  }
+
+  bool _productNeedsSelection(Product p) {
+    return kCategoriesWithVariants.contains(p.category) ||
+        p.sizes.length > 1 ||
+        p.colors.length > 1;
   }
 
   // ── childAspectRatio computed from screen width ───────────────────────
@@ -277,7 +293,6 @@ class _ProductListingPageState extends State<ProductListingPage> {
                                     _isFavorite(p, favoriteIds);
                                 return ProductCard(
                                   product: p,
-                                  isFavorite: fav,
                                   onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(

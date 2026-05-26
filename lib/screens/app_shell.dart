@@ -7,6 +7,7 @@ import 'package:my_fashion_app/firebase/login.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
 import 'package:my_fashion_app/screens/admin_dashboard.dart';
 import 'package:my_fashion_app/screens/categories_screen.dart';
+import 'package:my_fashion_app/screens/email_verification_screen.dart';
 import 'package:my_fashion_app/screens/favorites_screen.dart';
 import 'package:my_fashion_app/screens/profile_screen.dart';
 import 'package:my_fashion_app/screens/product_list_screen.dart';
@@ -139,6 +140,16 @@ class _AppShellState extends State<AppShell> {
         final UserEntity user = auth.user!;
         final isAdminLevel = user.isAdmin;
         final isSuperAdmin = user.isSuperAdmin;
+
+        // ── Email Verification Gate ────────────────────────────────────
+        // المستخدمون المسجلون بالبريد لازم يفعّلوا قبل دخول التطبيق.
+        // مستخدمو الهاتف (OTP) معفيون — لا يوجد لديهم بريد لتفعيله.
+        final email = user.email ?? '';
+        final hasPhone = (user.phone ?? '').isNotEmpty;
+        // gate يُفعَّل فقط لمن لديه email + لم يُفعَّل + ليس مستخدم هاتف بحت
+        if (email.isNotEmpty && !user.emailVerified && !hasPhone) {
+          return const EmailVerificationScreen();
+        }
 
         // ⚠️ تبديل حساب: صفّر التاب الحالي + reset state الشاشات.
         // KeyedSubtree(key: ValueKey(user.uid)) يجبر Flutter على
@@ -315,7 +326,7 @@ class _AppShellState extends State<AppShell> {
                     index: 1,
                     iconActive: IconlyBold.category,
                     iconInactive: IconlyLight.category,
-                    label: 'التصنيفات',
+                    label: 'الأقسام',
                   ),
                   const SizedBox(width: 48), // فراغ الـ notch
                   _buildNavItem(

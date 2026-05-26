@@ -5,6 +5,7 @@ import 'package:my_fashion_app/screens/splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
+import 'package:my_fashion_app/features/cart/data/datasources/local_cart_datasource.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart'
     as cart_p;
 import 'package:my_fashion_app/features/profile/presentation/providers/profile_provider.dart'
@@ -37,6 +38,11 @@ void main() async {
 
   // ─── Initialize Dependency Injection (Clean Architecture) ─────────────
   await di.init();
+
+  // ─── تحميل السلة المحفوظة من SharedPreferences ────────────────────────
+  // مهم: يجب أن يكون قبل تشغيل MultiProvider حتى لا يظهر التطبيق
+  // بسلة فاضية ثم يتم تعبئتها (flicker سيئ).
+  await di.sl<LocalCartDataSource>().init();
 
   // ─── ربط NotificationsScreen.getUnreadCount بـ DI ─────────────────────
   notif_screen.registerUnreadCountResolver(

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:my_fashion_app/core/error/failures.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/fetch_products_page.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/get_product_by_id.dart';
+import 'package:my_fashion_app/features/products/domain/usecases/watch_new_products.dart';
 import 'package:my_fashion_app/models/product.dart';
 
 enum HomeSortMode { newArrivals, topSelling }
@@ -14,12 +15,19 @@ enum HomeSortMode { newArrivals, topSelling }
 class ProductsProvider extends ChangeNotifier {
   final FetchProductsPage _fetchProductsPage;
   final GetProductById _getProductById;
+  final WatchNewProducts _watchNewProducts;
+
+  // Stream subscription للمنتجات الجديدة (real-time)
+  StreamSubscription<List<Product>>? _newProductsSub;
+  DateTime? _subscribeSince;
 
   ProductsProvider({
     required FetchProductsPage fetchProductsPage,
     required GetProductById getProductById,
+    required WatchNewProducts watchNewProducts,
   })  : _fetchProductsPage = fetchProductsPage,
-        _getProductById = getProductById;
+        _getProductById = getProductById,
+        _watchNewProducts = watchNewProducts;
 
   /// يجلب منتج واحد بـ docId — مُستخدم من المفضلة لجلب بيانات كاملة.
   /// يرجع null لو المنتج محذوف أو فيه خطأ شبكة.
@@ -88,6 +96,43 @@ class ProductsProvider extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+
+    // اشترك بالـ real-time stream للمنتجات الجديدة بعد هذه اللحظة.
+    // فأي منتج يضيفه الأدمن → يظهر فوراً في رأس القائمة.
+    _subscribeToNewProducts();
+  }
+
+  /// يشترك (أو يُعيد الاشتراك) بمنتجات أُضيفت بعد الآن.
+  /// يُلغي أي subscription سابق لتجنّب التسرّب.
+  void _subscribeToNewProducts() {
+    _newProductsSub?.cancel();
+    _subscribeSince = DateTime.now();
+    _newProductsSub = _watchNewProducts(WatchNewProductsParams(
+      since: _subscribeSince!,
+      category: _selectedCategory,
+    )).listen(
+      (newProducts) {
+        if (newProducts.isEmpty) return;
+        // ندرج فقط المنتجات اللي مش موجودة في القائمة الحالية
+        final existingIds = _products
+            .where((p) => p.docId != null)
+            .map((p) => p.docId!)
+            .toSet();
+        final freshOnes = newProducts
+            .where((p) =>
+                p.docId != null && !existingIds.contains(p.docId))
+            .toList();
+        if (freshOnes.isEmpty) return;
+        // freshOnes مرتّبة createdAt desc → الأحدث أولاً
+        _products = [...freshOnes, ..._products];
+        notifyListeners();
+      },
+      onError: (e) {
+        // لا نُسقط الـ UI — الـ stream خفيف، أي خطأ نتجاهله
+        // (المستخدم لا يزال يرى البيانات المُحمّلة عبر الـ pagination)
+        debugPrint('watchNewProducts error (non-fatal): $e');
+      },
+    );
   }
 
   Future<void> loadMore() async {
@@ -143,6 +188,9 @@ class ProductsProvider extends ChangeNotifier {
   void reset() {
     _searchDebounce?.cancel();
     _searchDebounce = null;
+    _newProductsSub?.cancel();
+    _newProductsSub = null;
+    _subscribeSince = null;
     _products = [];
     _isLoading = false;
     _isLoadingMore = false;
@@ -158,6 +206,7 @@ class ProductsProvider extends ChangeNotifier {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _newProductsSub?.cancel();
     super.dispose();
   }
 }

@@ -146,15 +146,21 @@ class _ProductListScreenState extends State<ProductListScreen> {
       return;
     }
 
-    _speech.listen(onResult: (result) {
-      if (!mounted) return;
-      final words = result.recognizedWords;
-      // TextEditingController له notifier خاص — لا يحتاج Provider
-      _searchController.text = words;
-      _searchController.selection =
-          TextSelection.fromPosition(TextPosition(offset: words.length));
-      context.read<ProductsProvider>().setSearchQuery(words);
-    });
+    _speech.listen(
+      // ⚠ التطبيق عربي + البيانات بالعربية — لازم نخبر Speech-to-Text
+      // باللغة المتوقّعة وإلا يستخدم default device locale (إنجليزي عادةً).
+      // ar-EG = أكثر model عربي مدعوم على Google/Apple speech engines.
+      localeId: 'ar-EG',
+      onResult: (result) {
+        if (!mounted) return;
+        final words = result.recognizedWords;
+        // TextEditingController له notifier خاص — لا يحتاج Provider
+        _searchController.text = words;
+        _searchController.selection =
+            TextSelection.fromPosition(TextPosition(offset: words.length));
+        context.read<ProductsProvider>().setSearchQuery(words);
+      },
+    );
   }
 
   void _stopListening() {
@@ -475,6 +481,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     ),
                   ),
                 ),
+                // Dots indicator داخل gradient overlay سفلي (مظهر أنيق)
                 Positioned(
                   bottom: 6,
                   left: 16,
@@ -483,83 +490,54 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     borderRadius: const BorderRadius.vertical(
                         bottom: Radius.circular(20)),
                     child: Container(
-                      height: 60,
+                      height: 50,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            Colors.black.withValues(alpha: 0.6),
+                            Colors.black.withValues(alpha: 0.75),
                           ],
                         ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                      child: Row(
-                        mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.22),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.15)),
+                      alignment: Alignment.bottomCenter,
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Consumer<HomeUIProvider>(
+                        builder: (context, ui, _) {
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              kBannerImages.length,
+                              (i) {
+                                final active = i == ui.bannerIndex;
+                                return AnimatedContainer(
+                                  duration:
+                                      const Duration(milliseconds: 280),
+                                  curve: Curves.easeOutCubic,
+                                  width: active ? 18 : 6,
+                                  height: 6,
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 3),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: active ? _gold : Colors.white54,
+                                    boxShadow: active
+                                        ? [
+                                            BoxShadow(
+                                              color: _gold.withValues(
+                                                  alpha: 0.55),
+                                              blurRadius: 6,
+                                              offset: Offset.zero,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                );
+                              },
                             ),
-                            child: const Text(
-                              'استكشف',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          // Dots indicator — مرتبط بـ HomeUIProvider
-                          Consumer<HomeUIProvider>(
-                            builder: (context, ui, _) {
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: List.generate(
-                                  kBannerImages.length,
-                                  (i) {
-                                    final active = i == ui.bannerIndex;
-                                    return AnimatedContainer(
-                                      duration: const Duration(
-                                          milliseconds: 280),
-                                      curve: Curves.easeOutCubic,
-                                      width: active ? 18 : 6,
-                                      height: 6,
-                                      margin:
-                                          const EdgeInsets.only(left: 3),
-                                      decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(4),
-                                        color: active
-                                            ? _gold
-                                            : Colors.white38,
-                                        boxShadow: active
-                                            ? [
-                                                BoxShadow(
-                                                  color: _gold.withValues(
-                                                      alpha: 0.55),
-                                                  blurRadius: 6,
-                                                  offset: Offset.zero,
-                                                ),
-                                              ]
-                                            : null,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -755,8 +733,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 child: CachedNetworkImage(
                   imageUrl: product.imageUrl,
                   fit: BoxFit.cover,
-                  placeholder: (_, __) =>
-                      Container(color: const Color(0xFF1E1E1E)),
+                  placeholder: (_, __) => Shimmer.fromColors(
+                    baseColor: const Color(0xFF1E1E1E),
+                    highlightColor: const Color(0xFF2A2A2A),
+                    child: Container(color: Colors.black),
+                  ),
                   errorWidget: (_, __, ___) => Container(
                     color: const Color(0xFF1E1E1E),
                     child: const Icon(Icons.broken_image,
@@ -787,7 +768,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${product.price.toStringAsFixed(0)} ج.م',
+                        '${product.price.toStringAsFixed(0)} ج.س',
                         style: const TextStyle(
                           color: _gold,
                           fontWeight: FontWeight.bold,

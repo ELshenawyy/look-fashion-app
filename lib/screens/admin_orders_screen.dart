@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/features/orders/domain/entities/order_entity.dart';
 import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
@@ -355,12 +356,19 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                   if (item.image.isNotEmpty)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: Image.network(item.image,
+                      child: CachedNetworkImage(
+                        imageUrl: item.image,
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
                           width: 36,
                           height: 36,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const SizedBox(width: 36, height: 36)),
+                          color: const Color(0xFF1E1E1E),
+                        ),
+                        errorWidget: (_, __, ___) =>
+                            const SizedBox(width: 36, height: 36),
+                      ),
                     ),
                   const SizedBox(width: 8),
                   Expanded(

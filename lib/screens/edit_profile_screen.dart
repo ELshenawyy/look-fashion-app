@@ -1,8 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl_phone_field/country_picker_dialog.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/profile/presentation/providers/profile_provider.dart';
+import 'package:my_fashion_app/shared/widgets/otp_pin_field.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/user_avatar.dart';
 import 'package:provider/provider.dart';
@@ -286,59 +289,24 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const Divider(color: Colors.white12),
                 const SizedBox(height: 24),
 
-                // ── Change Password ────────────────────────────────────
-                _sectionTitle('تغيير كلمة المرور'),
-                const SizedBox(height: 12),
-                _passwordField(
-                  controller: _currentPassController,
-                  label: 'كلمة المرور الحالية',
-                  obscure: _obscureCurrent,
-                  onToggle: () =>
-                      setState(() => _obscureCurrent = !_obscureCurrent),
-                ),
-                const SizedBox(height: 12),
-                _passwordField(
-                  controller: _newPassController,
-                  label: 'كلمة المرور الجديدة',
-                  obscure: _obscureNew,
-                  onToggle: () =>
-                      setState(() => _obscureNew = !_obscureNew),
-                ),
-                const SizedBox(height: 12),
-                _passwordField(
-                  controller: _confirmPassController,
-                  label: 'تأكيد كلمة المرور الجديدة',
-                  obscure: _obscureConfirm,
-                  onToggle: () =>
-                      setState(() => _obscureConfirm = !_obscureConfirm),
-                ),
-                const SizedBox(height: 12),
-                Consumer<ProfileProvider>(
-                  builder: (_, provider, __) => SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed:
-                          provider.isChangingPassword ? null : _changePassword,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF5A1010),
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey[700],
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        textStyle: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15),
-                      ),
-                      child: provider.isChangingPassword
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
-                            )
-                          : const Text('تغيير كلمة المرور'),
-                    ),
-                  ),
+                // ── Change Password — فقط لمستخدمي البريد ──
+                // مستخدمو الـ OTP لا يملكون كلمة سر — Firebase Phone Auth
+                // يستخدم credential مؤقت لكل دخول. نخفي هذا الـ section
+                // ونعرض بدلاً منه card تعديل رقم الهاتف.
+                Builder(
+                  builder: (context) {
+                    final user = context.watch<AuthProvider>().user;
+                    final hasEmail = (user?.email ?? '').isNotEmpty;
+                    final hasPhone = (user?.phone ?? '').isNotEmpty;
+
+                    if (hasEmail) {
+                      return _buildPasswordSection();
+                    } else if (hasPhone) {
+                      return _buildPhoneInfoCard(user!.phone!);
+                    }
+                    // مستخدم بدون email ولا phone — لا نعرض شيء
+                    return const SizedBox.shrink();
+                  },
                 ),
                 const SizedBox(height: 32),
               ]),
@@ -347,6 +315,317 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ],
       ),
     );
+  }
+
+  // ── Password section (لمستخدمي البريد فقط) ─────────────────────────
+  Widget _buildPasswordSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('تغيير كلمة المرور'),
+        const SizedBox(height: 12),
+        _passwordField(
+          controller: _currentPassController,
+          label: 'كلمة المرور الحالية',
+          obscure: _obscureCurrent,
+          onToggle: () =>
+              setState(() => _obscureCurrent = !_obscureCurrent),
+        ),
+        const SizedBox(height: 12),
+        _passwordField(
+          controller: _newPassController,
+          label: 'كلمة المرور الجديدة',
+          obscure: _obscureNew,
+          onToggle: () => setState(() => _obscureNew = !_obscureNew),
+        ),
+        const SizedBox(height: 12),
+        _passwordField(
+          controller: _confirmPassController,
+          label: 'تأكيد كلمة المرور الجديدة',
+          obscure: _obscureConfirm,
+          onToggle: () =>
+              setState(() => _obscureConfirm = !_obscureConfirm),
+        ),
+        const SizedBox(height: 12),
+        Consumer<ProfileProvider>(
+          builder: (_, provider, __) => SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed:
+                  provider.isChangingPassword ? null : _changePassword,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF5A1010),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey[700],
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                textStyle: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+              child: provider.isChangingPassword
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('تغيير كلمة المرور'),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Phone info card (لمستخدمي OTP) ─────────────────────────────────
+  Widget _buildPhoneInfoCard(String phone) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('رقم الهاتف'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: _panel,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _gold.withValues(alpha: 0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _gold.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.phone_iphone,
+                        color: _gold, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'رقمك الحالي',
+                          style: TextStyle(
+                              color: Colors.white60, fontSize: 12),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          phone,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          textDirection: TextDirection.ltr,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'يمكنك تغيير رقم هاتفك. ستُرسل لك رسالة OTP على الرقم الجديد للتحقّق منه قبل التحديث.',
+                style: TextStyle(
+                  color: Colors.white60,
+                  fontSize: 12,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _startPhoneUpdateFlow,
+                  icon: const Icon(Icons.edit_outlined,
+                      color: _gold, size: 20),
+                  label: const Text(
+                    'تعديل رقم الهاتف',
+                    style: TextStyle(
+                        color: _gold, fontWeight: FontWeight.w700),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                        color: _gold.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Phone Update Flow (3 خطوات: رقم جديد → OTP → تحديث) ─────────
+  Future<void> _startPhoneUpdateFlow() async {
+    // الخطوة 1: dialog لإدخال الرقم الجديد
+    final newPhone = await _showNewPhoneDialog();
+    if (newPhone == null || newPhone.isEmpty || !mounted) return;
+
+    // إرسال OTP للرقم الجديد
+    final messenger = ScaffoldMessenger.of(context);
+    final auth = context.read<AuthProvider>();
+    final result = await auth.requestPhoneUpdate(newPhone);
+    if (!mounted) return;
+    if (result == null) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(auth.failure?.message ?? 'فشل إرسال الرمز'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    // الخطوة 2: dialog لإدخال OTP المُستلَم
+    final smsCode = await _showOtpDialog(newPhone);
+    if (smsCode == null || smsCode.length < 6 || !mounted) return;
+
+    // الخطوة 3: تأكيد التحديث
+    final ok = await auth.confirmPhoneUpdate(
+      verificationId: result.verificationId,
+      smsCode: smsCode,
+    );
+    if (!mounted) return;
+    if (ok) {
+      messenger.showSnackBar(const SnackBar(
+        content: Text('تم تحديث رقم الهاتف بنجاح ✓'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ));
+    } else {
+      messenger.showSnackBar(SnackBar(
+        content: Text(auth.failure?.message ?? 'فشل تحديث الرقم'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+      ));
+    }
+  }
+
+  Future<String?> _showNewPhoneDialog() async {
+    String complete = '';
+    bool isValid = false;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          backgroundColor: _panel,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18)),
+          title: const Text('رقم الهاتف الجديد',
+              style:
+                  TextStyle(color: _gold, fontWeight: FontWeight.w700)),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: IntlPhoneField(
+              initialCountryCode: 'SD',
+              languageCode: 'ar',
+              showCountryFlag: true,
+              dropdownIcon:
+                  const Icon(Icons.arrow_drop_down, color: Colors.white70),
+              dropdownTextStyle: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.white),
+              pickerDialogStyle: PickerDialogStyle(
+                searchFieldInputDecoration: const InputDecoration(
+                  hintText: 'ابحث عن الدولة',
+                  prefixIcon: Icon(Icons.search),
+                ),
+              ),
+              decoration: InputDecoration(
+                hintText: 'رقم الهاتف',
+                hintStyle: const TextStyle(color: Colors.white38),
+                filled: true,
+                fillColor: Colors.white.withValues(alpha: 0.07),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (p) {
+                setSt(() {
+                  complete = p.completeNumber.replaceAll(RegExp(r'\s+'), '');
+                  isValid =
+                      p.number.isNotEmpty && complete.startsWith('+');
+                });
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء',
+                  style: TextStyle(color: Colors.white54)),
+            ),
+            TextButton(
+              onPressed: isValid ? () => Navigator.pop(ctx, complete) : null,
+              child: const Text('إرسال OTP',
+                  style: TextStyle(
+                      color: _gold, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<String?> _showOtpDialog(String phone) async {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _panel,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18)),
+        title: const Text('أدخل رمز التحقّق',
+            style: TextStyle(color: _gold, fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'أدخل الرمز المرسَل إلى $phone',
+              style:
+                  const TextStyle(color: Colors.white70, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            OtpPinField(
+              controller: ctrl,
+              length: 6,
+              themeColor: _gold,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء',
+                style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('تأكيد',
+                style:
+                    TextStyle(color: _gold, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    ).then((v) {
+      ctrl.dispose();
+      return v;
+    });
   }
 
   Widget _sectionTitle(String title) {

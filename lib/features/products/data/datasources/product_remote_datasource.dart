@@ -17,6 +17,13 @@ abstract class ProductRemoteDataSource {
   /// يجلب منتج واحد بـ docId. يرجع null إن لم يوجد.
   Future<Product?> getProductById(String docId);
 
+  /// Stream للمنتجات اللي تمّ إضافتها بعد timestamp مُحدَّد.
+  /// مُستخدَم لاكتشاف المنتجات الجديدة real-time بدون قراءة كل الكتالوج.
+  Stream<List<Product>> watchNewProductsSince(
+    DateTime since, {
+    String? category,
+  });
+
   /// إنشاء منتج جديد. يرجع docId الجديد.
   Future<String> addProduct(Map<String, dynamic> productData);
 
@@ -107,6 +114,24 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       'category': d['category'] ?? '',
       'state': d['state'] ?? '',
     });
+  }
+
+  @override
+  Stream<List<Product>> watchNewProductsSince(
+    DateTime since, {
+    String? category,
+  }) {
+    Query<Map<String, dynamic>> q = _db
+        .collection('products')
+        .where('createdAt', isGreaterThan: Timestamp.fromDate(since));
+    if (category != null && category.isNotEmpty) {
+      q = q.where('category', isEqualTo: category);
+    }
+    // ⚠ مع where('createdAt', >) لازم orderBy على نفس الحقل
+    q = q.orderBy('createdAt', descending: true);
+    return q.snapshots().map(
+          (snap) => snap.docs.map(_fromDoc).toList(),
+        );
   }
 
   @override

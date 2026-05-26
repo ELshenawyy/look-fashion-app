@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 
 import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/core/utils/color_utils.dart';
@@ -140,8 +141,10 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
                             : CachedNetworkImage(
                                 imageUrl: p.imageUrl,
                                 fit: BoxFit.cover,
-                                placeholder: (_, __) => Container(
-                                  color: _panel,
+                                placeholder: (_, __) => Shimmer.fromColors(
+                                  baseColor: const Color(0xFF1E1E1E),
+                                  highlightColor: const Color(0xFF2A2A2A),
+                                  child: Container(color: Colors.black),
                                 ),
                                 errorWidget: (_, __, ___) => Container(
                                   color: _panel,
@@ -169,7 +172,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${p.price.toStringAsFixed(0)} ج.م',
+                            '${p.price.toStringAsFixed(0)} ج.س',
                             style: const TextStyle(
                               color: _gold,
                               fontSize: 15,

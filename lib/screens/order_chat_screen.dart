@@ -126,7 +126,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
   Future<void> _openWhatsApp() async {
     final isAdmin = context.read<AuthProvider>().user?.isAdmin ?? false;
-    final phone =
+    var phone =
         isAdmin ? _formatPhone(_order?.phone ?? '') : AppConfig.adminWhatsApp;
 
     if (phone.isEmpty) {
@@ -140,18 +140,36 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
       return;
     }
 
+    // sanitize: wa.me يقبل أرقام فقط بدون 00 أو +
+    phone = phone.replaceAll(RegExp(r'[^\d]'), '');
+    if (phone.startsWith('00')) phone = phone.substring(2);
+
     final url = Uri.parse('https://wa.me/$phone');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذر فتح واتساب'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    // ⚠ نُحاول مباشرة بـ externalApplication بدل canLaunchUrl + launchUrl
+    // (canLaunchUrl يرجع false على Android 11+ بدون queries، وحتى مع
+    // queries أحياناً false positive).
+    try {
+      final ok =
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تعذر فتح واتساب. تأكد من تثبيت التطبيق.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في فتح واتساب: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -212,11 +230,11 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     final customerPhone = _order?.phone ?? '';
     final customerEmail = _order?.userEmail ?? '';
 
+    // الأدمن يرى اسم العميل (للعمل). المستخدم لا يرى اسم
+    // الموظف/الإدمن — يرى "إدارة تطبيق طلّة" (لحماية الـ identity).
     final chatTitle = isAdmin
         ? 'محادثة مع $customerName'
-        : (widget.otherUserName.isNotEmpty
-            ? 'محادثة مع ${widget.otherUserName}'
-            : 'محادثة الطلب');
+        : 'إدارة تطبيق طلّة';
 
     return ChangeNotifierProvider<ChatProvider>.value(
       value: _chatProvider,
@@ -246,12 +264,15 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             ],
           ),
           actions: [
-            IconButton(
-              onPressed: _openWhatsApp,
-              icon: const Icon(Icons.chat,
-                  color: Color(0xFF25D366), size: 26),
-              tooltip: 'تواصل عبر واتساب',
-            ),
+            // الـ admin يقدر يفتح WhatsApp مع العميل (لإكمال الطلب).
+            // المستخدم لا يرى الزر — لتجنب تعريض رقم admin.
+            if (isAdmin)
+              IconButton(
+                onPressed: _openWhatsApp,
+                icon: const Icon(Icons.chat,
+                    color: Color(0xFF25D366), size: 26),
+                tooltip: 'تواصل عبر واتساب',
+              ),
           ],
         ),
         body: Column(

@@ -1,5 +1,7 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/core/utils/color_utils.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
@@ -11,7 +13,24 @@ import 'package:my_fashion_app/models/product.dart';
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
 
-  const ProductDetailScreen({super.key, required this.product});
+  /// إذا != null → نحن في **edit mode** لعنصر سلة موجود.
+  /// قيمته = index العنصر في `cart.items`. عند الإضافة، نحذف العنصر
+  /// القديم ونضيف الجديد بنفس المعطيات الجديدة (size/color/quantity).
+  final int? editCartIndex;
+
+  /// المقاس المختار سابقاً (للـ edit mode) — يُعبَّأ افتراضياً.
+  final String? initialSize;
+
+  /// اللون المختار سابقاً (للـ edit mode) — يُعبَّأ افتراضياً.
+  final String? initialColor;
+
+  const ProductDetailScreen({
+    super.key,
+    required this.product,
+    this.editCartIndex,
+    this.initialSize,
+    this.initialColor,
+  });
 
   @override
   State<ProductDetailScreen> createState() => _ProductDetailScreenState();
@@ -25,12 +44,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String? _selectedSize;
   String? _selectedColor;
 
+  bool get _isEditMode => widget.editCartIndex != null;
+
   @override
   void initState() {
     super.initState();
     product = widget.product;
-    _selectedSize = product.sizes.isNotEmpty ? product.sizes.first : null;
-    _selectedColor = product.colors.isNotEmpty ? product.colors.first : null;
+    // في edit mode → نستخدم القيم الأولية من السلة (الاختيار السابق).
+    // غير ذلك → first item كـ default.
+    _selectedSize = widget.initialSize ??
+        (product.sizes.isNotEmpty ? product.sizes.first : null);
+    _selectedColor = widget.initialColor ??
+        (product.colors.isNotEmpty ? product.colors.first : null);
 
     // ابدأ مراقبة المفضلة (إن لم تكن مفعّلة) حتى أيقونة القلب تعكس
     // الحالة الصحيحة فور فتح الشاشة.
@@ -91,7 +116,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       stockQuantity: product.stockQuantity,
     );
 
-    Provider.of<CartProvider>(context, listen: false).addItem(cartItem);
+    final cart = Provider.of<CartProvider>(context, listen: false);
+
+    if (_isEditMode) {
+      // edit mode: احذف العنصر القديم وأضف الجديد بنفس المعطيات الجديدة
+      cart.removeItem(widget.editCartIndex!);
+      cart.addItem(cartItem);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تحديث المنتج في السلة'),
+          backgroundColor: Color(0xFF2E7D32),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.pop(context); // رجوع لشاشة السلة
+      return;
+    }
+
+    cart.addItem(cartItem);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -289,25 +331,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             AspectRatio(
               aspectRatio: 1.05,
-              child: Image.network(
-                product.imageUrl,
+              child: CachedNetworkImage(
+                imageUrl: product.imageUrl,
                 width: double.infinity,
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: Colors.grey[300],
-                    alignment: Alignment.center,
-                    child: CircularProgressIndicator(
-                      color: _gold,
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
+                placeholder: (_, __) => Shimmer.fromColors(
+                  baseColor: const Color(0xFF1E1E1E),
+                  highlightColor: const Color(0xFF2A2A2A),
+                  child: Container(color: Colors.black),
+                ),
+                errorWidget: (context, error, stackTrace) {
                   return Container(
                     color: Colors.grey[300],
                     alignment: Alignment.center,
@@ -415,10 +448,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       child: ElevatedButton.icon(
                         onPressed: product.stockQuantity > 0 ? _handleAddToCart : null,
                         icon: Icon(product.stockQuantity > 0
-                            ? Icons.shopping_cart_checkout_rounded
+                            ? (_isEditMode
+                                ? Icons.save_rounded
+                                : Icons.shopping_cart_checkout_rounded)
                             : Icons.block),
                         label: Text(product.stockQuantity > 0
-                            ? 'إضافة إلى السلة'
+                            ? (_isEditMode
+                                ? 'تحديث في السلة'
+                                : 'إضافة إلى السلة')
                             : 'نفد من المخزون'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: product.stockQuantity > 0 ? _gold : Colors.grey[700],
