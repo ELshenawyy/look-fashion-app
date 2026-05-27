@@ -1,3 +1,4 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -30,6 +31,21 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ⚠ Firebase App Check — يلغي صفحة reCAPTCHA web أثناء phone signup.
+  // Play Integrity provider يستخدم Google Play لإثبات أن التطبيق
+  // أصلي وموقَّع صحيحاً → Firebase يثق به فوراً بدون reCAPTCHA fallback.
+  // يتطلب: تسجيل التطبيق في Firebase Console → App Check → Play Integrity.
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug
+          : AndroidProvider.playIntegrity,
+    );
+  } catch (e) {
+    // غير قاتل — لو فشل App Check، الـ phone auth يظل يعمل (مع reCAPTCHA fallback)
+    debugPrint('AppCheck activate failed (non-fatal): $e');
+  }
 
   // Configure Firestore persistence
   FirebaseFirestore.instance.settings = const Settings(

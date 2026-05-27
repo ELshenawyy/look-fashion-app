@@ -111,6 +111,14 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
         }
       });
 
+      // ── Welcome bot message ──────────────────────────────────────
+      // نضيف رسالة ترحيب تلقائية فور إنشاء الطلب — تظهر للعميل عند فتح
+      // الشات + يستقبلها الأدمن مع الإشعار. غير قاتلة إذا فشلت.
+      await _addWelcomeBotMessage(
+        orderId: orderRef.id,
+        userName: input.userName,
+      );
+
       return orderRef.id;
     } on StockException {
       rethrow;
@@ -118,6 +126,38 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
       rethrow;
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? e.code);
+    }
+  }
+
+  /// رسالة ترحيب من البوت تُضاف للشات فور إنشاء الطلب.
+  /// `senderId: 'system'` يميّزها عن رسائل المستخدم/الأدمن.
+  /// `isWelcome: true` يمنع الـ auto-reply القديم من التداخل معها.
+  Future<void> _addWelcomeBotMessage({
+    required String orderId,
+    required String userName,
+  }) async {
+    try {
+      final shortId =
+          orderId.length >= 6 ? orderId.substring(0, 6) : orderId;
+      final name = userName.trim().isEmpty ? 'عميلنا الكريم' : userName.trim();
+      final text = 'أهلاً $name 👋\n'
+          'طلبك رقم #$shortId تم استلامه بنجاح.\n'
+          'فريقنا سيتواصل معك قريباً لتأكيد التفاصيل والشحن.\n'
+          'يمكنك إرسال أي استفسار هنا في أي وقت.';
+      await _db
+          .collection('orders')
+          .doc(orderId)
+          .collection('messages')
+          .add({
+        'senderId': 'system',
+        'senderName': 'إدارة تطبيق طلّة',
+        'text': text,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isAutoReply': true,
+        'isWelcome': true,
+      });
+    } catch (_) {
+      // غير قاتل — الطلب نفسه تم بنجاح
     }
   }
 

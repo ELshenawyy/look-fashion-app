@@ -61,32 +61,42 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       debugPrint('[chat.send] ✓ written docId=${docRef.id}');
 
       // 1.b) ── رد تلقائي من فريق الدعم ───────────────────────────────────
-      // يظهر مرة واحدة فقط: إذا أرسل المستخدم العادي رسالة ولم يردّ الإدمن
-      // بعد + لم يُنشَر رد تلقائي سابقاً → نضيف رسالة نظام تلقائية.
+      // يظهر مرة واحدة فقط بعد أول رسالة من المستخدم: إذا لم يردّ الإدمن
+      // بعد + لم يُنشَر رد تلقائي (غير welcome) سابقاً → نضيف رد تلقائي.
+      //
+      // ⚠ welcome bot من order placement له `isWelcome: true` — لا نعتبره
+      // auto-reply. هكذا المستخدم يرى:
+      //   1) ترحيب فور الطلب
+      //   2) "تم استلام رسالتك" بعد أول رسالة منه
+      //   3) رد الأدمن لاحقاً
       if (!isAdminSender) {
         try {
           final orderDoc = await _db.collection('orders').doc(orderId).get();
           final orderUserId =
               (orderDoc.data()?['userId'] as String?) ?? '';
 
-          // اقرأ كل الرسائل لتحديد: هل الإدمن ردّ من قبل؟ هل وُجد رد تلقائي؟
           final allMessages = await _messagesRef(orderId).get();
           bool hasAdminReply = false;
-          bool hasAutoReply = false;
+          bool hasNonWelcomeAutoReply = false;
           for (final m in allMessages.docs) {
-            final sid = (m.data()['senderId'] as String?) ?? '';
-            if (sid == 'system') {
-              hasAutoReply = true;
-            } else if (sid.isNotEmpty && sid != orderUserId) {
+            final data = m.data();
+            final sid = (data['senderId'] as String?) ?? '';
+            final isWelcome = (data['isWelcome'] as bool?) ?? false;
+            if (sid == 'system' && !isWelcome) {
+              hasNonWelcomeAutoReply = true;
+            } else if (sid.isNotEmpty &&
+                sid != orderUserId &&
+                sid != 'system') {
               hasAdminReply = true;
             }
           }
 
-          if (!hasAdminReply && !hasAutoReply) {
+          if (!hasAdminReply && !hasNonWelcomeAutoReply) {
             await _messagesRef(orderId).add({
-              'text': 'يرجى الانتظار حتى أقرب رد من فريق التواصل',
+              'text':
+                  'تم استلام رسالتك ✓\nفريق إدارة طلّة سيرد عليك في أقرب وقت 🙏',
               'senderId': 'system',
-              'senderName': 'فريق الدعم',
+              'senderName': 'إدارة تطبيق طلّة',
               'isAutoReply': true,
               'createdAt': FieldValue.serverTimestamp(),
             });
