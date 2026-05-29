@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
+import 'package:my_fashion_app/features/coupons/presentation/providers/coupons_provider.dart';
 import 'package:my_fashion_app/features/orders/domain/repositories/order_repository.dart';
 import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
@@ -23,8 +26,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _couponController = TextEditingController();
   bool _isPlacingOrder = false;
+  bool _validatingCoupon = false;
   String? _selectedState;
+  // ── Coupon state ─────────────────────────────────────────
+  String? _appliedCouponId;
+  String? _appliedCouponCode;
+  double _appliedDiscount = 0;
 
   static const double _localDelivery = 8000;      // نفس ولاية المنتج
   static const double _interStateDelivery = 11000; // ولاية مختلفة
@@ -74,6 +83,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _nameController.dispose();
     _addressController.dispose();
     _phoneController.dispose();
+    _couponController.dispose();
     super.dispose();
   }
 
@@ -109,7 +119,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     FocusScope.of(context).unfocus();
 
     final deliveryCost = _calculateDeliveryCost(cart);
-    final grandTotal = cart.totalPrice + deliveryCost;
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -237,9 +246,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const SizedBox(height: 6),
                         _totalRow('تكلفة التوصيل',
                             '${deliveryCost.toStringAsFixed(0)} ج.س', false),
+                        if (_appliedDiscount > 0) ...[
+                          const SizedBox(height: 6),
+                          _totalRow(
+                              'خصم الكوبون ($_appliedCouponCode)',
+                              '-${_appliedDiscount.toStringAsFixed(0)} ج.س',
+                              false,
+                              valueColor: Colors.green),
+                        ],
                         const SizedBox(height: 6),
-                        _totalRow('الإجمالي',
-                            '${grandTotal.toStringAsFixed(0)} ج.س', true),
+                        _totalRow(
+                            'الإجمالي',
+                            '${(cart.totalPrice + deliveryCost - _appliedDiscount).clamp(0.0, double.infinity).toStringAsFixed(0)} ج.س',
+                            true),
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -292,7 +311,75 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _totalRow(String label, String value, bool isBold) {
+  // ── Coupon input UI ─────────────────────────────────────────────
+  Widget _buildCouponSection(CartProvider cart) {
+    final isApplied = _appliedDiscount > 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _gold.withValues(alpha: 0.3)),
+      ),
+      child: isApplied
+          ? Row(
+              children: [
+                const Icon(Icons.local_offer,
+                    color: Colors.green, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'تم تطبيق كوبون "$_appliedCouponCode" — خصم ${_appliedDiscount.toStringAsFixed(0)} ج.س',
+                    style: const TextStyle(
+                        color: Colors.green, fontSize: 13),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _removeCoupon,
+                  child: const Text('إلغاء',
+                      style: TextStyle(color: Colors.red, fontSize: 12)),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                const Icon(Icons.local_offer_outlined,
+                    color: _gold, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _couponController,
+                    textCapitalization: TextCapitalization.characters,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      hintText: 'كود الكوبون (اختياري)',
+                      hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                      border: InputBorder.none,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                _validatingCoupon
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            color: _gold, strokeWidth: 2),
+                      )
+                    : TextButton(
+                        onPressed: () => _applyCoupon(cart),
+                        child: const Text('تطبيق',
+                            style: TextStyle(
+                                color: _gold,
+                                fontWeight: FontWeight.w700)),
+                      ),
+              ],
+            ),
+    );
+  }
+
+  Widget _totalRow(String label, String value, bool isBold,
+      {Color? valueColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -304,7 +391,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             )),
         Text(value,
             style: TextStyle(
-              color: isBold ? const Color(0xFFD4AF37) : Colors.white70,
+              color: valueColor ??
+                  (isBold ? const Color(0xFFD4AF37) : Colors.white70),
               fontSize: isBold ? 17 : 13,
               fontWeight: isBold ? FontWeight.w700 : FontWeight.normal,
             )),
@@ -314,6 +402,50 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   /// Places the order through the OrdersProvider use case.
   /// المعاملة الذرية الآن في FirestoreOrderDataSource.placeOrderTransaction.
+  // ── Coupon: تطبيق ─────────────────────────────────────────────
+  Future<void> _applyCoupon(CartProvider cart) async {
+    final code = _couponController.text.trim().toUpperCase();
+    if (code.isEmpty) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showSnack('يجب تسجيل الدخول لاستخدام كوبون', Colors.orange);
+      return;
+    }
+    setState(() => _validatingCoupon = true);
+    final result = await context.read<CouponsProvider>().validate(
+          code: code,
+          subtotal: cart.totalPrice,
+          userId: user.uid,
+        );
+    if (!mounted) return;
+    setState(() => _validatingCoupon = false);
+
+    if (result == null) {
+      final failure = context.read<CouponsProvider>().failure;
+      _showSnack(failure?.message ?? 'كوبون غير صالح', Colors.orange);
+      context.read<CouponsProvider>().clearFailure();
+      return;
+    }
+    setState(() {
+      _appliedCouponId = result.coupon.id;
+      _appliedCouponCode = result.coupon.code;
+      _appliedDiscount = result.discount;
+    });
+    _showSnack(
+      'تم تطبيق الكوبون — خصم ${result.discount.toStringAsFixed(0)} ج.س',
+      Colors.green,
+    );
+  }
+
+  void _removeCoupon() {
+    setState(() {
+      _appliedCouponId = null;
+      _appliedCouponCode = null;
+      _appliedDiscount = 0;
+      _couponController.clear();
+    });
+  }
+
   Future<void> _placeOrder(CartProvider cart) async {
     setState(() => _isPlacingOrder = true);
 
@@ -321,7 +453,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final userName = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final deliveryCost = _calculateDeliveryCost(cart);
-    final grandTotal = cart.totalPrice + deliveryCost;
+    // الإجمالي النهائي بعد خصم الكوبون
+    final grandTotal =
+        (cart.totalPrice + deliveryCost - _appliedDiscount)
+            .clamp(0.0, double.infinity);
 
     final input = PlaceOrderInput(
       userId: user?.uid,
@@ -335,6 +470,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       deliveryCost: deliveryCost,
       total: grandTotal,
       productStates: cart.items.map((i) => i.productState).toSet().toList(),
+      couponCode: _appliedCouponCode,
+      couponId: _appliedCouponId,
+      discountAmount: _appliedDiscount,
     );
 
     final ordersProvider = context.read<OrdersProvider>();
@@ -344,6 +482,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _isPlacingOrder = false);
 
     if (orderId != null) {
+      // سجّل redemption لو في كوبون مُطبَّق (غير قاتل لو فشل)
+      if (_appliedCouponId != null &&
+          user != null &&
+          _appliedDiscount > 0) {
+        unawaited(context.read<CouponsProvider>().redeem(
+              couponId: _appliedCouponId!,
+              userId: user.uid,
+              orderId: orderId,
+              amount: _appliedDiscount,
+            ));
+      }
       cart.clear();
       _showOrderConfirmationDialog();
     } else if (ordersProvider.failure != null) {
@@ -495,6 +644,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
             const SizedBox(height: 8),
+            // ── Coupon input ─────────────────────────────────────
+            _buildCouponSection(cart),
+            const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
@@ -530,6 +682,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
                     ],
                   ),
+                  if (_appliedDiscount > 0) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('خصم الكوبون ($_appliedCouponCode)',
+                            style: const TextStyle(
+                                color: Colors.green, fontSize: 14)),
+                        Text('-${_appliedDiscount.toStringAsFixed(0)} ج.س',
+                            style: const TextStyle(
+                                color: Colors.green,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ],
                   const Divider(color: Colors.white24, height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -538,7 +706,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           style: TextStyle(
                               color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                       Text(
-                        '${(cart.totalPrice + _calculateDeliveryCost(cart)).toStringAsFixed(0)} ج.س',
+                        '${(cart.totalPrice + _calculateDeliveryCost(cart) - _appliedDiscount).clamp(0.0, double.infinity).toStringAsFixed(0)} ج.س',
                         style: const TextStyle(
                             color: _gold, fontSize: 20, fontWeight: FontWeight.w700),
                       ),

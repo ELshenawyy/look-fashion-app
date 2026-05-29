@@ -98,6 +98,17 @@ import 'package:my_fashion_app/features/auth/domain/usecases/watch_current_user.
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart'
     as auth_p;
 
+// Coupons
+import 'package:my_fashion_app/features/coupons/data/datasources/coupon_remote_datasource.dart';
+import 'package:my_fashion_app/features/coupons/data/repositories/coupon_repository_impl.dart';
+import 'package:my_fashion_app/features/coupons/domain/repositories/coupon_repository.dart';
+import 'package:my_fashion_app/features/coupons/domain/usecases/create_coupon.dart';
+import 'package:my_fashion_app/features/coupons/domain/usecases/delete_coupon.dart';
+import 'package:my_fashion_app/features/coupons/domain/usecases/redeem_coupon.dart';
+import 'package:my_fashion_app/features/coupons/domain/usecases/validate_coupon.dart';
+import 'package:my_fashion_app/features/coupons/domain/usecases/watch_coupons.dart';
+import 'package:my_fashion_app/features/coupons/presentation/providers/coupons_provider.dart';
+
 /// Service Locator العالمي.
 /// استخدم `sl<T>()` لطلب أي نوع مسجَّل.
 final GetIt sl = GetIt.instance;
@@ -124,6 +135,35 @@ Future<void> init() async {
   _initProfile();
   _initChat();
   _initAdmin();
+  _initCoupons();
+}
+
+void _initCoupons() {
+  // Provider — singleton (state للأدمن يبقى بعد التنقل بين الشاشات)
+  sl.registerLazySingleton(() => CouponsProvider(
+        watchCoupons: sl(),
+        createCoupon: sl(),
+        deleteCoupon: sl(),
+        validateCoupon: sl(),
+        redeemCoupon: sl(),
+      ));
+
+  // Use Cases
+  sl.registerLazySingleton(() => WatchCoupons(sl()));
+  sl.registerLazySingleton(() => CreateCoupon(sl()));
+  sl.registerLazySingleton(() => DeleteCoupon(sl()));
+  sl.registerLazySingleton(() => ValidateCoupon(sl()));
+  sl.registerLazySingleton(() => RedeemCoupon(sl()));
+
+  // Repository
+  sl.registerLazySingleton<CouponRepository>(
+    () => CouponRepositoryImpl(remote: sl(), network: sl()),
+  );
+
+  // Data Source
+  sl.registerLazySingleton<CouponRemoteDataSource>(
+    () => CouponRemoteDataSourceImpl(sl()),
+  );
 }
 
 void _initChat() {

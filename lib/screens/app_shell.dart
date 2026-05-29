@@ -5,6 +5,7 @@ import 'package:my_fashion_app/features/auth/domain/entities/user_entity.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/login.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
+import 'package:my_fashion_app/screens/admin_coupons_screen.dart';
 import 'package:my_fashion_app/screens/admin_dashboard.dart';
 import 'package:my_fashion_app/screens/categories_screen.dart';
 import 'package:my_fashion_app/screens/email_verification_screen.dart';
@@ -214,6 +215,20 @@ class _AppShellState extends State<AppShell> {
                         ),
                         tooltip: 'لوحة الإدارة',
                         child: const Icon(Icons.dashboard),
+                      ),
+                      const SizedBox(height: 8),
+                      FloatingActionButton.small(
+                        backgroundColor: const Color(0xFFD4AF37),
+                        heroTag: 'coupons',
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AdminCouponsScreen(),
+                          ),
+                        ),
+                        tooltip: 'الكوبونات',
+                        child: const Icon(Icons.local_offer,
+                            color: Colors.black),
                       ),
                       const SizedBox(height: 8),
                       FloatingActionButton.small(

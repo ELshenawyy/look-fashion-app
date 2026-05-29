@@ -22,6 +22,7 @@ import 'package:my_fashion_app/features/orders/presentation/providers/orders_pro
 import 'package:my_fashion_app/features/products/presentation/providers/categories_provider.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
 import 'package:my_fashion_app/features/home/presentation/providers/home_ui_provider.dart';
+import 'package:my_fashion_app/features/coupons/presentation/providers/coupons_provider.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -99,6 +100,9 @@ void main() async {
         // UI-only state (لا يحتاج DI لأنه transient لـ HomeScreen)
         ChangeNotifierProvider<HomeUIProvider>(
             create: (_) => HomeUIProvider()),
+        // Coupons (admin CRUD + user apply في checkout)
+        ChangeNotifierProvider<CouponsProvider>.value(
+            value: di.sl<CouponsProvider>()),
       ],
       child: const MyApp(),
     ),

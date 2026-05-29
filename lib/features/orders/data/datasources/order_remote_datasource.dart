@@ -101,6 +101,11 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
           'productStates': input.productStates,
           'deliveryDays': input.deliveryDays,
           'createdAt': FieldValue.serverTimestamp(),
+          // Coupon fields (null/0 لو لا كوبون)
+          if (input.couponCode != null) 'couponCode': input.couponCode,
+          if (input.couponId != null) 'couponId': input.couponId,
+          if (input.discountAmount > 0)
+            'discountAmount': input.discountAmount,
         });
 
         // 4) إنقاص المخزون

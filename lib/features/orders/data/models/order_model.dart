@@ -40,6 +40,9 @@ class OrderModel extends OrderEntity {
     required super.productStates,
     required super.deliveryDays,
     required super.createdAt,
+    super.couponCode,
+    super.couponId,
+    super.discountAmount,
   });
 
   factory OrderModel.fromFirestore(
@@ -67,6 +70,11 @@ class OrderModel extends OrderEntity {
           ((d['productStates'] as List?) ?? const []).cast<String>(),
       deliveryDays: (d['deliveryDays'] as String?) ?? '',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      // Coupon fields (لو موجودة)
+      couponCode: d['couponCode'] as String?,
+      couponId: d['couponId'] as String?,
+      discountAmount:
+          (d['discountAmount'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

@@ -14,9 +14,13 @@ class PlaceOrderInput {
   final List<CartItem> items;
   final double subtotal;
   final double deliveryCost;
-  final double total;
+  final double total; // النهائي بعد الخصم
   final List<String> productStates;
   final String deliveryDays;
+  // ── Coupon (optional) ─────────────────────────────────
+  final String? couponCode;
+  final String? couponId;
+  final double discountAmount;
 
   const PlaceOrderInput({
     required this.userId,
@@ -31,6 +35,9 @@ class PlaceOrderInput {
     required this.total,
     required this.productStates,
     this.deliveryDays = '1-15',
+    this.couponCode,
+    this.couponId,
+    this.discountAmount = 0,
   });
 }
 

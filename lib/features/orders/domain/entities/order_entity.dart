@@ -63,11 +63,15 @@ class OrderEntity extends Equatable {
   final List<OrderItemEntity> items;
   final double subtotal;
   final double deliveryCost;
-  final double total;
+  final double total; // النهائي (subtotal + delivery - discount)
   final OrderStatus status;
   final List<String> productStates;
   final String deliveryDays;
   final DateTime? createdAt;
+  // ── Coupon fields (optional) ─────────────────────────────
+  final String? couponCode; // الكود المُطبَّق
+  final String? couponId; // الـ ID في coupons collection
+  final double discountAmount; // قيمة الخصم (0 لو لا كوبون)
 
   const OrderEntity({
     required this.id,
@@ -85,6 +89,9 @@ class OrderEntity extends Equatable {
     required this.productStates,
     required this.deliveryDays,
     required this.createdAt,
+    this.couponCode,
+    this.couponId,
+    this.discountAmount = 0,
   });
 
   @override
@@ -104,5 +111,8 @@ class OrderEntity extends Equatable {
         productStates,
         deliveryDays,
         createdAt,
+        couponCode,
+        couponId,
+        discountAmount,
       ];
 }
