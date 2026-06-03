@@ -35,6 +35,13 @@ class _LoginPageState extends State<LoginPage> {
   // ── Real-time email validation ────────────────────────────────────────
   String? _emailError;
 
+  /// يحدّد لو زر "تسجيل الدخول" بالبريد يجب أن يكون enabled بصرياً
+  /// (مطابق لسلوك زر الهاتف اللي يضيء لما الرقم صالح).
+  bool get _isEmailLoginValid =>
+      _emailError == null &&
+      _emailController.text.trim().isNotEmpty &&
+      _passwordController.text.length >= 6;
+
   void _onEmailChanged(String value) {
     setState(() {
       if (value.isEmpty) {
@@ -49,7 +56,21 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // listeners لتحديث UI زر الـ login مع كل تغيير في الحقول
+    _emailController.addListener(_onFieldChanged);
+    _passwordController.addListener(_onFieldChanged);
+  }
+
+  void _onFieldChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    _emailController.removeListener(_onFieldChanged);
+    _passwordController.removeListener(_onFieldChanged);
     _emailController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
@@ -110,15 +131,13 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _showForgotPasswordDialog(BuildContext context) async {
     const panel = Color(0xFF180808);
     const gold = Color(0xFFD4AF37);
-    final emailCtrl =
-        TextEditingController(text: _emailController.text.trim());
+    final emailCtrl = TextEditingController(text: _emailController.text.trim());
 
     await showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: panel,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'استعادة كلمة المرور',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
@@ -158,8 +177,7 @@ class _LoginPageState extends State<LoginPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child:
-                const Text('إلغاء', style: TextStyle(color: Colors.white54)),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -276,15 +294,13 @@ class _LoginPageState extends State<LoginPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon,
-                  size: 16,
-                  color: active ? Colors.white : Colors.white38),
+                  size: 16, color: active ? Colors.white : Colors.white38),
               const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
                   color: active ? Colors.white : Colors.white38,
-                  fontWeight:
-                      active ? FontWeight.w700 : FontWeight.normal,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.normal,
                   fontSize: 13,
                 ),
               ),
@@ -390,15 +406,14 @@ class _LoginPageState extends State<LoginPage> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide:
-                    const BorderSide(color: _themeColor, width: 1.5),
+                borderSide: const BorderSide(color: _themeColor, width: 1.5),
               ),
             ),
             keyboardType: TextInputType.phone,
             onChanged: (phone) {
               setState(() {
-                _completePhoneNumber = phone.completeNumber
-                    .replaceAll(RegExp(r'\s+'), '');
+                _completePhoneNumber =
+                    phone.completeNumber.replaceAll(RegExp(r'\s+'), '');
                 _isPhoneValid = phone.number.isNotEmpty &&
                     _completePhoneNumber.startsWith('+');
               });
@@ -417,8 +432,7 @@ class _LoginPageState extends State<LoginPage> {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    _isPhoneValid ? _themeColor : Colors.white24,
+                backgroundColor: _isPhoneValid ? _themeColor : Colors.white24,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -524,8 +538,7 @@ class _LoginPageState extends State<LoginPage> {
                     color: Colors.white38,
                     size: 20,
                   ),
-                  onPressed: () =>
-                      setState(() => _obscureText = !_obscureText),
+                  onPressed: () => setState(() => _obscureText = !_obscureText),
                 ),
               ),
               validator: (value) {
@@ -544,8 +557,7 @@ class _LoginPageState extends State<LoginPage> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () => _showForgotPasswordDialog(context),
-                style: TextButton.styleFrom(
-                    foregroundColor: Colors.white54),
+                style: TextButton.styleFrom(foregroundColor: Colors.white54),
                 child: const Text(
                   'هل نسيت كلمة المرور؟',
                   style: TextStyle(fontSize: 13),
@@ -553,19 +565,23 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             const SizedBox(height: 4),
-            // Login button
+            // Login button — مطابق 100% لزر "إرسال الرمز" في تاب الهاتف:
+            // - رمادي شفاف لما الحقول غير صالحة
+            // - أحمر themeColor لما الحقول صالحة + spinner أبيض
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _themeColor,
-                  disabledBackgroundColor:
-                      _themeColor.withValues(alpha: 0.6),
+                  backgroundColor:
+                      _isEmailLoginValid ? _themeColor : Colors.white24,
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                 ),
-                onPressed: _isLoading ? null : _signInWithEmail,
+                onPressed: (_isEmailLoginValid && !_isLoading)
+                    ? _signInWithEmail
+                    : null,
                 child: _isLoading
                     ? const SizedBox(
                         height: 22,
@@ -578,9 +594,10 @@ class _LoginPageState extends State<LoginPage> {
                     : const Text(
                         'تسجيل الدخول',
                         style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'arial'),
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'arial',
+                        ),
                       ),
               ),
             ),
@@ -619,8 +636,8 @@ class _LoginPageState extends State<LoginPage> {
           SafeArea(
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 constraints: const BoxConstraints(maxWidth: 640),
                 child: Column(
                   children: [
@@ -628,9 +645,13 @@ class _LoginPageState extends State<LoginPage> {
 
                     // ── App logo ──
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: Image.asset('assets/icon.png',
-                          height: 62, width: 62),
+                      borderRadius: BorderRadius.circular(18),
+                      child: Image.asset(
+                        'assets/icon.png',
+                        height: 80,
+                        width: 80,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                     const SizedBox(height: 14),
 
@@ -670,8 +691,7 @@ class _LoginPageState extends State<LoginPage> {
                     Expanded(
                       child: PageView(
                         controller: _pageController,
-                        onPageChanged: (i) =>
-                            setState(() => _tabIndex = i),
+                        onPageChanged: (i) => setState(() => _tabIndex = i),
                         children: [
                           _buildPhoneTab(),
                           _buildEmailTab(),
@@ -697,8 +717,7 @@ class _LoginPageState extends State<LoginPage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                      builder: (context) =>
-                                          const Signup()),
+                                      builder: (context) => const Signup()),
                                 );
                               },
                           ),

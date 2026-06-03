@@ -132,14 +132,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
   List<String> get _availableSizes =>
       availableSizesForCategory(_selectedCategory);
 
+  // استخدام hintText بدلاً من labelText لتجنب مشكلة قطع النص في Stepper
   InputDecoration _buildInputDecoration(String label) {
     return InputDecoration(
-      labelText: label,
-      floatingLabelStyle: const TextStyle(
-        color: _gold,
-        fontWeight: FontWeight.w700,
-      ),
-      labelStyle: const TextStyle(color: Colors.white70),
+      hintText: label,
+      hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       filled: true,
       fillColor: _inputFill,
       enabledBorder: OutlineInputBorder(
@@ -149,6 +147,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
         borderSide: const BorderSide(color: _gold, width: 1.4),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: const BorderSide(color: Colors.red, width: 1.4),
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
@@ -535,6 +541,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
           key: _formKey,
           child: Stepper(
           currentStep: _currentStep,
+          // الضغط على الأرقام (1-4) ينتقل مباشرة للخطوة
+          onStepTapped: (step) {
+            if (!_isSaving) setState(() => _currentStep = step);
+          },
           onStepContinue: () {
             if (_currentStep < 3) {
               setState(() {

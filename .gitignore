@@ -42,6 +42,26 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ─── Release Signing — حماية مفاتيح التوقيع من التسريب على Git ─────
+# ⚠ ملف key.properties يحتوي على كلمات سر الـ keystore.
+# ⚠ ملفات .jks / .keystore هي مفاتيح التوقيع نفسها (فقدانها = فقدان
+#    القدرة على تحديث التطبيق على Play Store إلى الأبد).
+# احفظ نسخة احتياطية من الـ keystore في مكان آمن خارج المستودع
+# (cloud storage مشفّر + USB drive).
+android/key.properties
+**/*.jks
+**/*.keystore
+
+# ─── Store Assets — ملفات سرية وصور المنتجات ──────────────────────────────
+# ⚠ Service Account يحتوي على credentials Firebase — لا يُرفع أبداً
+store_assets/*firebase*.json
+store_assets/serviceAccount.json
+# Scripts رفع المنتجات — أدّت غرضها
+store_assets/*.py
+# صور المنتجات المحلية — مرفوعة على Firebase Storage
+store_assets/products/
+
 # تجاهل فايلات المهارات الخاصة بـ AI Extensions
 *.md
 .windsurf/

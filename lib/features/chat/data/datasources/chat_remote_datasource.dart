@@ -33,8 +33,11 @@ class ChatRemoteDataSourceImpl implements ChatRemoteDataSource {
       debugPrint(
           '[chat.watch] orderId=$orderId snapshot docs=${snap.docs.length}');
       return snap.docs.map((d) => ChatMessageModel.fromFirestore(d)).toList();
-    }).handleError((e, st) {
+    }).handleError((Object e, StackTrace st) {
       debugPrint('[chat.watch] ❌ orderId=$orderId stream error: $e');
+      // rethrow حتى يصل الـ error للـ provider ويُظهر رسالة للمستخدم
+      // بدلاً من أن يظل الـ stream صامتاً ومكسوراً
+      Error.throwWithStackTrace(e, st);
     });
   }
 

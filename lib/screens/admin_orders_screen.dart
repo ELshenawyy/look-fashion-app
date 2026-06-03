@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/features/orders/domain/entities/order_entity.dart';
 import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
@@ -390,47 +391,59 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             );
           }),
           const Divider(color: Colors.white10, height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () =>
-                      _showStatusChangeDialog(order.id, order.status),
-                  icon: const Icon(Icons.swap_horiz, size: 18),
-                  label: const Text('تغيير الحالة'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _gold,
-                    side: const BorderSide(color: _gold),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+          // ⚠ زر "محادثة" يُخفى لو الطلب هو طلب الأدمن نفسه
+          // (لا يحتاج الأدمن يكلم نفسه). زر "تغيير الحالة" يبقى دائماً.
+          Builder(
+            builder: (context) {
+              final currentUid = FirebaseAuth.instance.currentUser?.uid;
+              final isOwnOrder =
+                  currentUid != null && order.userId == currentUid;
+              return Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showStatusChangeDialog(
+                          order.id, order.status),
+                      icon: const Icon(Icons.swap_horiz, size: 18),
+                      label: const Text('تغيير الحالة'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _gold,
+                        side: const BorderSide(color: _gold),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => OrderChatScreen(
-                          orderId: order.id,
-                          otherUserName: order.userName,
+                  if (!isOwnOrder) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => OrderChatScreen(
+                                orderId: order.id,
+                                otherUserName: order.userName,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.chat_bubble_outline,
+                            size: 18),
+                        label: const Text('محادثة'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blue,
+                          side: const BorderSide(color: Colors.blue),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                  label: const Text('محادثة'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    side: const BorderSide(color: Colors.blue),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),

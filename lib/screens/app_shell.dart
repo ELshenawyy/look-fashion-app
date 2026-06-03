@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
-import 'package:my_fashion_app/features/auth/domain/entities/user_entity.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/login.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
@@ -138,7 +137,13 @@ class _AppShellState extends State<AppShell> {
         }
 
         // ── authenticated ───────────────────────────────────────────────
-        final UserEntity user = auth.user!;
+        final user = auth.user;
+        if (user == null) {
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37))),
+          );
+        }
         final isAdminLevel = user.isAdmin;
         final isSuperAdmin = user.isSuperAdmin;
 

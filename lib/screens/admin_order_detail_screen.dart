@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
 import 'package:my_fashion_app/features/orders/domain/entities/order_entity.dart';
@@ -362,47 +363,58 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _showStatusDialog(order.status),
-                  icon: const Icon(Icons.swap_horiz, size: 18),
-                  label: const Text('تغيير الحالة'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _gold,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => OrderChatScreen(
-                        orderId: widget.orderId,
-                        otherUserName: userName,
+          // Action buttons — زر "محادثة" يُخفى لو الأدمن نفسه صاحب الطلب
+          Builder(
+            builder: (context) {
+              final currentUid = FirebaseAuth.instance.currentUser?.uid;
+              final isOwnOrder =
+                  currentUid != null && order.userId == currentUid;
+              return Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showStatusDialog(order.status),
+                      icon: const Icon(Icons.swap_horiz, size: 18),
+                      label: const Text('تغيير الحالة'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _gold,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ),
-                  icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                  label: const Text('محادثة'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.blue,
-                    side: const BorderSide(color: Colors.blue),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-            ],
+                  if (!isOwnOrder) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => OrderChatScreen(
+                              orderId: widget.orderId,
+                              otherUserName: userName,
+                            ),
+                          ),
+                        ),
+                        icon: const Icon(Icons.chat_bubble_outline,
+                            size: 18),
+                        label: const Text('محادثة'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.blue,
+                          side: const BorderSide(color: Colors.blue),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
         ],

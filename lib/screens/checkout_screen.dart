@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/features/coupons/presentation/providers/coupons_provider.dart';
 import 'package:my_fashion_app/features/orders/domain/repositories/order_repository.dart';
@@ -48,10 +48,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void initState() {
     super.initState();
-    final user = FirebaseAuth.instance.currentUser;
-    if (user?.displayName != null && user!.displayName!.isNotEmpty) {
-      _nameController.text = user.displayName!;
-    }
+    // استخدام AuthProvider بدلاً من FirebaseAuth مباشرة
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final displayName = context.read<AuthProvider>().user?.displayName ?? '';
+      if (displayName.isNotEmpty) {
+        _nameController.text = displayName;
+      }
+    });
   }
 
   double _calculateDeliveryCost(CartProvider cart) {
@@ -406,7 +410,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _applyCoupon(CartProvider cart) async {
     final code = _couponController.text.trim().toUpperCase();
     if (code.isEmpty) return;
-    final user = FirebaseAuth.instance.currentUser;
+    final user = context.read<AuthProvider>().user;
     if (user == null) {
       _showSnack('يجب تسجيل الدخول لاستخدام كوبون', Colors.orange);
       return;
@@ -449,7 +453,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _placeOrder(CartProvider cart) async {
     setState(() => _isPlacingOrder = true);
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = context.read<AuthProvider>().user;
     final userName = _nameController.text.trim();
     final phone = _phoneController.text.trim();
     final deliveryCost = _calculateDeliveryCost(cart);
@@ -486,12 +490,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       if (_appliedCouponId != null &&
           user != null &&
           _appliedDiscount > 0) {
-        unawaited(context.read<CouponsProvider>().redeem(
+        context.read<CouponsProvider>().redeem(
               couponId: _appliedCouponId!,
               userId: user.uid,
               orderId: orderId,
               amount: _appliedDiscount,
-            ));
+            ).catchError((Object e) {
+          debugPrint('[checkout] coupon redeem failed: $e');
+          return false; // Future<bool> — إرجاع false عند الفشل
+        });
       }
       cart.clear();
       _showOrderConfirmationDialog();

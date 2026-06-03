@@ -152,7 +152,9 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       email: email,
       password: password,
     );
-    return cred.user!.uid;
+    final uid = cred.user?.uid;
+    if (uid == null) throw const ServerException('auth-null-user');
+    return uid;
   }
 
   @override
@@ -165,7 +167,8 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       email: email,
       password: password,
     );
-    final uid = cred.user!.uid;
+    final uid = cred.user?.uid;
+    if (uid == null) throw const ServerException('auth-null-user');
     await _db.collection('users').doc(uid).set(
           UserModel.initialFirestoreDoc(uid: uid, email: email, name: name),
         );
@@ -311,7 +314,8 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       smsCode: smsCode,
     );
     final result = await _auth.signInWithCredential(cred);
-    final uid = result.user!.uid;
+    final uid = result.user?.uid;
+    if (uid == null) throw const ServerException('auth-null-user');
 
     // ── Phone signup flow ──────────────────────────────────────────────
     // إذا مُرَّر displayName → نتأكد من وجود مستند users/{uid}.
@@ -324,12 +328,12 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         await docRef.set({
           'uid': uid,
           'name': displayName.trim(),
-          'phone': result.user!.phoneNumber,
+          'phone': result.user?.phoneNumber,
           'role': 'user',
           'createdAt': FieldValue.serverTimestamp(),
         });
         try {
-          await result.user!.updateDisplayName(displayName.trim());
+          await result.user?.updateDisplayName(displayName.trim());
         } catch (_) {
           // غير حرج
         }

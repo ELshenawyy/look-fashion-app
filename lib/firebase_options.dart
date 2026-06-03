@@ -51,7 +51,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyC5NBxzfL3eZux-p_agGMrUDCji7mUkbAA',
-    appId: '1:93532617575:android:91f494f78d1d6e9a128dc2',
+    appId: '1:93532617575:android:97c676418bce1dde128dc2', // com.tala.orders
     messagingSenderId: '93532617575',
     projectId: 'look-fashion-app',
     storageBucket: 'look-fashion-app.firebasestorage.app',

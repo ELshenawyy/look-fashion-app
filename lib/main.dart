@@ -1,5 +1,4 @@
 import 'package:firebase_app_check/firebase_app_check.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:my_fashion_app/screens/splash_screen.dart';
@@ -26,50 +25,82 @@ import 'package:my_fashion_app/features/coupons/presentation/providers/coupons_p
 import 'firebase_options.dart';
 
 void main() async {
+  // ─── Global Flutter error handler ──────────────────────────────────────
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('[FlutterError] ${details.exceptionAsString()}');
+  };
+
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // ─── Step-by-step init مع error screen لتشخيص الكراش ─────────────────
+  String? initError;
 
-  // ⚠ Firebase App Check — يلغي صفحة reCAPTCHA web أثناء phone signup.
-  // Play Integrity provider يستخدم Google Play لإثبات أن التطبيق
-  // أصلي وموقَّع صحيحاً → Firebase يثق به فوراً بدون reCAPTCHA fallback.
-  // يتطلب: تسجيل التطبيق في Firebase Console → App Check → Play Integrity.
   try {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: kDebugMode
-          ? AndroidProvider.debug
-          : AndroidProvider.playIntegrity,
+    // Step 1: Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
     );
-  } catch (e) {
-    // غير قاتل — لو فشل App Check، الـ phone auth يظل يعمل (مع reCAPTCHA fallback)
-    debugPrint('AppCheck activate failed (non-fatal): $e');
+  } catch (e, st) {
+    initError = 'STEP 1 - Firebase.initializeApp:\n$e\n\n$st';
   }
 
-  // Configure Firestore persistence
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-  );
+  if (initError == null) {
+    try {
+      // Step 2: App Check
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: AndroidProvider.debug,
+      );
+    } catch (e) {
+      debugPrint('AppCheck non-fatal: $e');
+    }
+  }
 
-  // ─── Initialize Dependency Injection (Clean Architecture) ─────────────
-  await di.init();
+  if (initError == null) {
+    try {
+      // Step 3: Firestore settings
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+      );
+    } catch (e, st) {
+      initError = 'STEP 3 - Firestore settings:\n$e\n\n$st';
+    }
+  }
 
-  // ─── تحميل السلة المحفوظة من SharedPreferences ────────────────────────
-  // مهم: يجب أن يكون قبل تشغيل MultiProvider حتى لا يظهر التطبيق
-  // بسلة فاضية ثم يتم تعبئتها (flicker سيئ).
-  await di.sl<LocalCartDataSource>().init();
+  if (initError == null) {
+    try {
+      // Step 4: Dependency Injection
+      await di.init();
+    } catch (e, st) {
+      initError = 'STEP 4 - DI init:\n$e\n\n$st';
+    }
+  }
 
-  // ─── ربط NotificationsScreen.getUnreadCount بـ DI ─────────────────────
-  notif_screen.registerUnreadCountResolver(
-    (uid, isAdmin) => di
-        .sl<NotificationsProvider>()
-        .watchUnreadCount(userId: uid, isAdmin: isAdmin),
-  );
+  if (initError == null) {
+    try {
+      // Step 5: Local Cart
+      await di.sl<LocalCartDataSource>().init();
+    } catch (e, st) {
+      initError = 'STEP 5 - LocalCart init:\n$e\n\n$st';
+    }
+  }
 
-  if (kDebugMode) {
-    debugPrint('✅ Firebase + DI initialized successfully');
+  if (initError == null) {
+    try {
+      // Step 6: Notifications resolver
+      notif_screen.registerUnreadCountResolver(
+        (uid, isAdmin) => di
+            .sl<NotificationsProvider>()
+            .watchUnreadCount(userId: uid, isAdmin: isAdmin),
+      );
+    } catch (e, st) {
+      initError = 'STEP 6 - Notifications resolver:\n$e\n\n$st';
+    }
+  }
+
+  // لو في خطأ → أعرضه على الشاشة بدل ما يحصل crash صامت
+  if (initError != null) {
+    runApp(_ErrorApp(error: initError));
+    return;
   }
 
   runApp(
@@ -126,7 +157,7 @@ class MyApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      title: 'تطبيق الأزياء',
+      title: 'Talla-طلة',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.black,
@@ -151,3 +182,54 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// ─── شاشة تعرض سبب الكراش بالضبط على الجهاز ────────────────────────────
+class _ErrorApp extends StatelessWidget {
+  final String error;
+  const _ErrorApp({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF1a0000),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '⚠️ Startup Error',
+                  style: TextStyle(
+                    color: Color(0xFFD4AF37),
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'خذ screenshot وابعته للمطوّر',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      error,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

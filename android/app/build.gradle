@@ -7,6 +7,22 @@ plugins {
     id "com.google.gms.google-services"
 }
 
+// ── Release signing — قراءة آمنة من android/key.properties ─────────────
+// الملف غير موجود في git (محجوب في .gitignore).
+// لو غير موجود → release build يستخدم debug signing تلقائياً (fallback آمن)
+// عشان flutter build apk --release يظل يعمل في بيئة بدون keystore.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+def hasReleaseKeystore = false
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    // تأكد من أن ملف الـ .jks الفعلي موجود (key.properties قد يشير لمسار خاطئ)
+    def storeFilePath = keystoreProperties['storeFile']
+    if (storeFilePath != null && file(storeFilePath).exists()) {
+        hasReleaseKeystore = true
+    }
+}
+
 android {
     namespace = "com.example.my_fashion_app"
     compileSdk = 35
@@ -26,16 +42,36 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.my_fashion_app"
+        applicationId = "com.tala.orders"
         minSdkVersion 23
         targetSdkVersion 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    // ── Signing configs ────────────────────────────────────────────────
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            release {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            // تعطيل R8 shrinking لمنع حذف classes مهمة من Firebase و GetIt
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // لو الـ release keystore موجود → استخدمه (للـ Play Store).
+            // لو لا → fallback لـ debug signing (للتجارب المحلية فقط).
+            signingConfig hasReleaseKeystore
+                ? signingConfigs.release
+                : signingConfigs.debug
         }
     }
 }

@@ -43,6 +43,16 @@ class _SignupState extends State<Signup> {
   bool _isPhoneValid = false;
   bool _isPhoneSending = false;
 
+  /// يحدّد لو زر "إنشاء حساب" بالبريد يجب أن يكون enabled بصرياً
+  /// (مطابق لسلوك زر الهاتف اللي يضيء لما الرقم صالح).
+  bool get _isEmailSignupValid =>
+      _emailError == null &&
+      _name.trim().isNotEmpty &&
+      _name.trim().length >= 3 &&
+      _email.trim().isNotEmpty &&
+      _password.length >= 6 &&
+      _password == _confirmPassword;
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -218,8 +228,7 @@ class _SignupState extends State<Signup> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon,
-                  size: 16,
-                  color: active ? Colors.white : Colors.white38),
+                  size: 16, color: active ? Colors.white : Colors.white38),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -352,15 +361,14 @@ class _SignupState extends State<Signup> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide:
-                      const BorderSide(color: _themeColor, width: 1.5),
+                  borderSide: const BorderSide(color: _themeColor, width: 1.5),
                 ),
               ),
               keyboardType: TextInputType.phone,
               onChanged: (phone) {
                 setState(() {
-                  _completePhoneNumber = phone.completeNumber
-                      .replaceAll(RegExp(r'\s+'), '');
+                  _completePhoneNumber =
+                      phone.completeNumber.replaceAll(RegExp(r'\s+'), '');
                   _isPhoneValid = phone.number.isNotEmpty &&
                       _completePhoneNumber.startsWith('+');
                 });
@@ -373,15 +381,15 @@ class _SignupState extends State<Signup> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                      _isPhoneValid ? _themeColor : Colors.white24,
+                  backgroundColor: _isPhoneValid ? _themeColor : Colors.white24,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16)),
                 ),
-                onPressed:
-                    (_isPhoneValid && !_isPhoneSending) ? _submitPhoneSignUp : null,
+                onPressed: (_isPhoneValid && !_isPhoneSending)
+                    ? _submitPhoneSignUp
+                    : null,
                 child: _isPhoneSending
                     ? const SizedBox(
                         height: 22,
@@ -464,9 +472,8 @@ class _SignupState extends State<Signup> {
                 label: 'الاسم الكامل',
                 icon: Icons.person_outline_rounded,
               ),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'يرجى إدخال الاسم'
-                  : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'يرجى إدخال الاسم' : null,
             ),
             const SizedBox(height: 16),
 
@@ -486,8 +493,7 @@ class _SignupState extends State<Signup> {
                 if (v == null || v.trim().isEmpty) {
                   return 'يرجى إدخال البريد الإلكتروني';
                 }
-                if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-                    .hasMatch(v.trim())) {
+                if (!RegExp(r"^[^@\s]+@[^@\s]+\.[^@\s]+$").hasMatch(v.trim())) {
                   return 'يرجى إدخال بريد إلكتروني صحيح';
                 }
                 return null;
@@ -512,8 +518,7 @@ class _SignupState extends State<Signup> {
                     color: Colors.white38,
                     size: 20,
                   ),
-                  onPressed: () =>
-                      setState(() => _obscureText = !_obscureText),
+                  onPressed: () => setState(() => _obscureText = !_obscureText),
                 ),
               ),
               validator: (v) {
@@ -585,21 +590,24 @@ class _SignupState extends State<Signup> {
             ),
             const SizedBox(height: 24),
 
-            // ── Submit — مطابق لزر الهاتف (foregroundColor: white) ──
+            // ── Submit — مطابق 100% لزر "إرسال رمز التحقق" في تاب الهاتف:
+            // - رمادي شفاف لما الحقول غير صالحة
+            // - أحمر themeColor لما الحقول صالحة + spinner أبيض
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _themeColor,
+                  backgroundColor:
+                      _isEmailSignupValid ? _themeColor : Colors.white24,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor:
-                      _themeColor.withValues(alpha: 0.6),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                onPressed: _isLoading ? null : _submitEmailSignUp,
+                onPressed: (_isEmailSignupValid && !_isLoading)
+                    ? _submitEmailSignUp
+                    : null,
                 child: _isLoading
                     ? const SizedBox(
                         height: 22,
@@ -612,9 +620,9 @@ class _SignupState extends State<Signup> {
                     : const Text(
                         'إنشاء حساب',
                         style: TextStyle(
-                          color: Colors.white,
                           fontSize: 17,
                           fontWeight: FontWeight.bold,
+                          fontFamily: 'arial',
                         ),
                       ),
               ),
@@ -661,8 +669,8 @@ class _SignupState extends State<Signup> {
                     // Logo
                     ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child: Image.asset('assets/icon.png',
-                          height: 58, width: 58),
+                      child:
+                          Image.asset('assets/icon.png', height: 58, width: 58),
                     ),
                     const SizedBox(height: 14),
 
@@ -678,8 +686,7 @@ class _SignupState extends State<Signup> {
                     const SizedBox(height: 6),
                     const Text(
                       'اختر طريقة التسجيل المناسبة لك.',
-                      style:
-                          TextStyle(color: Colors.white60, fontSize: 14),
+                      style: TextStyle(color: Colors.white60, fontSize: 14),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),

@@ -1,10 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
+import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_products.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
 import 'package:my_fashion_app/constants/category_constants.dart';
@@ -29,32 +29,12 @@ class _ProductListingPageState extends State<ProductListingPage> {
   static const Color _gold = Color(0xFFD4AF37);
 
   final WatchProducts _watchProducts = sl<WatchProducts>();
-  final Set<String> _optimisticFavorites = <String>{};
-  final Set<String> _optimisticRemovals = <String>{};
-
-  // ── Favorites logic ───────────────────────────────────────────────────
-  String _productKey(Product product) =>
-      product.docId ?? product.id.toString();
-
-  Stream<Set<String>> _favoriteIdsStream(String userId) {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('favorites')
-        .snapshots()
-        .map((snap) => snap.docs.map((doc) => doc.id).toSet());
-  }
-
-  bool _isFavorite(Product product, Set<String> savedFavoriteIds) {
-    final key = _productKey(product);
-    if (_optimisticRemovals.contains(key)) return false;
-    if (_optimisticFavorites.contains(key)) return true;
-    return savedFavoriteIds.contains(key);
-  }
-
-  Future<void> _toggleFavorite(Product product, bool isFavorite) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+  // ── Favorites logic — يستخدم FavoritesProvider مع Selector ──────────
+  // لا StreamBuilder، لا optimistic sets، لا setState عند toggle
+  // → فقط أيقونة كل كارت تُعاد بناؤها عبر Selector الموجود في ProductCard
+  Future<void> _toggleFavorite(Product product) async {
+    final uid = context.read<AuthProvider>().user?.uid;
+    if (uid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى تسجيل الدخول لحفظ المنتجات في المفضلة.'),
@@ -64,51 +44,14 @@ class _ProductListingPageState extends State<ProductListingPage> {
       );
       return;
     }
-
-    final key = _productKey(product);
-    final ref = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('favorites')
-        .doc(key);
-
-    setState(() {
-      if (isFavorite) {
-        _optimisticFavorites.remove(key);
-        _optimisticRemovals.add(key);
-      } else {
-        _optimisticRemovals.remove(key);
-        _optimisticFavorites.add(key);
-      }
-    });
-
-    try {
-      if (isFavorite) {
-        await ref.delete();
-      } else {
-        await ref.set({
-          ...product.toJson(),
-          'docId': key,
-          'savedAt': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        if (isFavorite) {
-          _optimisticRemovals.remove(key);
-        } else {
-          _optimisticFavorites.remove(key);
-        }
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تعذر تحديث المفضلة: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+    final fav = context.read<FavoritesProvider>();
+    await fav.toggle(
+      userId: uid,
+      productId: product.docId ?? product.id.toString(),
+      title: product.title,
+      imageUrl: product.imageUrl,
+      price: product.price,
+    );
   }
 
   // ── Cart logic ────────────────────────────────────────────────────────
@@ -164,7 +107,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
   // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    // user غير مستخدم هنا — FavoritesProvider يتولى الـ auth
     final title = widget.categoryName ?? 'كل المنتجات';
     final ratio = _cardRatio(context);
 
@@ -207,112 +150,92 @@ class _ProductListingPageState extends State<ProductListingPage> {
             ]);
           }
 
+          // ⚡ لا StreamBuilder هنا — كل ProductCard يستخدم
+          // Selector<FavoritesProvider, bool> داخلياً → فقط
+          // أيقونة المفضلة الخاصة بالمنتج تُعاد بناؤها عند التغيير
           final products = productSnap.data ?? const <Product>[];
-          final favStream = user == null
-              ? Stream.value(<String>{})
-              : _favoriteIdsStream(user.uid);
 
-          return StreamBuilder<Set<String>>(
-            stream: favStream,
-            builder: (context, favSnap) {
-              final favoriteIds = favSnap.data ?? <String>{};
-
-              return CustomScrollView(
-                slivers: [
-                  sliverBar,
-                  // Header subtitle
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding:
-                          const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'اختر القطعة التي تناسبك',
-                            style: TextStyle(
-                              color: _gold,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
+          return CustomScrollView(
+            slivers: [
+              sliverBar,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'اختر القطعة التي تناسبك',
+                        style: TextStyle(
+                          color: _gold,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${products.length} منتج متاح',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              products.isEmpty
+                  ? SliverFillRemaining(
+                      child: Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.shopping_bag_outlined,
+                                color: Colors.white24, size: 72),
+                            const SizedBox(height: 16),
+                            Text(
+                              widget.categoryName == null
+                                  ? 'لا توجد منتجات'
+                                  : 'لا توجد منتجات في قسم ${widget.categoryName}',
+                              style: const TextStyle(
+                                  color: Colors.white54, fontSize: 16),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${products.length} منتج متاح',
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ),
+                    )
+                  : SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          childAspectRatio: ratio,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final p = products[index];
+                            return ProductCard(
+                              product: p,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ProductDetailScreen(product: p),
+                                ),
+                              ),
+                              onFavoriteToggle: () => _toggleFavorite(p),
+                              onAddToCart: () => _addToCart(p),
+                            );
+                          },
+                          childCount: products.length,
+                        ),
                       ),
                     ),
-                  ),
-
-                  // ── Products Grid or Empty State ──
-                  products.isEmpty
-                      ? SliverFillRemaining(
-                          child: Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                    Icons.shopping_bag_outlined,
-                                    color: Colors.white24,
-                                    size: 72),
-                                const SizedBox(height: 16),
-                                Text(
-                                  widget.categoryName == null
-                                      ? 'لا توجد منتجات'
-                                      : 'لا توجد منتجات في قسم ${widget.categoryName}',
-                                  style: const TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 16,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : SliverPadding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: ratio,
-                            ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final p = products[index];
-                                final fav =
-                                    _isFavorite(p, favoriteIds);
-                                return ProductCard(
-                                  product: p,
-                                  onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          ProductDetailScreen(
-                                              product: p),
-                                    ),
-                                  ),
-                                  onFavoriteToggle: () =>
-                                      _toggleFavorite(p, fav),
-                                  onAddToCart: () => _addToCart(p),
-                                );
-                              },
-                              childCount: products.length,
-                            ),
-                          ),
-                        ),
-                ],
-              );
-            },
+            ],
           );
         },
       ),

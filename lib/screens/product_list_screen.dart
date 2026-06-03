@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:my_fashion_app/constants/banner_constants.dart';
@@ -12,6 +10,7 @@ import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
+import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/quick_add_sheet.dart';
@@ -278,8 +277,13 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   // ── AppBar ────────────────────────────────────────────────────────────
+  // استخدام AuthProvider بدلاً من FirebaseAuth/Firestore مباشرة
   SliverAppBar _buildAppBar() {
-    final user = FirebaseAuth.instance.currentUser;
+    final authUser = context.watch<AuthProvider>().user;
+    final fullName = authUser?.displayName ?? '';
+    final firstName = fullName.trim().isNotEmpty
+        ? fullName.trim().split(' ').first
+        : 'أهلاً';
 
     return SliverAppBar(
       backgroundColor: Colors.black,
@@ -292,44 +296,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
           // ── Avatar — ديناميكي من Firestore ──────────────────────────
           const UserAvatarWidget(radius: 20),
           const SizedBox(width: 10),
-          // ── Greeting — ديناميكي من Firestore ────────────────────────
-          if (user != null)
-            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(user.uid)
-                  .snapshots(),
-              builder: (_, snap) {
-                final data = snap.data?.data();
-                final fullName = data?['name'] as String? ??
-                    user.displayName ?? '';
-                final first = fullName.trim().isNotEmpty
-                    ? fullName.trim().split(' ').first
-                    : 'أهلاً';
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'مرحباً، $first',
-                      style: const TextStyle(
-                          color: Colors.white70, fontSize: 12),
-                    ),
-                    const TalaAppBarTitle(),
-                  ],
-                );
-              },
-            )
-          else
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('مرحباً',
-                    style:
-                        TextStyle(color: Colors.white70, fontSize: 12)),
-                TalaAppBarTitle(),
-              ],
+          // ── Greeting — ديناميكي من AuthProvider (يستمع لـ Firestore تلقائياً) ──
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'مرحباً، $firstName',
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              const TalaAppBarTitle(),
+            ],
             ),
         ],
       ),
