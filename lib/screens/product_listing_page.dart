@@ -95,12 +95,21 @@ class _ProductListingPageState extends State<ProductListingPage> {
   // ── childAspectRatio computed from screen width ───────────────────────
   /// الارتفاع الثابت لقسم البيانات في الكارت = 102px
   /// (8 top + 32 title + 4 gap + 16 price + 6 gap + 28 btn + 8 bottom)
+  // عدد الأعمدة حسب عرض الشاشة
+  int _crossAxisCount(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    if (w >= 900) return 4;
+    if (w >= 600) return 3;
+    return 2;
+  }
+
   double _cardRatio(BuildContext context) {
-    const hPadding = 32.0; // 16 يسار + 16 يمين
-    const hSpacing = 12.0; // المسافة بين العمودين
+    const hPadding = 32.0;
+    const hSpacing = 12.0;
     const infoHeight = 102.0;
     final w = MediaQuery.of(context).size.width;
-    final cardW = (w - hPadding - hSpacing) / 2;
+    final cols = _crossAxisCount(context);
+    final cardW = (w - hPadding - (hSpacing * (cols - 1))) / cols;
     return cardW / (cardW + infoHeight);
   }
 
@@ -210,7 +219,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
                       sliver: SliverGrid(
                         gridDelegate:
                             SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
+                          crossAxisCount: _crossAxisCount(context),
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                           childAspectRatio: ratio,

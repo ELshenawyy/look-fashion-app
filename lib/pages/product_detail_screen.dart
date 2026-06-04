@@ -512,6 +512,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // ── اسم المنتج ───────────────────────────────────
                   Text(
                     product.title,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -527,7 +529,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Column(
+                      Flexible(
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text('السعر',
@@ -544,6 +547,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         ],
                       ),
+                      ), // end Flexible
+                      const SizedBox(width: 8),
                       _buildStockBadge(),
                     ],
                   ),

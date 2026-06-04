@@ -670,10 +670,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   // ── Product Grid ──────────────────────────────────────────────────────
   Widget _buildProductGrid(List<Product> products) {
+    final w = MediaQuery.of(context).size.width;
+    final cols = w >= 900 ? 4 : w >= 600 ? 3 : 2;
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
       sliver: SliverMasonryGrid.count(
-        crossAxisCount: 2,
+        crossAxisCount: cols,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
         childCount: products.length,
@@ -785,8 +787,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
         child: GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: MediaQuery.of(context).size.width >= 900
+                ? 4
+                : MediaQuery.of(context).size.width >= 600
+                    ? 3
+                    : 2,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
             childAspectRatio: 0.72,

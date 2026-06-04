@@ -57,11 +57,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               // ⚡ SliverMasonryGrid بدلاً من MasonryGridView.count داخل
               // SliverToBoxAdapter — يعمل بـ lazy build حقيقي مع الـ
               // CustomScrollView الخارجي، يحسّن الأداء أثناء التمرير.
+              final sw = MediaQuery.of(context).size.width;
+              final cols = sw >= 900 ? 4 : sw >= 600 ? 3 : 2;
               return SliverPadding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 sliver: SliverMasonryGrid.count(
-                  crossAxisCount: 2,
+                  crossAxisCount: cols,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
                   childCount: kCategoryData.length,

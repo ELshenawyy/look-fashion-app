@@ -295,6 +295,8 @@ class ProfileScreen extends StatelessWidget {
                   Text(
                     displayName,
                     textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
@@ -306,6 +308,8 @@ class ProfileScreen extends StatelessWidget {
                     Text(
                       email,
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           color: Colors.white54, fontSize: 14),
                     ),

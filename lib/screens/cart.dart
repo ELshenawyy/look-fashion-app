@@ -227,31 +227,34 @@ class _CartItemCard extends StatelessWidget {
           child: Row(
         children: [
           // Product image
-          ClipRRect(
-            borderRadius:
-                const BorderRadius.horizontal(left: Radius.circular(16)),
-            child: CachedNetworkImage(
-              imageUrl: item.image,
-              width: 100,
-              height: 100,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => Shimmer.fromColors(
-                baseColor: const Color(0xFF1E1E1E),
-                highlightColor: const Color(0xFF2A2A2A),
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  color: Colors.black,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final imgSize =
+                  (MediaQuery.of(context).size.width * 0.24).clamp(80.0, 110.0);
+              return ClipRRect(
+                borderRadius:
+                    const BorderRadius.horizontal(left: Radius.circular(16)),
+                child: CachedNetworkImage(
+                  imageUrl: item.image,
+                  width: imgSize,
+                  height: imgSize,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => Shimmer.fromColors(
+                    baseColor: const Color(0xFF1E1E1E),
+                    highlightColor: const Color(0xFF2A2A2A),
+                    child:
+                        SizedBox(width: imgSize, height: imgSize),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
+                    width: imgSize,
+                    height: imgSize,
+                    color: Colors.grey[900],
+                    child: const Icon(Icons.image_not_supported,
+                        color: Colors.white24),
+                  ),
                 ),
-              ),
-              errorWidget: (_, __, ___) => Container(
-                width: 100,
-                height: 100,
-                color: Colors.grey[900],
-                child: const Icon(Icons.image_not_supported,
-                    color: Colors.white24),
-              ),
-            ),
+              );
+            },
           ),
           const SizedBox(width: 12),
           // Product info
