@@ -91,6 +91,7 @@ import 'package:my_fashion_app/features/auth/domain/usecases/send_email_verifica
 import 'package:my_fashion_app/features/auth/domain/usecases/send_otp_for_phone_update.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_in_with_email.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_out.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/update_email.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/update_phone_number.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_up_with_email.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/verify_otp.dart';
@@ -306,6 +307,7 @@ void _initAuth() {
         reloadUser: sl(),
         sendOtpForPhoneUpdate: sl(),
         updatePhoneNumber: sl(),
+        updateEmail: sl(),
       ));
 
   // Use Cases
@@ -320,6 +322,7 @@ void _initAuth() {
   sl.registerLazySingleton(() => ReloadUser(sl()));
   sl.registerLazySingleton(() => SendOtpForPhoneUpdate(sl()));
   sl.registerLazySingleton(() => UpdatePhoneNumber(sl()));
+  sl.registerLazySingleton(() => UpdateEmail(sl()));
 
   // Repository
   sl.registerLazySingleton<AuthRepository>(

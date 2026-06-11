@@ -15,6 +15,7 @@ import 'package:my_fashion_app/features/auth/domain/usecases/send_password_reset
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_in_with_email.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_out.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/sign_up_with_email.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/update_email.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/update_phone_number.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/verify_otp.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/watch_current_user.dart';
@@ -25,7 +26,7 @@ import 'package:my_fashion_app/features/orders/presentation/providers/orders_pro
 import 'package:my_fashion_app/features/products/presentation/providers/categories_provider.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
 
-enum AuthStatus { unknown, authenticated, unauthenticated, revoked }
+enum AuthStatus { unknown, authenticated, unauthenticated, revoked, banned }
 
 class AuthProvider extends ChangeNotifier {
   final WatchCurrentUser _watchCurrentUser;
@@ -39,6 +40,7 @@ class AuthProvider extends ChangeNotifier {
   final ReloadUser _reloadUser;
   final SendOtpForPhoneUpdate _sendOtpForPhoneUpdate;
   final UpdatePhoneNumber _updatePhoneNumber;
+  final UpdateEmail _updateEmail;
 
   StreamSubscription<UserEntity?>? _userSub;
 
@@ -62,6 +64,7 @@ class AuthProvider extends ChangeNotifier {
     required ReloadUser reloadUser,
     required SendOtpForPhoneUpdate sendOtpForPhoneUpdate,
     required UpdatePhoneNumber updatePhoneNumber,
+    required UpdateEmail updateEmail,
   })  : _watchCurrentUser = watchCurrentUser,
         _signInWithEmail = signInWithEmail,
         _signUpWithEmail = signUpWithEmail,
@@ -72,7 +75,8 @@ class AuthProvider extends ChangeNotifier {
         _sendEmailVerification = sendEmailVerification,
         _reloadUser = reloadUser,
         _sendOtpForPhoneUpdate = sendOtpForPhoneUpdate,
-        _updatePhoneNumber = updatePhoneNumber {
+        _updatePhoneNumber = updatePhoneNumber,
+        _updateEmail = updateEmail {
     _startWatching();
   }
 
@@ -94,6 +98,7 @@ class AuthProvider extends ChangeNotifier {
     _userSub?.cancel();
     _userSub = _watchCurrentUser().listen(
       (u) {
+        final previousUser = _user;
         _user = u;
         if (u == null) {
           _status = AuthStatus.unauthenticated;
@@ -101,7 +106,18 @@ class AuthProvider extends ChangeNotifier {
           // ⚠️ بيانات Firestore لم تصل بعد — نُبقي حالة "unknown" حتى
           // لا تُعرض شاشات الدور الخاطئ (إصلاح تداخل حسابات الأدمن).
           _status = AuthStatus.unknown;
-        } else if (u.isRevoked) {
+        } else if (u.isBanned) {
+          // ⚠️ حساب محظور نهائياً (طُرد كموظف) — اطرده فوراً حتى لو كان
+          // في جلسة نشطة، بصرف النظر عن دوره الحالي.
+          _status = AuthStatus.banned;
+        } else if (previousUser != null &&
+            previousUser.isAdmin &&
+            !u.isAdmin &&
+            u.isRevoked) {
+          // ⚠️ تنزيل صلاحيات حدث أثناء جلسة نشطة (كان أدمن والآن مستخدم
+          // عادي) → اطرده من لوحة الإدارة فوراً. لا نعتمد فقط على
+          // isRevoked لأن revokedAt يبقى في Firestore للأبد، وإلا
+          // سيُحظر تسجيل الدخول كمستخدم عادي إلى الأبد بعد ذلك.
           _status = AuthStatus.revoked;
         } else {
           _status = AuthStatus.authenticated;
@@ -125,12 +141,11 @@ class AuthProvider extends ChangeNotifier {
       }, (loadedUser) {
         // ⚠️ Critical: ضع المستخدم المحمّل فوراً (لا تنتظر stream)
         // → AppShell يلتقط الدور الصحيح قبل أي navigation.
+        // ملاحظة: لا نتحقق من isRevoked هنا — تسجيل الدخول الجديد
+        // يُسمح به دائماً (revokedAt مجرد سجل تاريخي لإلغاء صلاحيات
+        // أدمن سابق ولا يجب أن يحظر دخوله كمستخدم عادي).
         _user = loadedUser;
-        if (loadedUser.isRevoked) {
-          _status = AuthStatus.revoked;
-        } else {
-          _status = AuthStatus.authenticated;
-        }
+        _status = AuthStatus.authenticated;
         return true;
       });
     });
@@ -190,13 +205,10 @@ class AuthProvider extends ChangeNotifier {
         _failure = f;
         return false;
       }, (loadedUser) {
-        // ⚠️ نفس مبدأ signInWithEmail: نضع المستخدم فوراً
+        // ⚠️ نفس مبدأ signInWithEmail: نضع المستخدم فوراً، ولا نتحقق
+        // من isRevoked — تسجيل الدخول الجديد مسموح دائماً.
         _user = loadedUser;
-        if (loadedUser.isRevoked) {
-          _status = AuthStatus.revoked;
-        } else {
-          _status = AuthStatus.authenticated;
-        }
+        _status = AuthStatus.authenticated;
         return true;
       });
     });
@@ -375,6 +387,31 @@ class AuthProvider extends ChangeNotifier {
     }, (_) async {
       // أعد تحميل بيانات المستخدم ليلتقط الرقم الجديد
       await refreshCurrentUser();
+      notifyListeners();
+      return true;
+    });
+  }
+
+  // ── Email Update (للملف الشخصي — لمستخدمي البريد فقط) ─────────────
+  /// يبدأ تحديث البريد. يرسل رابط تأكيد للبريد الجديد.
+  /// يرجع true عند الإرسال الناجح، false عند الفشل.
+  Future<bool> requestEmailUpdate({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    _busy = true;
+    _failure = null;
+    notifyListeners();
+    final res = await _updateEmail(UpdateEmailParams(
+      currentPassword: currentPassword,
+      newEmail: newEmail,
+    ));
+    _busy = false;
+    return res.fold((f) {
+      _failure = f;
+      notifyListeners();
+      return false;
+    }, (_) {
       notifyListeners();
       return true;
     });

@@ -849,7 +849,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 style: TextStyle(color: Colors.white38, fontSize: 11),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            // ── Cash on Delivery banner ──────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0A2A0A),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.payments_outlined, color: Colors.green, size: 22),
+                  SizedBox(width: 10),
+                  Text(
+                    'الدفع عند الاستلام فقط',
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
-import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:my_fashion_app/features/products/domain/usecases/watch_products.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
-import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/product_card.dart';
 import 'package:my_fashion_app/widgets/quick_add_sheet.dart';
@@ -52,44 +49,6 @@ class _ProductListingPageState extends State<ProductListingPage> {
       imageUrl: product.imageUrl,
       price: product.price,
     );
-  }
-
-  // ── Cart logic ────────────────────────────────────────────────────────
-  /// نفس منطق `_quickAddToCart` في product_list_screen — يفتح
-  /// QuickAddSheet للمنتجات اللي تحتاج اختيار size/color، ويُضيف
-  /// مباشرة للمنتجات بدون variants (عطور، تجميل، إلكترونيات).
-  void _addToCart(Product product) {
-    if (_productNeedsSelection(product)) {
-      showQuickAddSheet(context, product);
-      return;
-    }
-
-    final cart = context.read<CartProvider>();
-    cart.addItem(CartItem(
-      productId: product.docId ?? '',
-      name: product.title,
-      price: product.price,
-      image: product.imageUrl,
-      size: product.sizes.isNotEmpty ? product.sizes.first : 'افتراضي',
-      color: product.colors.isNotEmpty ? product.colors.first : 'افتراضي',
-      productState: product.state,
-      stockQuantity: product.stockQuantity,
-      quantity: 1,
-    ));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تمت الإضافة إلى السلة'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-
-  bool _productNeedsSelection(Product p) {
-    return kCategoriesWithVariants.contains(p.category) ||
-        p.sizes.length > 1 ||
-        p.colors.length > 1;
   }
 
   // ── childAspectRatio computed from screen width ───────────────────────
@@ -237,7 +196,7 @@ class _ProductListingPageState extends State<ProductListingPage> {
                                 ),
                               ),
                               onFavoriteToggle: () => _toggleFavorite(p),
-                              onAddToCart: () => _addToCart(p),
+                              onAddToCart: () => showQuickAddSheet(context, p),
                             );
                           },
                           childCount: products.length,

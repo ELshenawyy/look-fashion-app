@@ -101,6 +101,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
     try {
       final XFile? picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 1200,
         imageQuality: 80,
       );
       if (picked != null) {

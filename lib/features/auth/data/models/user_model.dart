@@ -13,6 +13,7 @@ class UserModel extends UserEntity {
     super.emailVerified,
     super.createdAt,
     super.revokedAt,
+    super.bannedAt,
     super.isLoaded,
   });
 
@@ -31,6 +32,7 @@ class UserModel extends UserEntity {
       emailVerified: emailVerified,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       revokedAt: (data['revokedAt'] as Timestamp?)?.toDate(),
+      bannedAt: (data['bannedAt'] as Timestamp?)?.toDate(),
     );
   }
 
@@ -45,6 +47,7 @@ class UserModel extends UserEntity {
         'email': email,
         'name': name,
         'role': 'user',
+        'emailVerified': false,
         'createdAt': FieldValue.serverTimestamp(),
       };
 }

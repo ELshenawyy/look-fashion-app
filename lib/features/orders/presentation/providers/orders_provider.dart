@@ -87,9 +87,13 @@ class OrdersProvider extends ChangeNotifier {
   Future<bool> updateStatus({
     required String orderId,
     required OrderStatus status,
+    String? customerId,
   }) async {
-    final res = await _updateOrderStatus(
-        UpdateOrderStatusParams(orderId: orderId, status: status));
+    final res = await _updateOrderStatus(UpdateOrderStatusParams(
+      orderId: orderId,
+      status: status,
+      customerId: customerId,
+    ));
     return res.fold((f) {
       _failure = f;
       notifyListeners();

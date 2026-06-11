@@ -48,6 +48,16 @@ abstract class FirebaseAuthDataSource {
     required String smsCode,
   });
 
+  /// يحدّث بريد المستخدم الحالي.
+  /// 1) reauthenticate بكلمة المرور الحالية (مطلوب من Firebase لحماية الحساب)
+  /// 2) `verifyBeforeUpdateEmail` — يرسل رابط تأكيد للبريد **الجديد**
+  /// 3) المستخدم يضغط الرابط → Firebase يحدّث الإيميل
+  /// 4) Firestore `users/{uid}.email` يتحدّث في reloadCurrentUser التالية
+  Future<void> updateEmail({
+    required String currentPassword,
+    required String newEmail,
+  });
+
   /// يُعيد تحميل بيانات المستخدم من Firebase ويرجع UserModel جديد
   /// يعكس آخر حالة (مهم لالتقاط تحديث emailVerified بعد ضغط الرابط).
   Future<UserModel?> reloadCurrentUser();
@@ -96,15 +106,40 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
           }
         },
         onError: (Object e) {
-          if (!controller.isClosed) controller.addError(e);
+          debugPrint('[watchCurrentUser] Firestore error (fallback to Firebase Auth): $e');
+          // لا نرسل stream error — المستخدم لا يزال مُسجَّل دخوله عبر Firebase Auth
+          // نُبقيه بـ isLoaded:false حتى يتعافى Firestore تلقائياً
+          if (!controller.isClosed && activeUid == user.uid) {
+            controller.add(_fromFirebaseUser(user));
+          }
         },
       );
     }
 
     controller = StreamController<UserModel?>(
       onListen: () {
+        // ── Pre-populate من الـ cache المتزامن ──────────────────────────────
+        // _auth.currentUser متاح فورًا بعد Firebase.initializeApp() من
+        // SharedPreferences بدون انتظار network. نستخدمه لمنع الـ null
+        // الكاذب اللي بيبعثه authStateChanges() قبل ما يُحمَّل الـ cache.
+        final syncUser = _auth.currentUser;
+        if (syncUser != null && !controller.isClosed) {
+          activeUid = syncUser.uid;
+          controller.add(_fromFirebaseUser(syncUser));
+          subscribeToUserDoc(syncUser);
+        }
+
         authSub = _auth.authStateChanges().listen((user) async {
-          // ⚠️ ألغِ subscription المستخدم القديم فوراً (root cause fix)
+          // ── Guard: تجاهل الـ null الكاذب عند Cold Start ─────────────────
+          // authStateChanges() أحيانًا يبعت null لحظيًا قبل ما يُعيد
+          // تحميل الـ cached user من الـ persistent storage. لو
+          // currentUser لا يزال موجودًا، الـ null ده عابر وليس logout حقيقي.
+          if (user == null && _auth.currentUser != null) {
+            debugPrint('[watchCurrentUser] transient null ignored — currentUser still set');
+            return;
+          }
+
+          // ⚠️ ألغِ subscription المستخدم القديم فوراً
           await closeUserDocSub();
           activeUid = user?.uid;
 
@@ -154,7 +189,22 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     );
     final uid = cred.user?.uid;
     if (uid == null) throw const ServerException('auth-null-user');
+    await _ensureNotBanned(uid);
     return uid;
+  }
+
+  /// يتحقق من أن الحساب غير محظور (banned=true في Firestore).
+  /// إذا كان محظوراً → يسجّل الخروج فوراً ويرمي استثناء يمنع الدخول.
+  Future<void> _ensureNotBanned(String uid) async {
+    final doc = await _db.collection('users').doc(uid).get();
+    final banned = doc.data()?['banned'] as bool? ?? false;
+    if (banned) {
+      await _auth.signOut();
+      throw FirebaseAuthException(
+        code: 'user-banned',
+        message: 'هذا الحساب محظور من استخدام التطبيق.',
+      );
+    }
   }
 
   @override
@@ -199,6 +249,16 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     await user.reload();
     final fresh = _auth.currentUser;
     if (fresh == null) return null;
+    // لما يتحقق من البريد، حدّث Firestore عشان يظهر في Staff Management
+    if (fresh.emailVerified) {
+      try {
+        await _db.collection('users').doc(fresh.uid).update({
+          'emailVerified': true,
+        });
+      } catch (_) {
+        // non-critical — التحقق اتم والـ auth state هيتحدث تلقائياً
+      }
+    }
     return _fromFirebaseUser(fresh);
   }
 
@@ -256,6 +316,51 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         'phone': updated!.phoneNumber,
       });
     }
+  }
+
+  @override
+  Future<void> updateEmail({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const ServerException('not-authenticated');
+    }
+    final currentEmail = user.email;
+    if (currentEmail == null || currentEmail.isEmpty) {
+      // مستخدم OTP لا يملك إيميل/كلمة سر — لا يمكن تغيير الإيميل
+      throw FirebaseAuthException(
+        code: 'email-account-required',
+        message: 'هذا الحساب مسجَّل بالهاتف فقط.',
+      );
+    }
+    final trimmed = newEmail.trim();
+    if (trimmed.isEmpty) {
+      throw FirebaseAuthException(
+        code: 'invalid-email',
+        message: 'البريد الإلكتروني الجديد مطلوب.',
+      );
+    }
+    if (trimmed.toLowerCase() == currentEmail.toLowerCase()) {
+      throw FirebaseAuthException(
+        code: 'same-email',
+        message: 'البريد الجديد مطابق للحالي.',
+      );
+    }
+
+    // 1) Reauthenticate بكلمة المرور الحالية
+    final cred = EmailAuthProvider.credential(
+      email: currentEmail,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(cred);
+
+    // 2) إرسال رابط تأكيد للبريد الجديد. الإيميل الفعلي يتغير لما اليوزر
+    //    يضغط الرابط من بريده الجديد. آمن (يمنع سرقة الحسابات).
+    await user.verifyBeforeUpdateEmail(trimmed);
+
+    debugPrint('[updateEmail] ✓ verification link sent to: $trimmed');
   }
 
   @override
@@ -317,13 +422,14 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     final uid = result.user?.uid;
     if (uid == null) throw const ServerException('auth-null-user');
 
+    final docRef = _db.collection('users').doc(uid);
+    final doc = await docRef.get();
+
     // ── Phone signup flow ──────────────────────────────────────────────
     // إذا مُرَّر displayName → نتأكد من وجود مستند users/{uid}.
     // إن لم يكن موجوداً → ننشئه بدور 'user' (مستخدم جديد سجَّل بالهاتف).
     // إن كان موجوداً → لا نعدّله (احتراماً للحساب الموجود).
     if (displayName != null && displayName.trim().isNotEmpty) {
-      final docRef = _db.collection('users').doc(uid);
-      final doc = await docRef.get();
       if (!doc.exists) {
         await docRef.set({
           'uid': uid,
@@ -338,8 +444,22 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
           // غير حرج
         }
       }
+    } else if (!doc.exists) {
+      // ── Phone login flow ────────────────────────────────────────────
+      // ⚠️ Critical: signInWithCredential ينجح وينشئ حساب Firebase Auth
+      // جديد تلقائياً حتى لو الرقم لم يُسجَّل في التطبيق من قبل (Firebase
+      // لا يفرّق بين تسجيل دخول/حساب جديد بالهاتف). إذا لم يوجد مستند
+      // Firestore → هذا الرقم لم يُسجَّل فعلياً. نُلغي الحساب الوهمي فوراً
+      // (وإلا سيبقى الجهاز "مسجَّل دخول" بحساب بلا بيانات → شاشة تحميل
+      // لانهائية في AppShell عند إعادة التشغيل) ونمنع الدخول.
+      await _auth.signOut();
+      throw FirebaseAuthException(
+        code: 'user-not-registered',
+        message: 'لا يوجد حساب مسجَّل بهذا الرقم.',
+      );
     }
 
+    await _ensureNotBanned(uid);
     return uid;
   }
 

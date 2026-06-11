@@ -26,6 +26,8 @@ class CartProvider extends ChangeNotifier {
   double get totalPrice =>
       _items.fold(0.0, (sum, item) => sum + item.price * item.quantity);
 
+  Future<void> loadForUser(String uid) => _repo.loadForUser(uid);
+
   void addItem(CartItem item) => _repo.addItem(item);
   void removeItem(int index) => _repo.removeAt(index);
   void incrementQuantity(int index) => _repo.incrementQuantity(index);

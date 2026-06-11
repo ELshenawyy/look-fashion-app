@@ -60,6 +60,13 @@ abstract class AuthRepository {
     required String smsCode,
   });
 
+  /// يبدأ تحديث البريد الإلكتروني: يرسل رابط تأكيد للبريد الجديد.
+  /// التحديث الفعلي يتم لما اليوزر يضغط الرابط من بريده الجديد.
+  Future<Either<Failure, void>> updateEmail({
+    required String currentPassword,
+    required String newEmail,
+  });
+
   /// يُعيد تحميل بيانات المستخدم من Firebase ويرجع نسخة محدّثة.
   /// يُستخدم بعد تفعيل البريد لتحديث `emailVerified` في الـ state.
   Future<Either<Failure, UserEntity?>> reloadCurrentUser();

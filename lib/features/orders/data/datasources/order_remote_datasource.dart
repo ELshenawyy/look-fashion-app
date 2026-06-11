@@ -16,6 +16,7 @@ abstract class OrderRemoteDataSource {
   Future<void> updateOrderStatus({
     required String orderId,
     required OrderStatus status,
+    String? customerId,
   });
 
   /// إشعار الإدمن — خارج المعاملة، non-critical.
@@ -211,14 +212,110 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
   Future<void> updateOrderStatus({
     required String orderId,
     required OrderStatus status,
+    String? customerId,
   }) async {
     try {
-      await _db.collection('orders').doc(orderId).update({
-        'status': status.toFirestoreValue(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      if (status == OrderStatus.cancelled) {
+        // Fetch the order to restore stock and extract customerId if needed.
+        final orderDoc =
+            await _db.collection('orders').doc(orderId).get();
+        if (orderDoc.exists) {
+          final data = orderDoc.data()!;
+          final currentStatus =
+              OrderStatus.fromString(data['status'] as String?);
+
+          final batch = _db.batch();
+          batch.update(_db.collection('orders').doc(orderId), {
+            'status': OrderStatus.cancelled.toFirestoreValue(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          // Restore stock only once — guard against double-cancellation.
+          if (currentStatus != OrderStatus.cancelled) {
+            for (final item
+                in (data['items'] as List<dynamic>? ?? [])) {
+              final productId = item['productId'] as String?;
+              final qty = (item['quantity'] as num?)?.toInt() ?? 0;
+              if (productId != null && productId.isNotEmpty && qty > 0) {
+                batch.update(
+                  _db.collection('products').doc(productId),
+                  {'stockQuantity': FieldValue.increment(qty)},
+                );
+              }
+            }
+          }
+
+          // Reuse the already-fetched userId so _notifyCustomer avoids
+          // a second read.
+          customerId ??= data['userId'] as String?;
+          await batch.commit();
+        }
+      } else {
+        await _db.collection('orders').doc(orderId).update({
+          'status': status.toFirestoreValue(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Notify the customer — non-critical, never fails the status update
+      await _notifyCustomerOfStatusChange(
+        orderId: orderId,
+        status: status,
+        customerId: customerId,
+      );
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? e.code);
+    }
+  }
+
+  static String _statusBody(OrderStatus status) {
+    switch (status.toFirestoreValue()) {
+      case 'pending':
+        return 'تم استلام طلبك ⏳';
+      case 'preparing':
+        return 'جاري تجهيز طلبك 📦';
+      case 'shipped':
+        return 'تم شحن طلبك 🚚';
+      case 'delivered':
+        return 'تم تسليم طلبك بنجاح 🎉';
+      case 'cancelled':
+        return 'تم إلغاء طلبك ❌';
+      default:
+        return 'تم تحديث حالة طلبك';
+    }
+  }
+
+  Future<void> _notifyCustomerOfStatusChange({
+    required String orderId,
+    required OrderStatus status,
+    String? customerId,
+  }) async {
+    try {
+      // Use the customerId passed from the caller to avoid an extra Firestore
+      // read. Fall back to fetching the document only if it wasn't provided.
+      String? userId = customerId;
+      if (userId == null || userId.isEmpty) {
+        final orderDoc = await _db.collection('orders').doc(orderId).get();
+        if (!orderDoc.exists) return;
+        userId = orderDoc.data()?['userId'] as String?;
+      }
+      if (userId == null || userId.isEmpty) return;
+
+      await _db.collection('notifications').add({
+        'type': 'order_status_update',
+        'title': 'تحديث طلبك',
+        'body': _statusBody(status),
+        'orderId': orderId,
+        'forUserId': userId,
+        'forRole': null,
+        'read': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Push notification is sent by the Cloud Function (functions/index.js)
+      // which triggers on the notifications document created above.
+    } catch (_) {
+      // non-critical — ignore failures
     }
   }
 
@@ -244,8 +341,11 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
         'senderId': userId ?? '',
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Push notification is sent by the Cloud Function (functions/index.js)
+      // which triggers on the notifications document created above.
     } on FirebaseException {
-      // إشعار غير حرج — تجاهل الفشل
+      // non-critical — ignore failures
     }
   }
 }

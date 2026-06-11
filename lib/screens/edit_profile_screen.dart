@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:my_fashion_app/core/utils/password_validator.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/profile/presentation/providers/profile_provider.dart';
 import 'package:my_fashion_app/shared/widgets/otp_pin_field.dart';
@@ -54,6 +55,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       source: source,
       imageQuality: 75,
       maxWidth: 800,
+      maxHeight: 800,
     );
     if (picked == null || !mounted) return;
 
@@ -154,8 +156,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _showSnack('يرجى ملء جميع حقول كلمة المرور', Colors.orange);
       return;
     }
-    if (newPass.length < 8) {
-      _showSnack('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل', Colors.orange);
+    if (!PasswordValidator.isStrong(newPass)) {
+      _showSnack(
+        'كلمة المرور لا تستوفي شروط القوة (راجع القائمة بالأسفل)',
+        Colors.orange,
+      );
       return;
     }
     if (newPass != confirm) {
@@ -300,7 +305,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     final hasPhone = (user?.phone ?? '').isNotEmpty;
 
                     if (hasEmail) {
-                      return _buildPasswordSection();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildPasswordSection(),
+                          const SizedBox(height: 32),
+                          const Divider(color: Colors.white12),
+                          const SizedBox(height: 24),
+                          _buildEmailInfoCard(user!.email!),
+                        ],
+                      );
                     } else if (hasPhone) {
                       return _buildPhoneInfoCard(user!.phone!);
                     }
@@ -337,6 +351,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           label: 'كلمة المرور الجديدة',
           obscure: _obscureNew,
           onToggle: () => setState(() => _obscureNew = !_obscureNew),
+        ),
+        const SizedBox(height: 10),
+        // متطلبات كلمة المرور — تتحدّث live مع الكتابة
+        AnimatedBuilder(
+          animation: _newPassController,
+          builder: (_, __) => PasswordRequirementsChecklist(
+            password: _newPassController.text,
+          ),
         ),
         const SizedBox(height: 12),
         _passwordField(
@@ -529,37 +551,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   TextStyle(color: _gold, fontWeight: FontWeight.w700)),
           content: SizedBox(
             width: double.maxFinite,
-            child: IntlPhoneField(
-              initialCountryCode: 'SD',
-              languageCode: 'ar',
-              showCountryFlag: true,
-              dropdownIcon:
-                  const Icon(Icons.arrow_drop_down, color: Colors.white70),
-              dropdownTextStyle: const TextStyle(color: Colors.white),
-              style: const TextStyle(color: Colors.white),
-              pickerDialogStyle: PickerDialogStyle(
-                searchFieldInputDecoration: const InputDecoration(
-                  hintText: 'ابحث عن الدولة',
-                  prefixIcon: Icon(Icons.search),
+            // ⚠ LTR على الـ field فقط — يخلي العلم وكود الدولة على اليسار
+            // (مطابق لشاشات Sign-in / Sign-up)
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: IntlPhoneField(
+                initialCountryCode: 'SD',
+                languageCode: 'ar',
+                showCountryFlag: true,
+                flagsButtonPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                flagsButtonMargin: EdgeInsets.zero,
+                textAlignVertical: TextAlignVertical.center,
+                dropdownIcon:
+                    const Icon(Icons.arrow_drop_down, color: Colors.white70),
+                dropdownTextStyle:
+                    const TextStyle(color: Colors.white, fontSize: 16),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                pickerDialogStyle: PickerDialogStyle(
+                  searchFieldInputDecoration: const InputDecoration(
+                    hintText: 'ابحث عن الدولة',
+                    prefixIcon: Icon(Icons.search),
+                  ),
                 ),
-              ),
-              decoration: InputDecoration(
-                hintText: 'رقم الهاتف',
-                hintStyle: const TextStyle(color: Colors.white38),
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.07),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                decoration: InputDecoration(
+                  hintText: 'رقم الهاتف',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.07),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 18),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
+                onChanged: (p) {
+                  setSt(() {
+                    complete =
+                        p.completeNumber.replaceAll(RegExp(r'\s+'), '');
+                    isValid =
+                        p.number.isNotEmpty && complete.startsWith('+');
+                  });
+                },
               ),
-              onChanged: (p) {
-                setSt(() {
-                  complete = p.completeNumber.replaceAll(RegExp(r'\s+'), '');
-                  isValid =
-                      p.number.isNotEmpty && complete.startsWith('+');
-                });
-              },
             ),
           ),
           actions: [
@@ -626,6 +662,245 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ctrl.dispose();
       return v;
     });
+  }
+
+  // ── Email Info Card + Change Email Flow (لمستخدمي البريد فقط) ─────────
+  Widget _buildEmailInfoCard(String email) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('البريد الإلكتروني'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: _panel,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _gold.withValues(alpha: 0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _gold.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.email_outlined,
+                        color: _gold, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'بريدك الحالي',
+                          style: TextStyle(
+                              color: Colors.white60, fontSize: 12),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          email,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          textDirection: TextDirection.ltr,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'يمكنك تغيير بريدك الإلكتروني. سيُرسل رابط تأكيد للبريد الجديد، '
+                'بمجرد الضغط عليه من بريدك الجديد سيتم تحديث الحساب.',
+                style: TextStyle(
+                  color: Colors.white60,
+                  fontSize: 12,
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _startEmailUpdateFlow,
+                  icon: const Icon(Icons.edit_outlined,
+                      color: _gold, size: 20),
+                  label: const Text(
+                    'تعديل البريد الإلكتروني',
+                    style: TextStyle(
+                        color: _gold, fontWeight: FontWeight.w700),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                        color: _gold.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _startEmailUpdateFlow() async {
+    // dialog واحد فيه: البريد الجديد + كلمة المرور الحالية
+    final input = await _showNewEmailDialog();
+    if (input == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.requestEmailUpdate(
+      currentPassword: input.password,
+      newEmail: input.email,
+    );
+    if (!mounted) return;
+    if (ok) {
+      messenger.showSnackBar(SnackBar(
+        content: Text(
+          'تم إرسال رابط تأكيد إلى ${input.email}.\n'
+          'افتح البريد واضغط الرابط لإتمام التغيير.',
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 6),
+      ));
+    } else {
+      messenger.showSnackBar(SnackBar(
+        content: Text(auth.failure?.message ?? 'فشل تغيير البريد'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+      ));
+    }
+  }
+
+  Future<_EmailUpdateInput?> _showNewEmailDialog() async {
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    bool obscure = true;
+    bool isValid = false;
+
+    void refresh(StateSetter setSt) {
+      setSt(() {
+        final emailOk = RegExp(r'^[\w\.\-+]+@[\w\-]+\.[\w\-\.]+$')
+            .hasMatch(emailCtrl.text.trim());
+        isValid = emailOk && passCtrl.text.length >= 6;
+      });
+    }
+
+    final result = await showDialog<_EmailUpdateInput>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          backgroundColor: _panel,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18)),
+          title: const Text('تغيير البريد الإلكتروني',
+              style:
+                  TextStyle(color: _gold, fontWeight: FontWeight.w700)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: emailCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.emailAddress,
+                  textDirection: TextDirection.ltr,
+                  onChanged: (_) => refresh(setSt),
+                  decoration: InputDecoration(
+                    hintText: 'البريد الإلكتروني الجديد',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    prefixIcon:
+                        const Icon(Icons.email_outlined, color: _gold),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.07),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: passCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  obscureText: obscure,
+                  onChanged: (_) => refresh(setSt),
+                  decoration: InputDecoration(
+                    hintText: 'كلمة المرور الحالية',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    prefixIcon:
+                        const Icon(Icons.lock_outline, color: _gold),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscure
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: Colors.white54,
+                      ),
+                      onPressed: () =>
+                          setSt(() => obscure = !obscure),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white.withValues(alpha: 0.07),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'نحتاج كلمة المرور للتأكد من هويتك قبل تغيير البريد.',
+                  style: TextStyle(
+                      color: Colors.white54, fontSize: 11, height: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء',
+                  style: TextStyle(color: Colors.white54)),
+            ),
+            TextButton(
+              onPressed: isValid
+                  ? () => Navigator.pop(
+                        ctx,
+                        _EmailUpdateInput(
+                          email: emailCtrl.text.trim(),
+                          password: passCtrl.text,
+                        ),
+                      )
+                  : null,
+              child: const Text('إرسال الرابط',
+                  style: TextStyle(
+                      color: _gold, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    emailCtrl.dispose();
+    passCtrl.dispose();
+    return result;
   }
 
   Widget _sectionTitle(String title) {
@@ -707,5 +982,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ),
     );
   }
+}
+
+/// نتيجة dialog "تغيير البريد" — يحوي البريد الجديد + كلمة المرور الحالية.
+class _EmailUpdateInput {
+  final String email;
+  final String password;
+  const _EmailUpdateInput({required this.email, required this.password});
 }
 

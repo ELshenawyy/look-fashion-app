@@ -1,4 +1,9 @@
+import 'dart:async';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:my_fashion_app/screens/splash_screen.dart';
@@ -16,6 +21,7 @@ import 'package:my_fashion_app/features/auth/presentation/providers/auth_provide
 import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:my_fashion_app/features/addresses/presentation/providers/addresses_provider.dart';
 import 'package:my_fashion_app/features/notifications/presentation/providers/notifications_provider.dart';
+import 'package:my_fashion_app/core/services/notification_service.dart';
 import 'package:my_fashion_app/screens/notifications_screen.dart' as notif_screen;
 import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/categories_provider.dart';
@@ -24,13 +30,42 @@ import 'package:my_fashion_app/features/home/presentation/providers/home_ui_prov
 import 'package:my_fashion_app/features/coupons/presentation/providers/coupons_provider.dart';
 import 'firebase_options.dart';
 
-void main() async {
-  // ─── Global Flutter error handler ──────────────────────────────────────
-  FlutterError.onError = (FlutterErrorDetails details) {
-    debugPrint('[FlutterError] ${details.exceptionAsString()}');
-  };
+// ─── FCM background message handler (must be top-level) ─────────────────────
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('[FCM Background] ${message.notification?.title}');
+}
 
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Register FCM background handler before runApp
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // ─── Global error handlers — registered unconditionally so crashes are
+  // captured even if Firebase.initializeApp fails below. Falls back to
+  // debugPrint if Crashlytics is unavailable (e.g. offline cold-start).
+  //
+  // ⚠ هاتان الـ handlers + runApp في نفس Zone (الـ root) = لا Zone
+  // mismatch. لا نحتاج `runZonedGuarded` (كان يسبب الـ crash السابق).
+  FlutterError.onError = (FlutterErrorDetails details) {
+    try {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(details);
+    } catch (_) {
+      debugPrint('[FlutterError] ${details.exceptionAsString()}');
+    }
+  };
+  // يلتقط كل الـ async errors (Future, Stream uncaught) — البديل الحديث
+  // عن runZonedGuarded الموصى به من فريق Flutter.
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    try {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    } catch (_) {
+      debugPrint('[PlatformError] $error');
+    }
+    return true; // الـ true تعني "تم التعامل معه، لا تكسر التطبيق"
+  };
 
   // ─── Step-by-step init مع error screen لتشخيص الكراش ─────────────────
   String? initError;
@@ -46,12 +81,15 @@ void main() async {
 
   if (initError == null) {
     try {
-      // Step 2: App Check
+      // App Check — debug mode uses debug provider (prints token to console),
+      // release mode uses Play Integrity (works automatically on Play Store).
       await FirebaseAppCheck.instance.activate(
-        androidProvider: AndroidProvider.debug,
+        androidProvider: kDebugMode
+            ? AndroidProvider.debug
+            : AndroidProvider.playIntegrity,
       );
-    } catch (e) {
-      debugPrint('AppCheck non-fatal: $e');
+    } catch (e, st) {
+      initError = 'STEP 2 - FirebaseAppCheck.activate:\n$e\n\n$st';
     }
   }
 
@@ -72,6 +110,15 @@ void main() async {
       await di.init();
     } catch (e, st) {
       initError = 'STEP 4 - DI init:\n$e\n\n$st';
+    }
+  }
+
+  if (initError == null) {
+    try {
+      // Step 4b: Local notifications + FCM foreground handler
+      await NotificationService.init();
+    } catch (e) {
+      debugPrint('NotificationService.init non-fatal: $e');
     }
   }
 
@@ -103,6 +150,11 @@ void main() async {
     return;
   }
 
+  // ⚠️ مهم: `runApp` يجب أن يُستدعى في **نفس Zone** الذي يستدعي
+  // `WidgetsFlutterBinding.ensureInitialized` (الـ root Zone هنا).
+  // الـ Crashlytics بالفعل يلتقط async errors عبر
+  // `PlatformDispatcher.instance.onError` المُسجَّل أعلاه — لا حاجة
+  // لـ `runZonedGuarded` (كان يسبب Zone mismatch crash).
   runApp(
     MultiProvider(
       providers: [
@@ -159,6 +211,18 @@ class MyApp extends StatelessWidget {
       ],
       title: 'Talla-طلة',
       debugShowCheckedModeBanner: false,
+      // ── إخفاء الكيبورد عند الضغط في أي مكان فاضي بأي شاشة ──
+      // يلتف حول كل شاشة (home, push, dialog) → سلوك موحد عبر التطبيق
+      builder: (context, child) {
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            final focus = FocusManager.instance.primaryFocus;
+            if (focus != null && focus.hasFocus) focus.unfocus();
+          },
+          child: child,
+        );
+      },
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.black,
         snackBarTheme: const SnackBarThemeData(

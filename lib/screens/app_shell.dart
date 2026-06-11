@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iconly/iconly.dart';
 import 'package:provider/provider.dart';
+import 'package:my_fashion_app/core/services/notification_service.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/login.dart';
 import 'package:my_fashion_app/screens/add_product_screen.dart';
@@ -14,6 +15,8 @@ import 'package:my_fashion_app/screens/product_list_screen.dart';
 import 'package:my_fashion_app/screens/cart.dart';
 import 'package:my_fashion_app/screens/staff_management_screen.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
+import 'package:my_fashion_app/features/notifications/presentation/providers/notifications_provider.dart';
+
 
 /// AppShell — يعتمد كلياً على AuthProvider من Clean Architecture.
 /// لا استدعاءات Firebase مباشرة.
@@ -31,6 +34,7 @@ class _AppShellState extends State<AppShell> {
 
   int _selectedIndex = 0;
   bool _revokedHandled = false;
+  bool _bannedHandled = false;
   String? _lastUid; // لاكتشاف تبديل الحساب
 
   void _onItemTapped(int index) {
@@ -104,6 +108,24 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
+  Future<void> _handleBan(BuildContext context) async {
+    if (_bannedHandled) return;
+    _bannedHandled = true;
+    await context.read<AuthProvider>().signOut();
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (_) => false,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تم حظر هذا الحساب من استخدام التطبيق.'),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
@@ -120,6 +142,10 @@ class _AppShellState extends State<AppShell> {
 
         // ── غير مسجَّل ───────────────────────────────────────────────────
         if (auth.status == AuthStatus.unauthenticated) {
+          if (_lastUid != null) {
+            NotificationService.cleanup();
+            _lastUid = null;
+          }
           return const LoginPage();
         }
 
@@ -127,6 +153,19 @@ class _AppShellState extends State<AppShell> {
         if (auth.status == AuthStatus.revoked) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _handleRevocation(context);
+          });
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFFD4AF37)),
+            ),
+          );
+        }
+
+        // ── محظور نهائياً ────────────────────────────────────────────────
+        if (auth.status == AuthStatus.banned) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _handleBan(context);
           });
           return const Scaffold(
             backgroundColor: Colors.black,
@@ -160,12 +199,26 @@ class _AppShellState extends State<AppShell> {
         // ⚠️ تبديل حساب: صفّر التاب الحالي + reset state الشاشات.
         // KeyedSubtree(key: ValueKey(user.uid)) يجبر Flutter على
         // إنشاء State جديد لكل شاشة → لا تسرّب من الحساب القديم.
-        if (_lastUid != null && _lastUid != user.uid) {
+        // previousUid is captured before mutation so the callback reads the
+        // old value — otherwise _lastUid is already the new UID when the
+        // callback fires and the null-check guard is always true.
+        final previousUid = _lastUid;
+        _lastUid = user.uid;
+        if (previousUid != user.uid) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _selectedIndex = 0);
+            NotificationService.initialize(user.uid);
+            // حمّل سلة هذا المستخدم تحديداً (يمنع تسرّب سلة الحساب القديم)
+            context.read<CartProvider>().loadForUser(user.uid);
+            // ابدأ مراقبة الإشعارات فوراً (بدل انتظار فتح شاشة الإشعارات)
+            context.read<NotificationsProvider>().startWatching(
+                  userId: user.uid,
+                  isAdmin: user.isAdmin,
+                );
+            if (previousUid != null && mounted) {
+              setState(() => _selectedIndex = 0);
+            }
           });
         }
-        _lastUid = user.uid;
 
         final pages = <Widget>[
           const ProductListScreen(),

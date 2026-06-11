@@ -11,50 +11,64 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// ويعيد التحميل عند `init()`. النتيجة: السلة تبقى محفوظة عند إغلاق
 /// التطبيق ولا تختفي حتى يقوم المستخدم بالشراء أو الحذف بنفسه.
 class LocalCartDataSource {
-  static const _kStorageKey = 'tala_cart_items_v1';
+  // v2: key خاص بكل مستخدم — يمنع تسرّب سلة حساب لحساب آخر
+  static String _keyFor(String uid) => 'tala_cart_v2_$uid';
 
   final List<CartItem> _items = [];
   final StreamController<List<CartItem>> _controller =
       StreamController<List<CartItem>>.broadcast();
 
+  String? _currentUid;
   bool _loaded = false;
 
   Stream<List<CartItem>> get stream => _controller.stream;
   List<CartItem> get items => List.unmodifiable(_items);
 
-  /// يحمّل السلة من SharedPreferences (يُستدعى مرة واحدة عند بدء التطبيق).
-  /// آمن للاستدعاء المتكرر — يتجاهل أي استدعاء بعد التحميل الأول.
+  /// يُستدعى عند بدء التطبيق (قبل معرفة المستخدم) — يبدأ بسلة فارغة.
   Future<void> init() async {
-    if (_loaded) return;
-    _loaded = true;
+    // لا نحمّل أي بيانات هنا — ننتظر loadForUser لمعرفة الـ UID
+    _loaded = false;
+    _items.clear();
+    _emit();
+  }
+
+  /// يُستدعى عند تسجيل دخول مستخدم (أو تبديل حساب).
+  /// يحمّل سلة هذا المستخدم تحديداً من SharedPreferences.
+  Future<void> loadForUser(String uid) async {
+    if (_currentUid == uid && _loaded) return; // نفس المستخدم، مُحمَّل مسبقاً
+    _currentUid = uid;
+    _loaded = false;
+    _items.clear();
+    _emit(); // فارغة مؤقتاً أثناء التحميل
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kStorageKey);
+      final raw = prefs.getString(_keyFor(uid));
       if (raw == null || raw.isEmpty) {
+        _loaded = true;
         _emit();
         return;
       }
       final decoded = jsonDecode(raw);
       if (decoded is! List) {
+        _loaded = true;
         _emit();
         return;
       }
-      _items.clear();
       for (final entry in decoded) {
         if (entry is Map<String, dynamic>) {
           try {
             _items.add(CartItem.fromJson(entry));
           } catch (e) {
-            // ignore item فاسد، نحمّل الباقي
             debugPrint('cart item parse failed: $e');
           }
         }
       }
+      _loaded = true;
       _emit();
     } catch (e) {
-      // corrupt data → نتجاهل ونبدأ بسلة فاضية
       debugPrint('cart load failed: $e');
       _items.clear();
+      _loaded = true;
       _emit();
     }
   }
@@ -63,10 +77,12 @@ class LocalCartDataSource {
 
   /// يحفظ السلة الحالية في SharedPreferences. fire-and-forget.
   Future<void> _persist() async {
+    final uid = _currentUid;
+    if (uid == null) return; // لا يوجد مستخدم — لا نحفظ
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = jsonEncode(_items.map((i) => i.toJson()).toList());
-      await prefs.setString(_kStorageKey, raw);
+      await prefs.setString(_keyFor(uid), raw);
     } catch (e) {
       debugPrint('cart persist failed: $e');
     }

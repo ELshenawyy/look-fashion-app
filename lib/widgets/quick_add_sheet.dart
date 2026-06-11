@@ -363,7 +363,7 @@ class _QuickAddSheetState extends State<QuickAddSheet> {
                             ),
                           ),
                           IconButton(
-                            onPressed: (p.stockQuantity == 0 ||
+                            onPressed: (p.stockQuantity < 0 ||
                                     _qty < p.stockQuantity)
                                 ? _incrementQty
                                 : null,

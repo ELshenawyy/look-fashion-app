@@ -12,6 +12,7 @@ class UserEntity extends Equatable {
   final bool emailVerified;
   final DateTime? createdAt;
   final DateTime? revokedAt; // إذا كان != null → الحساب مُلغى
+  final DateTime? bannedAt; // إذا كان != null → الحساب محظور نهائياً
 
   /// `true` فقط عندما تكون كل البيانات مقروءة من Firestore (الدور صحيح).
   /// `false` يعني تسجيل دخول حدث في FirebaseAuth لكن مستند users/ لم
@@ -28,10 +29,12 @@ class UserEntity extends Equatable {
     this.emailVerified = false,
     this.createdAt,
     this.revokedAt,
+    this.bannedAt,
     this.isLoaded = true,
   });
 
   bool get isRevoked => revokedAt != null;
+  bool get isBanned => bannedAt != null;
   bool get isAdmin => role.isAdminLevel;
   bool get isSuperAdmin => role.isSuperAdmin;
 
@@ -45,6 +48,7 @@ class UserEntity extends Equatable {
     bool? emailVerified,
     DateTime? createdAt,
     DateTime? revokedAt,
+    DateTime? bannedAt,
     bool? isLoaded,
   }) {
     return UserEntity(
@@ -57,6 +61,7 @@ class UserEntity extends Equatable {
       emailVerified: emailVerified ?? this.emailVerified,
       createdAt: createdAt ?? this.createdAt,
       revokedAt: revokedAt ?? this.revokedAt,
+      bannedAt: bannedAt ?? this.bannedAt,
       isLoaded: isLoaded ?? this.isLoaded,
     );
   }
@@ -72,6 +77,7 @@ class UserEntity extends Equatable {
         emailVerified,
         createdAt,
         revokedAt,
+        bannedAt,
         isLoaded,
       ];
 }

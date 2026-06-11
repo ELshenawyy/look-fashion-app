@@ -5,6 +5,7 @@ abstract class CartRepository {
   Stream<List<CartItem>> watchCart();
   List<CartItem> get items;
 
+  Future<void> loadForUser(String uid);
   void addItem(CartItem item);
   void removeAt(int index);
   void incrementQuantity(int index);

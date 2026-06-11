@@ -87,6 +87,7 @@ class ProfileScreen extends StatelessWidget {
       source: source,
       imageQuality: 75,
       maxWidth: 800,
+      maxHeight: 800,
     );
     if (picked == null || !context.mounted) return;
 

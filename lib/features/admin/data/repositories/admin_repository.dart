@@ -10,6 +10,7 @@ class AdminUserResult {
   final String email;
   final String phone;
   final String role;
+  final bool emailVerified;
 
   const AdminUserResult({
     required this.uid,
@@ -17,6 +18,7 @@ class AdminUserResult {
     required this.email,
     required this.phone,
     required this.role,
+    this.emailVerified = true,
   });
 }
 
@@ -85,6 +87,9 @@ class AdminRepository {
         'role': UserRole.subAdmin.toFirestoreValue(),
         'promotedAt': FieldValue.serverTimestamp(),
         'revokedAt': FieldValue.delete(),
+        // إعادة تعيين موظف محظور سابقاً → رفع الحظر
+        'banned': FieldValue.delete(),
+        'bannedAt': FieldValue.delete(),
       });
     } on FirebaseException catch (e) {
       throw Exception('فشل الترقية: ${_mapFirestoreError(e.code)}');
@@ -94,11 +99,17 @@ class AdminRepository {
     }
   }
 
+  /// طرد موظف وحظره نهائياً من استخدام التطبيق:
+  /// - تنزيل دوره إلى مستخدم عادي
+  /// - تعيين banned=true → يمنع تسجيل الدخول مرة أخرى ويطرده فوراً
+  ///   من أي جلسة نشطة (راجع AuthProvider.isBanned)
   Future<void> revokeAdmin(String uid) async {
     try {
       await _db.collection('users').doc(uid).update({
         'role': UserRole.customer.toFirestoreValue(),
         'revokedAt': FieldValue.serverTimestamp(),
+        'banned': true,
+        'bannedAt': FieldValue.serverTimestamp(),
       });
     } on FirebaseException catch (e) {
       throw Exception('فشل إلغاء الصلاحيات: ${_mapFirestoreError(e.code)}');
@@ -129,12 +140,18 @@ class AdminRepository {
 
   AdminUserResult _fromDoc(QueryDocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data();
+    final email = d['email'] as String? ?? '';
+    // مستخدمو الهاتف (بدون email) دايماً مفعّلون عبر OTP
+    final emailVerified = email.isEmpty
+        ? true
+        : (d['emailVerified'] as bool? ?? false);
     return AdminUserResult(
       uid: doc.id,
       name: d['name'] as String? ?? 'مستخدم',
-      email: d['email'] as String? ?? '',
+      email: email,
       phone: d['phone'] as String? ?? '',
       role: d['role'] as String? ?? UserRole.customer.toFirestoreValue(),
+      emailVerified: emailVerified,
     );
   }
 

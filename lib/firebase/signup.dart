@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:my_fashion_app/core/utils/password_validator.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
@@ -50,7 +51,7 @@ class _SignupState extends State<Signup> {
       _name.trim().isNotEmpty &&
       _name.trim().length >= 3 &&
       _email.trim().isNotEmpty &&
-      _password.length >= 6 &&
+      PasswordValidator.isStrong(_password) &&
       _password == _confirmPassword;
 
   @override
@@ -77,26 +78,18 @@ class _SignupState extends State<Signup> {
   }
 
   // ── Password strength ─────────────────────────────────────────────────
-  double _passwordStrength(String pwd) {
-    if (pwd.isEmpty) return 0.0;
-    double score = 0.0;
-    if (pwd.length >= 6) score += 0.25;
-    if (pwd.length >= 10) score += 0.15;
-    if (RegExp(r'[A-Z]').hasMatch(pwd)) score += 0.2;
-    if (RegExp(r'[0-9]').hasMatch(pwd)) score += 0.2;
-    if (RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(pwd)) score += 0.2;
-    return score.clamp(0.0, 1.0);
-  }
+  // نستخدم PasswordValidator المشترك (lib/core/utils/password_validator.dart)
+  double _passwordStrength(String pwd) => PasswordValidator.strength(pwd);
 
   Color _strengthColor(double s) {
-    if (s < 0.35) return Colors.red;
-    if (s < 0.65) return Colors.orange;
+    if (s < 0.5) return Colors.red;
+    if (s < 1.0) return Colors.orange;
     return Colors.green;
   }
 
   String _strengthLabel(double s) {
-    if (s < 0.35) return 'ضعيفة';
-    if (s < 0.65) return 'متوسطة';
+    if (s < 0.5) return 'ضعيفة';
+    if (s < 1.0) return 'متوسطة';
     return 'قوية';
   }
 
@@ -329,50 +322,63 @@ class _SignupState extends State<Signup> {
             ),
             const SizedBox(height: 16),
 
-            // ── Phone field — أسماء الدول بالعربي + العلم على اليمين (RTL طبيعي)
-            IntlPhoneField(
-              controller: _phoneController,
-              initialCountryCode: 'SD',
-              showCountryFlag: true,
-              languageCode: 'ar',
-              invalidNumberMessage: 'رقم الهاتف غير صحيح',
-              pickerDialogStyle: PickerDialogStyle(
-                searchFieldInputDecoration: const InputDecoration(
-                  hintText: 'ابحث عن الدولة',
-                  prefixIcon: Icon(Icons.search),
+            // العلم ورقم الدولة على اليسار — LTR على الـ field فقط
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: IntlPhoneField(
+                controller: _phoneController,
+                initialCountryCode: 'SD',
+                showCountryFlag: true,
+                languageCode: 'ar',
+                invalidNumberMessage: 'رقم الهاتف غير صحيح',
+                // ⚠ تمركز عمودي مظبوط
+                flagsButtonPadding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                flagsButtonMargin: EdgeInsets.zero,
+                textAlignVertical: TextAlignVertical.center,
+                pickerDialogStyle: PickerDialogStyle(
+                  searchFieldInputDecoration: const InputDecoration(
+                    hintText: 'ابحث عن الدولة',
+                    prefixIcon: Icon(Icons.search),
+                  ),
                 ),
+                dropdownIcon:
+                    const Icon(Icons.arrow_drop_down, color: Colors.white70),
+                dropdownTextStyle: const TextStyle(
+                    color: Colors.white, fontSize: 16),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.10),
+                  hintText: 'رقم الهاتف',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  // ⚠ isDense + contentPadding صريح = تمركز مظبوط
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 18),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Colors.white24),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: _themeColor, width: 1.5),
+                  ),
+                ),
+                keyboardType: TextInputType.phone,
+                onChanged: (phone) {
+                  setState(() {
+                    _completePhoneNumber =
+                        phone.completeNumber.replaceAll(RegExp(r'\s+'), '');
+                    _isPhoneValid = phone.number.isNotEmpty &&
+                        _completePhoneNumber.startsWith('+');
+                  });
+                },
               ),
-              dropdownIcon:
-                  const Icon(Icons.arrow_drop_down, color: Colors.white70),
-              dropdownTextStyle: const TextStyle(color: Colors.white),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.10),
-                hintText: 'رقم الهاتف',
-                hintStyle: const TextStyle(color: Colors.white38),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: Colors.white24),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(color: _themeColor, width: 1.5),
-                ),
-              ),
-              keyboardType: TextInputType.phone,
-              onChanged: (phone) {
-                setState(() {
-                  _completePhoneNumber =
-                      phone.completeNumber.replaceAll(RegExp(r'\s+'), '');
-                  _isPhoneValid = phone.number.isNotEmpty &&
-                      _completePhoneNumber.startsWith('+');
-                });
-              },
             ),
             const SizedBox(height: 24),
 
@@ -521,14 +527,12 @@ class _SignupState extends State<Signup> {
                   onPressed: () => setState(() => _obscureText = !_obscureText),
                 ),
               ),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'يرجى إدخال كلمة المرور';
-                if (v.length < 6) {
-                  return 'يجب أن تتكون كلمة المرور من 6 أحرف على الأقل';
-                }
-                return null;
-              },
+              validator: PasswordValidator.validate,
             ),
+
+            // ── متطلبات كلمة المرور (تظهر دائماً قبل الكتابة، وtick أخضر لما تتحقق) ──
+            const SizedBox(height: 10),
+            PasswordRequirementsChecklist(password: _password),
 
             if (_password.isNotEmpty) ...[
               const SizedBox(height: 10),
@@ -642,7 +646,11 @@ class _SignupState extends State<Signup> {
         fit: StackFit.expand,
         children: [
           // Background
-          Image.asset('assets/backkk.png', fit: BoxFit.cover),
+          Image.asset(
+            'assets/backkk.png',
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(color: Colors.black),
+          ),
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -669,8 +677,18 @@ class _SignupState extends State<Signup> {
                     // Logo
                     ClipRRect(
                       borderRadius: BorderRadius.circular(14),
-                      child:
-                          Image.asset('assets/icon.png', height: 58, width: 58),
+                      child: Image.asset(
+                        'assets/icon.png',
+                        height: 58,
+                        width: 58,
+                        errorBuilder: (_, __, ___) => Container(
+                          height: 58,
+                          width: 58,
+                          color: const Color(0xFF570707),
+                          child: const Icon(Icons.storefront,
+                              color: Colors.white, size: 28),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 14),
 

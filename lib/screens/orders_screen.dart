@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:in_app_review/in_app_review.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/orders/domain/entities/order_entity.dart';
 import 'package:my_fashion_app/features/orders/presentation/providers/orders_provider.dart';
@@ -6,6 +7,7 @@ import 'package:my_fashion_app/screens/order_chat_screen.dart';
 import 'package:my_fashion_app/utils/order_utils.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OrdersScreen extends StatefulWidget {
   const OrdersScreen({super.key});
@@ -16,6 +18,7 @@ class OrdersScreen extends StatefulWidget {
 
 class _OrdersScreenState extends State<OrdersScreen> {
   static const Color _gold = Color(0xFFD4AF37);
+  bool _reviewChecked = false;
 
   @override
   void initState() {
@@ -27,6 +30,27 @@ class _OrdersScreenState extends State<OrdersScreen> {
         context.read<OrdersProvider>().watchForUser(uid);
       });
     }
+  }
+
+  Future<void> _maybeRequestReview(List<OrderEntity> orders) async {
+    if (_reviewChecked) return;
+    _reviewChecked = true;
+
+    final hasDelivered =
+        orders.any((o) => o.status == OrderStatus.delivered);
+    if (!hasDelivered) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool('hasRequestedReview') == true) return;
+
+    final review = InAppReview.instance;
+    if (!await review.isAvailable()) return;
+
+    await Future.delayed(const Duration(seconds: 2));
+    if (!mounted) return;
+
+    await review.requestReview();
+    await prefs.setBool('hasRequestedReview', true);
   }
 
   @override
@@ -68,6 +92,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
         body: Consumer<OrdersProvider>(
           builder: (context, provider, _) {
             final orders = provider.userOrders;
+
+            if (!_reviewChecked) {
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => _maybeRequestReview(orders),
+              );
+            }
 
             if (orders.isEmpty) {
               return const Center(
@@ -151,6 +181,7 @@ class _OrderCard extends StatelessWidget {
     final ok = await context.read<OrdersProvider>().updateStatus(
           orderId: order.id,
           status: OrderStatus.cancelled,
+          customerId: order.userId,
         );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

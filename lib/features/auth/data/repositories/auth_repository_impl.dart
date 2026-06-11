@@ -174,6 +174,27 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, void>> updateEmail({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    if (!await network.isConnected) return const Left(NetworkFailure());
+    try {
+      await remote.updateEmail(
+        currentPassword: currentPassword,
+        newEmail: newEmail,
+      );
+      return const Right(null);
+    } on FirebaseAuthException catch (e) {
+      return Left(AuthFailure(_mapAuthError(e.code)));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, UserEntity?>> reloadCurrentUser() async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {
@@ -227,8 +248,16 @@ class AuthRepositoryImpl implements AuthRepository {
         return 'كلمة المرور ضعيفة جداً.';
       case 'requires-recent-login':
         return 'انتهت صلاحية الجلسة. أعد تسجيل الدخول.';
+      case 'same-email':
+        return 'البريد الجديد مطابق للحالي.';
+      case 'email-account-required':
+        return 'هذا الحساب مسجَّل بالهاتف فقط، لا يمكن تغيير البريد.';
+      case 'user-banned':
+        return 'تم حظر هذا الحساب من استخدام التطبيق.';
 
       // ── الهاتف ───────────────────────────────────────────────────
+      case 'user-not-registered':
+        return 'لا يوجد حساب مسجَّل بهذا الرقم. يرجى إنشاء حساب جديد أولاً.';
       case 'invalid-phone-number':
         return 'رقم الهاتف غير صالح. تأكد من رمز الدولة + الرقم.';
       case 'invalid-verification-code':

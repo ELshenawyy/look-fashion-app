@@ -12,6 +12,8 @@ import 'package:my_fashion_app/pages/product_detail_screen.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
+import 'package:my_fashion_app/screens/admin_orders_screen.dart';
+import 'package:my_fashion_app/screens/orders_screen.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/quick_add_sheet.dart';
 import 'package:my_fashion_app/widgets/user_avatar.dart';
@@ -193,18 +195,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
   }
 
   // ── Quick Add to Cart ─────────────────────────────────────────────────
-  /// إذا المنتج له variants فعلية (مقاس/لون متعدد) أو فئته من
-  /// `kCategoriesWithVariants` → نفتح bottom sheet للاختيار.
-  /// خلاف ذلك (عطور، تجميل، إلكترونيات...) → إضافة فورية.
   void _quickAddToCart(Product product) {
     if (_productNeedsSelection(product)) {
       showQuickAddSheet(context, product);
       return;
     }
-
-    // Path سريع للمنتجات بلا variants
-    final cart = context.read<CartProvider>();
-    cart.addItem(CartItem(
+    context.read<CartProvider>().addItem(CartItem(
       productId: product.docId ?? '',
       name: product.title,
       price: product.price,
@@ -225,23 +221,29 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
-  bool _productNeedsSelection(Product p) {
-    return kCategoriesWithVariants.contains(p.category) ||
-        p.sizes.length > 1 ||
-        p.colors.length > 1;
-  }
+  bool _productNeedsSelection(Product p) =>
+      kCategoriesWithVariants.contains(p.category) ||
+      p.sizes.length > 1 ||
+      p.colors.length > 1;
 
   // ── Build ─────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Consumer<ProductsProvider>(
       builder: (context, provider, _) {
-        return RefreshIndicator(
+        return GestureDetector(
+          // إخفاء الكيبورد عند الضغط في أي مكان فاضي بالشاشة
+          behavior: HitTestBehavior.translucent,
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: RefreshIndicator(
           color: _gold,
           backgroundColor: _panel,
           onRefresh: provider.refresh,
           child: CustomScrollView(
             controller: _scrollController,
+            // إخفاء الكيبورد بمجرد بدء السحب/السكرول
+            keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
               _buildAppBar(),
               SliverToBoxAdapter(child: _buildSearchBar(provider)),
@@ -270,6 +272,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 80)),
             ],
+          ),
           ),
         );
       },
@@ -311,40 +314,29 @@ class _ProductListScreenState extends State<ProductListScreen> {
         ],
       ),
       actions: [
-        // Cart badge
-        Consumer<CartProvider>(
-          builder: (context, cart, _) => Stack(
-            clipBehavior: Clip.none,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_bag_outlined,
-                    color: Colors.white, size: 26),
-                onPressed: () {
-                  // navigate to cart tab — handled by AppShell index
-                },
+        // Orders shortcut — admin: إدارة الطلبات | user: طلباتي
+        Consumer<AuthProvider>(
+          builder: (context, auth, _) {
+            final isAdmin = auth.user?.isAdmin ?? false;
+            return IconButton(
+              icon: Icon(
+                isAdmin
+                    ? Icons.list_alt_rounded
+                    : Icons.receipt_long_rounded,
+                color: Colors.white,
+                size: 26,
               ),
-              if (cart.itemCount > 0)
-                Positioned(
-                  right: 6,
-                  top: 6,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(
-                        color: _gold, shape: BoxShape.circle),
-                    constraints: const BoxConstraints(
-                        minWidth: 16, minHeight: 16),
-                    child: Text(
-                      '${cart.itemCount}',
-                      style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+              tooltip: isAdmin ? 'إدارة الطلبات' : 'طلباتي',
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => isAdmin
+                      ? const AdminOrdersScreen()
+                      : const OrdersScreen(),
                 ),
-            ],
-          ),
+              ),
+            );
+          },
         ),
         // Notification bell
         const NotificationBellAction(),
@@ -455,6 +447,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       kBannerImages[index],
                       fit: BoxFit.cover,
                       width: double.infinity,
+                      // ⚠ errorBuilder حرج — منع crash لو الـ asset مفقود
+                      // في الـ APK (سبب Crashlytics "Unable to load asset")
+                      errorBuilder: (_, __, ___) => Container(
+                        color: const Color(0xFF1A1A1A),
+                        child: const Center(
+                          child: Icon(Icons.image_outlined,
+                              color: Colors.white24, size: 48),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -741,32 +742,48 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${product.price.toStringAsFixed(0)} ج.س',
+                    style: const TextStyle(
+                      color: _gold,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${product.price.toStringAsFixed(0)} ج.س',
+                  SizedBox(
+                    width: double.infinity,
+                    height: 28,
+                    child: ElevatedButton(
+                      onPressed: product.stockQuantity != 0
+                          ? () => _quickAddToCart(product)
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: product.stockQuantity != 0
+                            ? _gold
+                            : Colors.grey[800],
+                        foregroundColor: product.stockQuantity != 0
+                            ? Colors.black
+                            : Colors.white38,
+                        disabledBackgroundColor: Colors.grey[800],
+                        disabledForegroundColor: Colors.white38,
+                        padding: EdgeInsets.zero,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        product.stockQuantity != 0
+                            ? 'أضف إلى السلة'
+                            : 'نفذت الكمية',
                         style: const TextStyle(
-                          color: _gold,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      // Quick add to cart
-                      GestureDetector(
-                        onTap: () => _quickAddToCart(product),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                              color: _gold, shape: BoxShape.circle),
-                          child: const Icon(Icons.add,
-                              size: 16, color: Colors.black),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),

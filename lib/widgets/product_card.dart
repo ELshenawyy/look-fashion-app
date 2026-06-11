@@ -63,7 +63,6 @@ class ProductCard extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: product.imageUrl,
                         fit: BoxFit.cover,
-                        // Shimmer placeholder موحَّد لكل صور المنتجات
                         placeholder: (_, __) => Shimmer.fromColors(
                           baseColor: const Color(0xFF1E1E1E),
                           highlightColor: const Color(0xFF2A2A2A),
@@ -77,6 +76,36 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  // Out-of-stock overlay
+                  if (product.stockQuantity == 0)
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(16)),
+                      child: AspectRatio(
+                        aspectRatio: 1.0,
+                        child: Container(
+                          color: Colors.black.withValues(alpha: 0.58),
+                          alignment: Alignment.center,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.75),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: const Text(
+                              'نفذت الكمية',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   // Favorite badge — أعلى اليمين
                   // ⚡ Selector ينعزل عن باقي الـ card: فقط الأيقونة
                   // تُعاد بنائها عند تغيير الـ favorite، الصورة + السعر
@@ -147,19 +176,26 @@ class ProductCard extends StatelessWidget {
                       width: double.infinity,
                       height: 28,
                       child: ElevatedButton(
-                        onPressed: onAddToCart,
+                        onPressed:
+                            product.stockQuantity != 0 ? onAddToCart : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _gold,
-                          foregroundColor: Colors.black,
+                          backgroundColor: product.stockQuantity != 0
+                              ? _gold
+                              : Colors.grey[800],
+                          foregroundColor: product.stockQuantity != 0
+                              ? Colors.black
+                              : Colors.white38,
+                          disabledBackgroundColor: Colors.grey[800],
+                          disabledForegroundColor: Colors.white38,
                           padding: EdgeInsets.zero,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text(
-                          'أضف للسلة',
-                          style: TextStyle(
+                        child: Text(
+                          product.stockQuantity != 0 ? 'أضف إلى السلة' : 'نفذت الكمية',
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),

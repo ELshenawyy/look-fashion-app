@@ -8,10 +8,15 @@ import 'package:my_fashion_app/features/orders/domain/repositories/order_reposit
 class UpdateOrderStatusParams extends Equatable {
   final String orderId;
   final OrderStatus status;
-  const UpdateOrderStatusParams({required this.orderId, required this.status});
+  final String? customerId;
+  const UpdateOrderStatusParams({
+    required this.orderId,
+    required this.status,
+    this.customerId,
+  });
 
   @override
-  List<Object?> get props => [orderId, status];
+  List<Object?> get props => [orderId, status, customerId];
 }
 
 class UpdateOrderStatus implements UseCase<void, UpdateOrderStatusParams> {
@@ -23,5 +28,6 @@ class UpdateOrderStatus implements UseCase<void, UpdateOrderStatusParams> {
       repository.updateOrderStatus(
         orderId: params.orderId,
         status: params.status,
+        customerId: params.customerId,
       );
 }

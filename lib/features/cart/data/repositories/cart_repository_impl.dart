@@ -13,6 +13,9 @@ class CartRepositoryImpl implements CartRepository {
   List<CartItem> get items => local.items;
 
   @override
+  Future<void> loadForUser(String uid) => local.loadForUser(uid);
+
+  @override
   void addItem(CartItem item) => local.addItem(item);
 
   @override

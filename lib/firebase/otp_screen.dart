@@ -143,16 +143,19 @@ class _OTPScreenState extends State<OTPScreen> {
   Widget build(BuildContext context) {
     const themeColor = Color(0xFF9B0B19);
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            image: AssetImage('assets/backc.png'),
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ⚠ Image.asset مع errorBuilder بدل DecorationImage
+          // (DecorationImage لا يدعم errorBuilder → crash لو فُقد الـ asset)
+          Image.asset(
+            'assets/backc.png',
             fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(color: Colors.black),
           ),
-        ),
-        child: SafeArea(
-          child: Center(
+          SafeArea(
+            child: Center(
             child: SingleChildScrollView(
               padding:
                   const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
@@ -196,7 +199,7 @@ class _OTPScreenState extends State<OTPScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Text(
-                          'Resend available in ',
+                          'إعادة الإرسال بعد ',
                           style: TextStyle(
                               color: Colors.white70, fontFamily: 'arial'),
                         ),
@@ -234,7 +237,7 @@ class _OTPScreenState extends State<OTPScreen> {
                               ),
                             )
                           : const Text(
-                              'Resend',
+                              'إعادة الإرسال',
                               style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -274,8 +277,9 @@ class _OTPScreenState extends State<OTPScreen> {
               ),
             ),
           ),
-        ),
-      ),
+          ), // SafeArea close
+        ], // Stack children close
+      ), // Stack close
     );
   }
 }

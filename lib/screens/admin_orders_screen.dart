@@ -40,10 +40,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   }
 
   Future<void> _updateOrderStatus(
-      String orderId, OrderStatus newStatus) async {
+      String orderId, OrderStatus newStatus, String? customerId) async {
     final ok = await context.read<OrdersProvider>().updateStatus(
           orderId: orderId,
           status: newStatus,
+          customerId: customerId,
         );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -57,7 +58,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
-  void _showStatusChangeDialog(String orderId, OrderStatus current) {
+  void _showStatusChangeDialog(
+      String orderId, OrderStatus current, String? customerId) {
     final statuses = [
       OrderStatus.pending,
       OrderStatus.preparing,
@@ -110,7 +112,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                               onTap: () {
                                 Navigator.pop(ctx);
                                 if (s != current) {
-                                  _updateOrderStatus(orderId, s);
+                                  _updateOrderStatus(orderId, s, customerId);
                                 }
                               },
                             ))
@@ -270,7 +272,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 ),
                 GestureDetector(
                   onTap: () =>
-                      _showStatusChangeDialog(order.id, order.status),
+                      _showStatusChangeDialog(order.id, order.status, order.userId),
                   child: Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -403,7 +405,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _showStatusChangeDialog(
-                          order.id, order.status),
+                          order.id, order.status, order.userId),
                       icon: const Icon(Icons.swap_horiz, size: 18),
                       label: const Text('تغيير الحالة'),
                       style: OutlinedButton.styleFrom(

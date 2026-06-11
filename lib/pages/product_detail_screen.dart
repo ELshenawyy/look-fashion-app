@@ -71,7 +71,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Color _resolveColor(String colorCode) => ColorUtils.parse(colorCode);
 
   void _handleAddToCart() {
-    if (product.stockQuantity <= 0) {
+    if (product.stockQuantity == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('هذا المنتج غير متاح حالياً.'),
@@ -281,7 +281,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final Color bg;
     final Color fg;
     final String label;
-    if (qty <= 0) {
+    if (qty < 0) {
+      bg = Colors.green.withValues(alpha: 0.12);
+      fg = const Color(0xFF4CAF50);
+      label = 'متوفر';
+    } else if (qty == 0) {
       bg = Colors.red.withValues(alpha: 0.15);
       fg = Colors.redAccent;
       label = 'نفد المخزون';
@@ -331,9 +335,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: SizedBox(
           height: 54,
           child: ElevatedButton.icon(
-            onPressed: product.stockQuantity > 0 ? _handleAddToCart : null,
+            onPressed: product.stockQuantity != 0 ? _handleAddToCart : null,
             icon: Icon(
-              product.stockQuantity > 0
+              product.stockQuantity != 0
                   ? (_isEditMode
                       ? Icons.save_rounded
                       : Icons.shopping_cart_checkout_rounded)
@@ -341,7 +345,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               size: 20,
             ),
             label: Text(
-              product.stockQuantity > 0
+              product.stockQuantity != 0
                   ? (_isEditMode ? 'تحديث في السلة' : 'إضافة إلى السلة')
                   : 'نفد من المخزون',
               style: const TextStyle(
@@ -349,9 +353,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor:
-                  product.stockQuantity > 0 ? _gold : Colors.grey[800],
+                  product.stockQuantity != 0 ? _gold : Colors.grey[800],
               foregroundColor:
-                  product.stockQuantity > 0 ? Colors.black : Colors.white54,
+                  product.stockQuantity != 0 ? Colors.black : Colors.white54,
               elevation: 0,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),

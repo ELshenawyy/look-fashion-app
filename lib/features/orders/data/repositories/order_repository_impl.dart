@@ -66,10 +66,15 @@ class OrderRepositoryImpl implements OrderRepository {
   Future<Either<Failure, void>> updateOrderStatus({
     required String orderId,
     required OrderStatus status,
+    String? customerId,
   }) async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {
-      await remote.updateOrderStatus(orderId: orderId, status: status);
+      await remote.updateOrderStatus(
+        orderId: orderId,
+        status: status,
+        customerId: customerId,
+      );
       return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));

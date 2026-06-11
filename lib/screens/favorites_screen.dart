@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:my_fashion_app/constants/category_constants.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/favorites/domain/entities/favorite_entity.dart';
 import 'package:my_fashion_app/features/favorites/presentation/providers/favorites_provider.dart';
 import 'package:my_fashion_app/features/products/presentation/providers/products_provider.dart';
-import 'package:my_fashion_app/models/cartt.dart';
 import 'package:my_fashion_app/models/product.dart';
 import 'package:my_fashion_app/pages/product_detail_screen.dart';
-import 'package:my_fashion_app/features/cart/presentation/providers/cart_provider.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
 import 'package:my_fashion_app/widgets/blocking_loader.dart';
 import 'package:my_fashion_app/widgets/product_card.dart';
@@ -79,60 +76,24 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     }
   }
 
-  // ── إضافة لـ السلة ──────────────────────────────────────────────────────
-  /// نجلب بيانات المنتج الكاملة من Firestore أولاً، ثم نقرّر:
-  /// - لو له variants أو فئته من kCategoriesWithVariants → QuickAddSheet
-  /// - خلاف ذلك → إضافة فورية بالقيم الافتراضية.
-  Future<void> _addToCart(FavoriteEntity fav) async {
-    final messenger = ScaffoldMessenger.of(context);
+  // ── إضافة للسلة عبر Bottom Sheet ────────────────────────────────────────
+  Future<void> _showQuickAdd(FavoriteEntity fav) async {
     final product = await runWithBlockingLoader<Product?>(
       context: context,
       action: () =>
           context.read<ProductsProvider>().getProductById(fav.productId),
       message: 'جاري التحميل...',
     );
-
     if (!mounted) return;
     if (product == null) {
-      messenger.showSnackBar(const SnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
         content: Text('المنتج لم يعد متاحاً'),
         backgroundColor: Colors.orange,
         behavior: SnackBarBehavior.floating,
       ));
       return;
     }
-
-    if (kCategoriesWithVariants.contains(product.category) ||
-        product.sizes.length > 1 ||
-        product.colors.length > 1) {
-      showQuickAddSheet(context, product);
-      return;
-    }
-
-    // Path سريع للمنتجات بلا variants
-    context.read<CartProvider>().addItem(CartItem(
-          productId: product.docId ?? fav.productId,
-          name: product.title,
-          price: product.price,
-          image: product.imageUrl,
-          size: product.sizes.isNotEmpty
-              ? product.sizes.first
-              : 'افتراضي',
-          color: product.colors.isNotEmpty
-              ? product.colors.first
-              : 'افتراضي',
-          productState: product.state,
-          stockQuantity: product.stockQuantity,
-          quantity: 1,
-        ));
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('تمت الإضافة إلى السلة'),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 1),
-      ),
-    );
+    showQuickAddSheet(context, product);
   }
 
   // ── فتح صفحة التفاصيل ─────────────────────────────────────────────────
@@ -167,7 +128,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   double _cardRatio(BuildContext context) {
     const hPadding = 32.0;
     const hSpacing = 12.0;
-    const infoHeight = 102.0;
+    const infoHeight = 110.0;
     final w = MediaQuery.of(context).size.width;
     final cardW = (w - hPadding - hSpacing) / 2;
     return cardW / (cardW + infoHeight);
@@ -326,7 +287,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         product: productView,
                         onTap: () => _openDetail(fav),
                         onFavoriteToggle: () => _removeFavorite(fav),
-                        onAddToCart: () => _addToCart(fav),
+                        onAddToCart: () => _showQuickAdd(fav),
                       ),
                     );
                   },

@@ -54,5 +54,6 @@ abstract class OrderRepository {
   Future<Either<Failure, void>> updateOrderStatus({
     required String orderId,
     required OrderStatus status,
+    String? customerId,
   });
 }

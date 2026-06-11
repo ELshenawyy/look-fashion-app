@@ -63,9 +63,8 @@ android {
 
     buildTypes {
         release {
-            // تعطيل R8 shrinking لمنع حذف classes مهمة من Firebase و GetIt
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             // لو الـ release keystore موجود → استخدمه (للـ Play Store).
             // لو لا → fallback لـ debug signing (للتجارب المحلية فقط).

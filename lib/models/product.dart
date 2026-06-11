@@ -21,7 +21,7 @@ class Product {
     required this.gender,
     this.sizes = const [],
     this.colors = const [],
-    this.stockQuantity = 0,
+    this.stockQuantity = -1,
     this.category = '',
     this.docId,
     this.state = '',
@@ -50,12 +50,12 @@ class Product {
       parsedColors = List<String>.from(json['colors'].map((e) => e.toString()));
     }
 
-    int parsedStock = 0;
+    int parsedStock = -1;
     final rawStock = json['stockQuantity'];
     if (rawStock is int) {
       parsedStock = rawStock;
     } else if (rawStock is String) {
-      parsedStock = int.tryParse(rawStock) ?? 0;
+      parsedStock = int.tryParse(rawStock) ?? -1;
     }
 
     return Product(

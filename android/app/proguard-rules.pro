@@ -41,6 +41,15 @@
 -keepattributes *Annotation*
 -dontwarn sun.misc.**
 
+# ── Firebase Crashlytics ──────────────────────────────────────────────────
+-keep class com.google.firebase.crashlytics.** { *; }
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception
+
+# ── Firebase Analytics ────────────────────────────────────────────────────
+-keep class com.google.android.gms.measurement.** { *; }
+-dontwarn com.google.android.gms.measurement.**
+
 # ── General — منع حذف أي class يستخدم reflection ─────────────────────────
 -keepattributes EnclosingMethod
 -keepattributes InnerClasses

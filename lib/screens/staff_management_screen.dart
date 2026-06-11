@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl_phone_field/country_picker_dialog.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
 import 'package:my_fashion_app/features/admin/data/repositories/admin_repository.dart';
 import 'package:my_fashion_app/features/auth/domain/entities/user_role.dart';
@@ -43,17 +45,29 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withValues(alpha: 0.55),
+      // أغمق من قبل عشان يخفي محتوى الشاشة اللي وراه (زي أيقونة
+      // "لا يوجد موظفون") ويمنع تداخله مع كارت التحميل.
+      barrierColor: Colors.black.withValues(alpha: 0.75),
       builder: (_) => PopScope(
         canPop: false,
         child: Center(
           child: Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                const EdgeInsets.symmetric(horizontal: 32, vertical: 26),
             decoration: BoxDecoration(
-              color: _panel,
+              // لون أفتح من الخلفية السودة عشان الكارت يبان كـ"بوكس" واضح
+              // بدل ما يختفي ويسيب بس الدائرة الذهبية والنص عائمين.
+              color: const Color(0xFF2A1414),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _gold.withValues(alpha: 0.3)),
+              border: Border.all(
+                  color: _gold.withValues(alpha: 0.6), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: _gold.withValues(alpha: 0.18),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -67,8 +81,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                 const SizedBox(height: 16),
                 Text(
                   message,
-                  style:
-                      const TextStyle(color: Colors.white70, fontSize: 14),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -92,11 +108,13 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
         backgroundColor: _panel,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
-          'إلغاء الصلاحيات',
+          'طرد وحظر الموظف',
           style: TextStyle(color: _gold, fontWeight: FontWeight.w700),
         ),
         content: Text(
-          'هل تريد إلغاء صلاحيات "$name"؟\nسيتم طرده من لوحة الإدارة فوراً.',
+          'هل تريد طرد "$name" وحظره نهائياً؟\n'
+          'سيتم طرده من لوحة الإدارة فوراً ولن يتمكن من تسجيل الدخول '
+          'إلى التطبيق مرة أخرى.',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -107,7 +125,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('إلغاء الصلاحيات',
+            child: const Text('طرد وحظر',
                 style: TextStyle(color: Colors.red)),
           ),
         ],
@@ -128,12 +146,12 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
       () async {
         try {
           await _repo.revokeAdmin(uid);
-          return _OpResult.success('تم إلغاء صلاحيات "$name" بنجاح');
+          return _OpResult.success('تم طرد "$name" وحظره من استخدام التطبيق');
         } catch (e) {
           return _OpResult.error('خطأ: $e');
         }
       },
-      message: 'جاري إلغاء الصلاحيات...',
+      message: 'جاري طرد الموظف وحظره...',
     );
 
     await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -146,6 +164,9 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
     final inputCtrl = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isEmail = true; // toggle بين إيميل ورقم هاتف
+    // للهاتف: نخزّن الرقم الكامل بصيغة E.164 (+249...) من IntlPhoneField
+    String completePhone = '';
+    bool isPhoneValid = false;
 
     showDialog<void>(
       context: context,
@@ -179,6 +200,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                           setDialogState(() {
                             isEmail = true;
                             inputCtrl.clear();
+                            completePhone = '';
+                            isPhoneValid = false;
                           });
                         },
                       ),
@@ -190,6 +213,8 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                           setDialogState(() {
                             isEmail = false;
                             inputCtrl.clear();
+                            completePhone = '';
+                            isPhoneValid = false;
                           });
                         },
                       ),
@@ -197,44 +222,79 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // ── حقل الإدخال ──
-                TextFormField(
-                  controller: inputCtrl,
-                  keyboardType: isEmail
-                      ? TextInputType.emailAddress
-                      : TextInputType.phone,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: isEmail
-                        ? 'البريد الإلكتروني'
-                        : 'رقم الهاتف (مثال: 0912345678)',
-                    labelStyle: const TextStyle(color: Colors.white54),
-                    filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.07),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
+                // ── حقل الإدخال: إيميل عادي أو IntlPhoneField مع علم/كود الدولة ──
+                if (isEmail)
+                  TextFormField(
+                    controller: inputCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'البريد الإلكتروني',
+                      labelStyle: const TextStyle(color: Colors.white54),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.07),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: const Icon(Icons.email_outlined,
+                          color: Colors.white38),
                     ),
-                    prefixIcon: Icon(
-                      isEmail ? Icons.email_outlined : Icons.phone_outlined,
-                      color: Colors.white38,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'أدخل البريد الإلكتروني';
+                      }
+                      if (!v.contains('@')) {
+                        return 'بريد إلكتروني غير صالح';
+                      }
+                      return null;
+                    },
+                  )
+                else
+                  Directionality(
+                    textDirection: TextDirection.ltr,
+                    child: IntlPhoneField(
+                    // السودان (+249) افتراضياً
+                    initialCountryCode: 'SD',
+                    languageCode: 'ar',
+                    showCountryFlag: true,
+                    dropdownIcon: const Icon(Icons.arrow_drop_down,
+                        color: Colors.white70),
+                    dropdownTextStyle:
+                        const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Colors.white),
+                    pickerDialogStyle: PickerDialogStyle(
+                      backgroundColor: _panel,
+                      countryNameStyle:
+                          const TextStyle(color: Colors.white),
+                      countryCodeStyle:
+                          const TextStyle(color: Colors.white70),
+                      searchFieldInputDecoration: const InputDecoration(
+                        hintText: 'ابحث عن الدولة',
+                        prefixIcon: Icon(Icons.search),
+                      ),
                     ),
+                    decoration: InputDecoration(
+                      labelText: 'رقم الهاتف',
+                      labelStyle: const TextStyle(color: Colors.white54),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.07),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onChanged: (p) {
+                      setDialogState(() {
+                        completePhone = p.completeNumber
+                            .replaceAll(RegExp(r'\s+'), '');
+                        isPhoneValid = p.number.isNotEmpty &&
+                            completePhone.startsWith('+') &&
+                            p.number.length >= 7;
+                      });
+                    },
                   ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return isEmail
-                          ? 'أدخل البريد الإلكتروني'
-                          : 'أدخل رقم الهاتف';
-                    }
-                    if (isEmail && !v.contains('@')) {
-                      return 'بريد إلكتروني غير صالح';
-                    }
-                    if (!isEmail && v.trim().length < 9) {
-                      return 'رقم هاتف غير صالح';
-                    }
-                    return null;
-                  },
-                ),
+                  ),
                 const SizedBox(height: 8),
                 const Text(
                   'سيتم البحث عن الحساب في قاعدة البيانات وترقيته فوراً.',
@@ -251,8 +311,24 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
             ),
             TextButton(
               onPressed: () async {
-                if (!formKey.currentState!.validate()) return;
-                final identifier = inputCtrl.text.trim();
+                // للإيميل: نتحقّق عبر الـ Form. للهاتف: عبر isPhoneValid
+                // (IntlPhoneField لا يدعم Form validators بنفس الطريقة).
+                if (isEmail) {
+                  if (!formKey.currentState!.validate()) return;
+                } else {
+                  if (!isPhoneValid) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('أدخل رقم هاتف صحيح'),
+                        backgroundColor: Colors.orange,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+                }
+                final identifier =
+                    isEmail ? inputCtrl.text.trim() : completePhone;
                 // مسك الـ messenger من الـ State context (مش من dialog ctx)
                 // قبل أي pop لأن الـ context هيبقى deactivated بعدين.
                 final messenger = ScaffoldMessenger.of(context);
@@ -301,6 +377,10 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
         return _OpResult.error(
             'لا يوجد حساب مرتبط بهذا البريد أو الرقم.\n'
             'تأكد من أن المستخدم سجّل في التطبيق أولاً.');
+      } else if (!result.emailVerified) {
+        return _OpResult.error(
+            'البريد الإلكتروني لـ "${result.name}" غير مفعّل.\n'
+            'يجب على المستخدم تفعيل بريده أولاً قبل ترقيته.');
       } else if (UserRole.fromString(result.role).isSuperAdmin) {
         return _OpResult.error('لا يمكن تغيير دور السوبر أدمن');
       } else if (result.role == UserRole.subAdmin.toFirestoreValue()) {
@@ -509,7 +589,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                         onPressed: () => _revokeAccess(uid, name),
                         icon: const Icon(Icons.person_remove,
                             color: Colors.red, size: 22),
-                        tooltip: 'إلغاء الصلاحيات',
+                        tooltip: 'طرد وحظر',
                       ),
                     ],
                   ),
