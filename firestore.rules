@@ -109,5 +109,35 @@ service cloud.firestore {
       allow delete: if isSignedIn() &&
                     (resource.data.forUserId == request.auth.uid || isAdmin());
     }
+
+    // ─── الكوبونات ──────────────────────────────────────────────────────
+    // إنشاء/تعديل/حذف الكوبونات → superAdmin فقط (لا subAdmin).
+    // القراءة → أي مستخدم مسجَّل، لأن التحقق من الكوبون عند الدفع
+    // (findByCode) يتطلب قراءته. أي مستخدم يقدر يستخدم كوبون لو يعرف كوده.
+    match /coupons/{couponId} {
+      allow read: if isSignedIn();
+
+      allow create, delete: if isSuperAdmin();
+
+      // التحديث:
+      //  - superAdmin: أي تعديل (تفعيل/إيقاف/تعديل القيمة…)
+      //  - أي مستخدم مسجَّل: فقط زيادة usedCount بمقدار 1 (عند استخدام الكوبون
+      //    في الدفع) — لا يقدر يغيّر أي حقل آخر.
+      allow update: if isSuperAdmin()
+                    || (isSignedIn()
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['usedCount'])
+                        && request.resource.data.usedCount
+                             == resource.data.usedCount + 1);
+    }
+
+    // ─── سجلّ استخدام الكوبونات ──────────────────────────────────────────
+    // كل مستخدم ينشئ/يقرأ redemptions الخاصة به فقط؛ superAdmin يقرأ الكل.
+    match /coupon_redemptions/{redemptionId} {
+      allow read: if isSignedIn() &&
+                  (resource.data.userId == request.auth.uid || isSuperAdmin());
+      allow create: if isSignedIn() &&
+                    request.resource.data.userId == request.auth.uid;
+    }
   }
 }

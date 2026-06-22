@@ -80,6 +80,19 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Either<Failure, bool>> isPhoneRegistered(String phoneNumber) async {
+    if (!await network.isConnected) return const Left(NetworkFailure());
+    try {
+      final exists = await remote.isPhoneRegistered(phoneNumber);
+      return Right(exists);
+    } on FirebaseAuthException catch (e) {
+      return Left(AuthFailure(_mapAuthError(e.code)));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, UserEntity>> verifyOtp({
     required String verificationId,
     required String smsCode,

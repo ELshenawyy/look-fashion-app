@@ -141,11 +141,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           'تمت إضافة ${product.title} إلى السلة.',
         ),
         backgroundColor: const Color(0xFF2E7D32),
-        action: SnackBarAction(
-          label: 'عرض السلة',
-          textColor: Colors.white,
-          onPressed: () => Navigator.pop(context),
-        ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -379,6 +375,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               onTap: () => Navigator.pop(context),
               child: Container(
                 margin: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.5),
                   shape: BoxShape.circle,
@@ -386,7 +383,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: const Icon(Icons.arrow_back_ios_new_rounded,
                     color: Colors.white, size: 20),
               ),
-            ),            
+            ),
             // أيقونة المفضلة
             actions: [
               Selector<FavoritesProvider, bool>(

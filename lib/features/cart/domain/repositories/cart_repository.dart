@@ -11,4 +11,7 @@ abstract class CartRepository {
   void incrementQuantity(int index);
   void decrementQuantity(int index);
   void clear();
+
+  /// يمسح حالة السلة من الذاكرة عند تسجيل الخروج دون حذف البيانات المحفوظة.
+  void unloadForLogout();
 }

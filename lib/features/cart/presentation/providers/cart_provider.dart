@@ -33,6 +33,7 @@ class CartProvider extends ChangeNotifier {
   void incrementQuantity(int index) => _repo.incrementQuantity(index);
   void decrementQuantity(int index) => _repo.decrementQuantity(index);
   void clear() => _repo.clear();
+  void unloadForLogout() => _repo.unloadForLogout();
 
   @override
   void dispose() {

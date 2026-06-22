@@ -109,12 +109,11 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
             'discountAmount': input.discountAmount,
         });
 
-        // 4) إنقاص المخزون
-        for (int i = 0; i < input.items.length; i++) {
-          tx.update(productRefs[i], {
-            'stockQuantity': FieldValue.increment(-input.items[i].quantity),
-          });
-        }
+        // 4) إنقاص المخزون وزيادة عدّاد المبيعات يتمّان من Cloud Function
+        //    (updateInventoryOnOrder) عبر Admin SDK — وليس من العميل.
+        //    سبب ذلك: قواعد Firestore تسمح فقط للأدمن بالكتابة على products،
+        //    فلو حدّثنا المخزون هنا لفشل الطلب لأي عميل عادي. التحقق من
+        //    المخزون أعلاه (read فقط) يبقى لرفض الطلب فوراً عند نفاد الكمية.
       });
 
       // ── Welcome bot message ──────────────────────────────────────

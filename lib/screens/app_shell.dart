@@ -275,20 +275,24 @@ class _AppShellState extends State<AppShell> {
                         child: const Icon(Icons.dashboard),
                       ),
                       const SizedBox(height: 8),
-                      FloatingActionButton.small(
-                        backgroundColor: const Color(0xFFD4AF37),
-                        heroTag: 'coupons',
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AdminCouponsScreen(),
+                      // ⚠️ الكوبونات — superAdmin فقط. الـ subAdmin لا يرى الزر
+                      // ولا يصل لشاشة الكوبونات (ولا أكواد الخصم).
+                      if (isSuperAdmin) ...[
+                        FloatingActionButton.small(
+                          backgroundColor: const Color(0xFFD4AF37),
+                          heroTag: 'coupons',
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AdminCouponsScreen(),
+                            ),
                           ),
+                          tooltip: 'الكوبونات',
+                          child: const Icon(Icons.local_offer,
+                              color: Colors.black),
                         ),
-                        tooltip: 'الكوبونات',
-                        child: const Icon(Icons.local_offer,
-                            color: Colors.black),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 8),
+                      ],
                       FloatingActionButton.small(
                         backgroundColor: const Color(0xFF800000),
                         heroTag: 'add',

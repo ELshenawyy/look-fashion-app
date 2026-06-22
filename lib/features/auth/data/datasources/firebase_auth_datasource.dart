@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_fashion_app/core/error/exceptions.dart';
@@ -22,6 +23,11 @@ abstract class FirebaseAuthDataSource {
   });
 
   Future<String> sendOtp(String phoneNumber);
+
+  /// يتحقق هل الرقم (بصيغة E.164) مسجَّل في التطبيق — عبر Cloud Function
+  /// (انظر functions/index.js → isPhoneRegistered). يُستخدم قبل إرسال OTP
+  /// في flow الدخول بالهاتف لمنع إرسال رمز لرقم بلا حساب.
+  Future<bool> isPhoneRegistered(String phoneNumber);
 
   Future<String> verifyOtp({
     required String verificationId,
@@ -66,8 +72,9 @@ abstract class FirebaseAuthDataSource {
 class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
+  final FirebaseFunctions _functions;
 
-  FirebaseAuthDataSourceImpl(this._auth, this._db);
+  FirebaseAuthDataSourceImpl(this._auth, this._db, this._functions);
 
   @override
   String? get currentUid => _auth.currentUser?.uid;
@@ -406,6 +413,15 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       },
     );
     return completer.future;
+  }
+
+  @override
+  Future<bool> isPhoneRegistered(String phoneNumber) async {
+    final callable = _functions.httpsCallable('isPhoneRegistered');
+    final res = await callable.call<Map<String, dynamic>>(
+      {'phone': phoneNumber},
+    );
+    return res.data['registered'] == true;
   }
 
   @override

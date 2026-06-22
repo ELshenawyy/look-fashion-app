@@ -32,6 +32,10 @@ abstract class AuthRepository {
   /// إرسال OTP لرقم الهاتف
   Future<Either<Failure, PhoneVerificationResult>> sendOtp(String phoneNumber);
 
+  /// هل الرقم (E.164) مسجَّل في التطبيق؟ يُستخدم قبل إرسال OTP في flow الدخول
+  /// بالهاتف. true = يوجد حساب، false = لا يوجد.
+  Future<Either<Failure, bool>> isPhoneRegistered(String phoneNumber);
+
   /// تأكيد رمز OTP — flow الدخول العادي.
   /// [displayName] اختياري: إذا مُرَّر يفعّل flow التسجيل بالهاتف
   /// (ينشئ مستند users إن لم يكن موجوداً بدور 'user').

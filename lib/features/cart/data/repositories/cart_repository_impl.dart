@@ -29,4 +29,7 @@ class CartRepositoryImpl implements CartRepository {
 
   @override
   void clear() => local.clear();
+
+  @override
+  void unloadForLogout() => local.unloadForLogout();
 }

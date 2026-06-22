@@ -148,5 +148,16 @@ class LocalCartDataSource {
     _persist();
   }
 
+  /// يُستدعى عند تسجيل الخروج فقط.
+  /// يمسح السلة من الذاكرة (حتى لا يراها المستخدم التالي) لكنه **لا** يحذف
+  /// السلة المحفوظة في SharedPreferences — تبقى محفوظة وتعود عند تسجيل
+  /// الدخول مرة أخرى بنفس الحساب.
+  void unloadForLogout() {
+    _items.clear();
+    _currentUid = null;
+    _loaded = false;
+    _emit();
+  }
+
   void dispose() => _controller.close();
 }

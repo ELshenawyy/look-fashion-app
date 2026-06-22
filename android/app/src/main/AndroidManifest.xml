@@ -71,5 +71,9 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="high_importance_channel" />
+        <!-- إيقاف Impeller واستخدام Skia — يحل مشكلة الشاشة السوداء على بعض أجهزة Samsung القديمة (Android 9-10) -->
+        <meta-data
+          android:name="io.flutter.embedding.android.EnableImpeller"
+          android:value="false" />
     </application>
 </manifest>

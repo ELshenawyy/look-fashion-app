@@ -66,6 +66,12 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // يضمّن رموز التصحيح للكود الأصلي (.so) داخل الـ AAB → يزيل تحذير
+            // Play Console "App Bundle يحتوي على رموز برمجية أصلية" ويسهّل
+            // تحليل أعطال ANR/Crash.
+            ndk {
+                debugSymbolLevel 'FULL'
+            }
             // لو الـ release keystore موجود → استخدمه (للـ Play Store).
             // لو لا → fallback لـ debug signing (للتجارب المحلية فقط).
             signingConfig hasReleaseKeystore
@@ -73,6 +79,16 @@ android {
                 : signingConfigs.debug
         }
     }
+}
+
+// ── إزالة SafetyNet المهجور ────────────────────────────────────────────
+// SafetyNet API توقّف (deprecated) واستُبدل بـ Play Integrity، والتطبيق
+// يستخدم AndroidProvider.playIntegrity فقط. نستثني play-services-safetynet
+// من كل المصادر العابرة (firebase-appcheck-safetynet, firebase-auth…) لإزالة
+// تحذير Play Console. مسار كود SafetyNet لا يُستدعى إطلاقاً → آمن وقت التشغيل،
+// وتحذيرات R8 عن الكلاسات المفقودة مُغطّاة بـ -dontwarn في proguard-rules.pro.
+configurations.all {
+    exclude group: 'com.google.android.gms', module: 'play-services-safetynet'
 }
 
 flutter {

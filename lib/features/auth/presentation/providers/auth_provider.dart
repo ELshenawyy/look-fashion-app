@@ -7,6 +7,7 @@ import 'package:my_fashion_app/core/usecase/usecase.dart';
 import 'package:my_fashion_app/features/addresses/presentation/providers/addresses_provider.dart';
 import 'package:my_fashion_app/features/auth/domain/entities/user_entity.dart';
 import 'package:my_fashion_app/features/auth/domain/repositories/auth_repository.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/is_phone_registered.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/reload_user.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/send_email_verification.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/send_otp.dart';
@@ -33,6 +34,7 @@ class AuthProvider extends ChangeNotifier {
   final SignInWithEmail _signInWithEmail;
   final SignUpWithEmail _signUpWithEmail;
   final SendOtp _sendOtp;
+  final IsPhoneRegistered _isPhoneRegistered;
   final VerifyOtp _verifyOtp;
   final SendPasswordReset _sendPasswordReset;
   final SignOut _signOut;
@@ -57,6 +59,7 @@ class AuthProvider extends ChangeNotifier {
     required SignInWithEmail signInWithEmail,
     required SignUpWithEmail signUpWithEmail,
     required SendOtp sendOtp,
+    required IsPhoneRegistered isPhoneRegistered,
     required VerifyOtp verifyOtp,
     required SendPasswordReset sendPasswordReset,
     required SignOut signOut,
@@ -69,6 +72,7 @@ class AuthProvider extends ChangeNotifier {
         _signInWithEmail = signInWithEmail,
         _signUpWithEmail = signUpWithEmail,
         _sendOtp = sendOtp,
+        _isPhoneRegistered = isPhoneRegistered,
         _verifyOtp = verifyOtp,
         _sendPasswordReset = sendPasswordReset,
         _signOut = signOut,
@@ -190,6 +194,24 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  /// يتحقق هل الرقم مسجَّل قبل إرسال OTP.
+  /// يرجع true (مسجَّل) أو false (غير مسجَّل)، و null عند الخطأ (failure مُعَيَّن).
+  Future<bool?> isPhoneRegistered(String phoneNumber) async {
+    _busy = true;
+    _failure = null;
+    notifyListeners();
+    final res = await _isPhoneRegistered(phoneNumber);
+    _busy = false;
+    return res.fold((f) {
+      _failure = f;
+      notifyListeners();
+      return null;
+    }, (exists) {
+      notifyListeners();
+      return exists;
+    });
+  }
+
   Future<bool> verifyOtp({
     required String verificationId,
     required String smsCode,
@@ -262,7 +284,7 @@ class AuthProvider extends ChangeNotifier {
       }
     }
 
-    safeReset(() => sl<CartProvider>().clear());
+    safeReset(() => sl<CartProvider>().unloadForLogout());
     safeReset(() => sl<FavoritesProvider>().reset());
     safeReset(() => sl<AddressesProvider>().reset());
     safeReset(() => sl<NotificationsProvider>().reset());

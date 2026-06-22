@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -84,6 +85,7 @@ import 'package:my_fashion_app/features/products/presentation/providers/products
 import 'package:my_fashion_app/features/auth/data/datasources/firebase_auth_datasource.dart';
 import 'package:my_fashion_app/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:my_fashion_app/features/auth/domain/repositories/auth_repository.dart';
+import 'package:my_fashion_app/features/auth/domain/usecases/is_phone_registered.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/send_otp.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/send_password_reset.dart';
 import 'package:my_fashion_app/features/auth/domain/usecases/reload_user.dart';
@@ -120,6 +122,7 @@ Future<void> init() async {
   sl.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
   sl.registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);
   sl.registerLazySingleton<FirebaseStorage>(() => FirebaseStorage.instance);
+  sl.registerLazySingleton<FirebaseFunctions>(() => FirebaseFunctions.instance);
   sl.registerLazySingleton<Connectivity>(() => Connectivity());
 
   // ─── Core ───────────────────────────────────────────────────────────────
@@ -300,6 +303,7 @@ void _initAuth() {
         signInWithEmail: sl(),
         signUpWithEmail: sl(),
         sendOtp: sl(),
+        isPhoneRegistered: sl(),
         verifyOtp: sl(),
         sendPasswordReset: sl(),
         signOut: sl(),
@@ -315,6 +319,7 @@ void _initAuth() {
   sl.registerLazySingleton(() => SignInWithEmail(sl()));
   sl.registerLazySingleton(() => SignUpWithEmail(sl()));
   sl.registerLazySingleton(() => SendOtp(sl()));
+  sl.registerLazySingleton(() => IsPhoneRegistered(sl()));
   sl.registerLazySingleton(() => VerifyOtp(sl()));
   sl.registerLazySingleton(() => SendPasswordReset(sl()));
   sl.registerLazySingleton(() => SignOut(sl()));
@@ -331,7 +336,7 @@ void _initAuth() {
 
   // Data Source
   sl.registerLazySingleton<FirebaseAuthDataSource>(
-    () => FirebaseAuthDataSourceImpl(sl(), sl()),
+    () => FirebaseAuthDataSourceImpl(sl(), sl(), sl()),
   );
 }
 

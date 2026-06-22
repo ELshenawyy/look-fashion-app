@@ -253,6 +253,8 @@ class _SignupState extends State<Signup> {
       errorText: errorText,
       filled: true,
       fillColor: Colors.white.withValues(alpha: 0.10),
+      // نفس الـ contentPadding المستخدم في حقل الهاتف → ارتفاع موحَّد لكل الحقول
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -331,9 +333,9 @@ class _SignupState extends State<Signup> {
                 showCountryFlag: true,
                 languageCode: 'ar',
                 invalidNumberMessage: 'رقم الهاتف غير صحيح',
-                // ⚠ تمركز عمودي مظبوط
+                // تمركز عمودي مظبوط — نفس الـ vertical padding بتاع الحقل
                 flagsButtonPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
                 flagsButtonMargin: EdgeInsets.zero,
                 textAlignVertical: TextAlignVertical.center,
                 pickerDialogStyle: PickerDialogStyle(
@@ -344,18 +346,24 @@ class _SignupState extends State<Signup> {
                 ),
                 dropdownIcon:
                     const Icon(Icons.arrow_drop_down, color: Colors.white70),
+                // نفس العائلة والحجم و height للرقم ورمز الدولة → baseline موحّد
                 dropdownTextStyle: const TextStyle(
-                    color: Colors.white, fontSize: 16),
-                style: const TextStyle(color: Colors.white, fontSize: 16),
+                    color: Colors.white, fontSize: 16, height: 1.0),
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 16, height: 1.0),
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: Colors.white.withValues(alpha: 0.10),
                   hintText: 'رقم الهاتف',
-                  hintStyle: const TextStyle(color: Colors.white38),
-                  // ⚠ isDense + contentPadding صريح = تمركز مظبوط
-                  isDense: true,
+                  hintStyle:
+                      const TextStyle(color: Colors.white38, fontSize: 16),
+                  // إخفاء عدّاد "10/10" — مساحته أسفل الحقل كانت تزيح رمز
+                  // الدولة لأسفل فيظهر غير محاذٍ للرقم. (maxLength يبقى فعّالاً)
+                  counterText: '',
+                  // نفس الـ contentPadding بتاع حقول البريد/كلمة المرور →
+                  // ارتفاع موحَّد مع تمركز الرقم عمودياً بمحاذاة العلم.
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 18),
+                      horizontal: 16, vertical: 18),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,

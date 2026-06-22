@@ -104,6 +104,36 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     final auth = context.read<AuthProvider>();
+
+    // ── تحقق أولاً: هل الرقم مسجَّل؟ ──────────────────────────────────────
+    // نمنع إرسال OTP (وتكلفة SMS) لرقم بلا حساب، ونوجّه المستخدم للتسجيل.
+    final registered = await auth.isPhoneRegistered(phoneNumber);
+    if (!mounted) return;
+    if (registered == null) {
+      // خطأ في الاتصال/الخادم
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذّر التحقق من الرقم: ${auth.failure?.message ?? ''}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      auth.clearFailure();
+      return;
+    }
+    if (!registered) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يوجد حساب مسجَّل بهذا الرقم. أنشئ حساباً جديداً.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const Signup()),
+      );
+      return;
+    }
+
     final result = await auth.sendOtp(phoneNumber);
     if (!mounted) return;
     if (result != null) {
@@ -326,6 +356,8 @@ class _LoginPageState extends State<LoginPage> {
       errorText: errorText,
       filled: true,
       fillColor: Colors.white.withValues(alpha: 0.10),
+      // نفس الـ contentPadding المستخدم في حقل الهاتف → ارتفاع موحَّد لكل الحقول
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -367,10 +399,17 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'استخدم رقم هاتفك واستلم رمز تحقق آمن.',
-            style: TextStyle(color: Colors.white60, fontSize: 14),
-            textAlign: TextAlign.center,
+          // ارتفاع ثابت (سطرين) — يضمن إن حقل الهاتف يبدأ من نفس
+          // النقطة العمودية لحقل البريد، بغض النظر عن عدد أسطر النص.
+          const SizedBox(
+            height: 40,
+            child: Center(
+              child: Text(
+                'استخدم رقم هاتفك واستلم رمز تحقق آمن.',
+                style: TextStyle(color: Colors.white60, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ),
           const SizedBox(height: 28),
           // العلم ورقم الدولة على اليسار — LTR على الـ field فقط
@@ -387,7 +426,7 @@ class _LoginPageState extends State<LoginPage> {
               // الـ contentPadding أسفل + isDense=true يلغي الـ default
               // padding اللي بيدفع النص لفوق
               flagsButtonPadding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 18),
               flagsButtonMargin: EdgeInsets.zero,
               textAlignVertical: TextAlignVertical.center,
               pickerDialogStyle: PickerDialogStyle(
@@ -406,10 +445,11 @@ class _LoginPageState extends State<LoginPage> {
                 fillColor: Colors.white.withValues(alpha: 0.10),
                 hintText: 'رقم الهاتف',
                 hintStyle: const TextStyle(color: Colors.white38),
-                // ⚠ isDense + contentPadding صريح = تمركز مظبوط
-                isDense: true,
+                // نفس الـ contentPadding بتاع حقول البريد/كلمة المرور →
+                // ارتفاع موحَّد، مع textAlignVertical.center لتمركز الرقم
+                // عمودياً بمحاذاة العلم ومفتاح الدولة.
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 18),
+                    horizontal: 16, vertical: 18),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -507,10 +547,17 @@ class _LoginPageState extends State<LoginPage> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'سجّل الدخول باستخدام البريد الإلكتروني وكلمة المرور.',
-              style: TextStyle(color: Colors.white60, fontSize: 14),
-              textAlign: TextAlign.center,
+            // ارتفاع ثابت (سطرين) — يضمن إن حقل البريد يبدأ من نفس
+            // النقطة العمودية لحقل الهاتف، بغض النظر عن عدد أسطر النص.
+            const SizedBox(
+              height: 40,
+              child: Center(
+                child: Text(
+                  'سجّل الدخول باستخدام البريد الإلكتروني وكلمة المرور.',
+                  style: TextStyle(color: Colors.white60, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
             const SizedBox(height: 28),
             // Email field

@@ -180,8 +180,9 @@ class ProductsProvider extends ChangeNotifier {
   }
 
   String get _sortField =>
-      _sortMode == HomeSortMode.newArrivals ? 'createdAt' : 'stockQuantity';
-  bool get _sortDescending => _sortMode == HomeSortMode.newArrivals;
+      _sortMode == HomeSortMode.newArrivals ? 'createdAt' : 'salesCount';
+  // كلا الوضعين تنازلي: الأحدث أولاً (createdAt) / الأكثر مبيعاً أولاً (salesCount).
+  bool get _sortDescending => true;
 
   /// يُستدعى عند signOut — تصفير كل الفلاتر والقوائم لمنع تسرّبها
   /// للحساب التالي (مثلاً: لا تبقى تصفية "أطفال" نشطة بعد signOut).
