@@ -3,7 +3,11 @@
     <!-- Microphone permission required for speech-to-text voice search -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+    <!-- التخزين القديم مطلوب فقط حتى Android 12 (API 32). من Android 13+
+         نستخدم READ_MEDIA_IMAGES بدلاً منه → maxSdkVersion يمنع طلب صلاحية
+         تخزين واسعة على الأنظمة الحديثة (توصية Google Play). -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <!-- Push notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>

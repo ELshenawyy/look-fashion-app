@@ -520,6 +520,7 @@ class _SignupState extends State<Signup> {
               style: const TextStyle(color: Colors.white),
               cursorColor: Colors.white,
               obscureText: _obscureText,
+              textDirection: TextDirection.ltr, // الباسورد دايماً LTR عشان الرموز متتقلبش
               onChanged: (v) => setState(() => _password = v),
               decoration: _fieldDecoration(
                 label: 'كلمة المرور',
@@ -578,6 +579,7 @@ class _SignupState extends State<Signup> {
               style: const TextStyle(color: Colors.white),
               cursorColor: Colors.white,
               obscureText: _obscureConfirm,
+              textDirection: TextDirection.ltr, // الباسورد دايماً LTR عشان الرموز متتقلبش
               onChanged: (v) => setState(() => _confirmPassword = v),
               decoration: _fieldDecoration(
                 label: 'تأكيد كلمة المرور',

@@ -314,7 +314,16 @@ class _AdminCouponsScreenState extends State<AdminCouponsScreen> {
           ],
         ),
       ),
-    );
+    ).then((_) {
+      // تخلّص من الـ controllers بعد إغلاق الـ dialog لتفادي تسريب الذاكرة
+      // (كانت تُنشأ في كل فتح للـ dialog بدون dispose).
+      codeCtrl.dispose();
+      valueCtrl.dispose();
+      minOrderCtrl.dispose();
+      maxDiscountCtrl.dispose();
+      usageLimitCtrl.dispose();
+      perUserLimitCtrl.dispose();
+    });
   }
 
   Widget _textField({

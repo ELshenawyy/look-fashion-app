@@ -184,6 +184,7 @@ class _LoginPageState extends State<LoginPage> {
             TextField(
               controller: emailCtrl,
               keyboardType: TextInputType.emailAddress,
+              textDirection: TextDirection.ltr, // الإيميل دايماً LTR عشان الـ @ متتقلبش
               style: const TextStyle(color: Colors.white),
               decoration: InputDecoration(
                 labelText: 'البريد الإلكتروني',
@@ -588,6 +589,7 @@ class _LoginPageState extends State<LoginPage> {
             TextFormField(
               controller: _passwordController,
               obscureText: _obscureText,
+              textDirection: TextDirection.ltr, // الباسورد دايماً LTR عشان الرموز متتقلبش
               style: const TextStyle(color: Colors.white),
               decoration: _fieldDecoration(
                 label: 'كلمة المرور',

@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 /// متطلبات كلمة المرور القوية (موحَّدة في كل التطبيق).
 ///
-/// كلمة سر مقبولة لازم تحقّق كل المتطلبات الـ 4:
+/// كلمة سر مقبولة لازم تحقّق كل المتطلبات الـ 5:
 ///   1. أكثر من 8 خانات (≥ 9 على الأقل)
-///   2. على الأقل حرف واحد (a-z أو A-Z)
-///   3. على الأقل رقم واحد (0-9)
-///   4. على الأقل رمز خاص (!@#\$%^&* إلخ)
+///   2. على الأقل حرف كبير واحد (A-Z)
+///   3. على الأقل حرف صغير واحد (a-z)
+///   4. على الأقل رقم واحد (0-9)
+///   5. على الأقل رمز خاص (!@#\$%^&* إلخ)
+///
+/// لازم نفس الشروط تتفعّل في Firebase Console → Authentication → Settings →
+/// Password policy، عشان صفحة إعادة التعيين (reset) تطبّق نفس القواعد.
 class PasswordRequirement {
   final String label;
   final bool Function(String) check;
@@ -21,8 +25,12 @@ class PasswordValidator {
       (p) => p.length > 8,
     ),
     PasswordRequirement(
-      'حرف واحد على الأقل (a-z, A-Z)',
-      (p) => RegExp(r'[a-zA-Z]').hasMatch(p),
+      'حرف كبير واحد على الأقل (A-Z)',
+      (p) => RegExp(r'[A-Z]').hasMatch(p),
+    ),
+    PasswordRequirement(
+      'حرف صغير واحد على الأقل (a-z)',
+      (p) => RegExp(r'[a-z]').hasMatch(p),
     ),
     PasswordRequirement(
       'رقم واحد على الأقل (0-9)',
