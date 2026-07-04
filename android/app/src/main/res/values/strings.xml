@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- اسم التطبيق — الإنجليزي LOOK على اليسار + العربي طلة على اليمين -->
-    <string name="app_name">LOOK طلة</string>
+    <!-- اسم التطبيق — LOOK يسار + طلة يمين، ثابت على كل الأجهزة.
+         ‪ = LRE و ‬ = PDF: يفرضان اتجاه LTR على الاسم كله فلا
+         ينقلب الترتيب حسب لغة الجهاز (خوارزمية BiDi). -->
+    <string name="app_name">‪LOOK طلة‬</string>
 </resources>

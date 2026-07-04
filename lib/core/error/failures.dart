@@ -21,6 +21,16 @@ class AuthFailure extends Failure {
   const AuthFailure(super.message);
 }
 
+/// رقم الهاتف مسجَّل بحساب بالفعل — تُستخدم لمنع ثغرة تداخل الحسابات
+/// (Account Takeover) عند إنشاء حساب جديد برقم مسجَّل مسبقاً، بدلاً من
+/// إرسال OTP يوجَّه فعلياً للحساب القديم.
+class PhoneAlreadyRegisteredFailure extends AuthFailure {
+  const PhoneAlreadyRegisteredFailure([
+    String message =
+        'هذا الرقم مسجَّل بحساب بالفعل. يرجى تسجيل الدخول بدلاً من إنشاء حساب جديد.',
+  ]) : super(message);
+}
+
 class PermissionFailure extends Failure {
   const PermissionFailure([super.message = 'ليس لديك صلاحية لهذه العملية']);
 }

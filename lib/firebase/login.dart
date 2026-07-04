@@ -30,6 +30,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscureText = true;
   bool _isLoading = false;
   bool _isPhoneValid = false;
+  bool _isPhoneSending = false; // حماية زر الهاتف من الضغط المتكرر أثناء الإرسال
   String _completePhoneNumber = '';
 
   // ── Real-time email validation ────────────────────────────────────────
@@ -105,55 +106,64 @@ class _LoginPageState extends State<LoginPage> {
     }
     final auth = context.read<AuthProvider>();
 
-    // ── تحقق أولاً: هل الرقم مسجَّل؟ ──────────────────────────────────────
-    // نمنع إرسال OTP (وتكلفة SMS) لرقم بلا حساب، ونوجّه المستخدم للتسجيل.
-    final registered = await auth.isPhoneRegistered(phoneNumber);
-    if (!mounted) return;
-    if (registered == null) {
-      // خطأ في الاتصال/الخادم
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('تعذّر التحقق من الرقم: ${auth.failure?.message ?? ''}'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      auth.clearFailure();
-      return;
-    }
-    if (!registered) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لا يوجد حساب مسجَّل بهذا الرقم. أنشئ حساباً جديداً.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const Signup()),
-      );
-      return;
-    }
-
-    final result = await auth.sendOtp(phoneNumber);
-    if (!mounted) return;
-    if (result != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => OTPScreen(
-            verificationId: result.verificationId,
-            phoneNumber: _completePhoneNumber,
+    // نعطّل الزر ونعرض spinner طوال العملية (تحقق الرقم + إرسال OTP) لمنع
+    // الضغط المتكرر الذي يُطلق طلبات SMS متعددة ويسبّب خنق too-many-requests.
+    setState(() => _isPhoneSending = true);
+    try {
+      // ── تحقق أولاً: هل الرقم مسجَّل؟ ──────────────────────────────────────
+      // نمنع إرسال OTP (وتكلفة SMS) لرقم بلا حساب، ونوجّه المستخدم للتسجيل.
+      final registered = await auth.isPhoneRegistered(phoneNumber);
+      if (!mounted) return;
+      if (registered == null) {
+        // خطأ في الاتصال/الخادم
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('تعذّر التحقق من الرقم: ${auth.failure?.message ?? ''}'),
+            behavior: SnackBarBehavior.floating,
           ),
-        ),
-      );
-    } else if (auth.failure != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('حدث خطأ: ${auth.failure!.message}'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      auth.clearFailure();
+        );
+        auth.clearFailure();
+        return;
+      }
+      if (!registered) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('لا يوجد حساب مسجَّل بهذا الرقم. أنشئ حساباً جديداً.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const Signup()),
+        );
+        return;
+      }
+
+      final result = await auth.sendOtp(phoneNumber);
+      if (!mounted) return;
+      if (result != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => OTPScreen(
+              verificationId: result.verificationId,
+              phoneNumber: _completePhoneNumber,
+            ),
+          ),
+        );
+      } else if (auth.failure != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ: ${auth.failure!.message}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        auth.clearFailure();
+      }
+    } finally {
+      // يُعاد الزر لوضعه الطبيعي في كل المسارات (نجاح/فشل/رجوع).
+      if (mounted) setState(() => _isPhoneSending = false);
     }
   }
 
@@ -488,20 +498,32 @@ class _LoginPageState extends State<LoginPage> {
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isPhoneValid ? _themeColor : Colors.white24,
+                backgroundColor: (_isPhoneValid && !_isPhoneSending)
+                    ? _themeColor
+                    : Colors.white24,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
               ),
-              onPressed: _isPhoneValid ? _sendOTP : null,
-              child: const Text(
-                'إرسال الرمز',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'arial'),
-              ),
+              onPressed:
+                  (_isPhoneValid && !_isPhoneSending) ? _sendOTP : null,
+              child: _isPhoneSending
+                  ? const SizedBox(
+                      height: 22,
+                      width: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : const Text(
+                      'إرسال الرمز',
+                      style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'arial'),
+                    ),
             ),
           ),
           const SizedBox(height: 12),

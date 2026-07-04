@@ -194,6 +194,48 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  /// يرسل OTP لإنشاء حساب جديد (تسجيل، وليس تسجيل دخول).
+  /// ⚠️ Security fix: يقوم أولاً بفحص صامت في Firestore (isPhoneRegistered)
+  /// للتأكد أن الرقم غير مسجَّل مسبقاً *قبل* استدعاء verifyPhoneNumber.
+  /// بدون هذا الفحص، رقم مسجَّل مسبقاً كان يُرسَل له OTP يُوجَّه فعلياً
+  /// لجلسة الحساب القديم (ثغرة تداخل حسابات / Account Takeover) بدلاً من
+  /// إنشاء حساب جديد.
+  /// يرجع verificationId عند النجاح، null عند الفشل أو إذا كان الرقم
+  /// مسجَّلاً بالفعل (failure = PhoneAlreadyRegisteredFailure في هذه الحالة).
+  Future<PhoneVerificationResult?> sendOtpForSignUp(String phoneNumber) async {
+    _busy = true;
+    _failure = null;
+    notifyListeners();
+
+    final checkRes = await _isPhoneRegistered(phoneNumber);
+    bool? alreadyRegistered;
+    checkRes.fold((f) => _failure = f, (exists) => alreadyRegistered = exists);
+
+    if (_failure != null) {
+      _busy = false;
+      notifyListeners();
+      return null;
+    }
+
+    if (alreadyRegistered == true) {
+      _busy = false;
+      _failure = const PhoneAlreadyRegisteredFailure();
+      notifyListeners();
+      return null;
+    }
+
+    final res = await _sendOtp(phoneNumber);
+    _busy = false;
+    return res.fold((f) {
+      _failure = f;
+      notifyListeners();
+      return null;
+    }, (r) {
+      notifyListeners();
+      return r;
+    });
+  }
+
   /// يتحقق هل الرقم مسجَّل قبل إرسال OTP.
   /// يرجع true (مسجَّل) أو false (غير مسجَّل)، و null عند الخطأ (failure مُعَيَّن).
   Future<bool?> isPhoneRegistered(String phoneNumber) async {

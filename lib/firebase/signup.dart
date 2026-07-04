@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:my_fashion_app/core/error/failures.dart';
 import 'package:my_fashion_app/core/utils/password_validator.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
@@ -165,7 +166,9 @@ class _SignupState extends State<Signup> {
 
     setState(() => _isPhoneSending = true);
     final auth = context.read<AuthProvider>();
-    final result = await auth.sendOtp(phone);
+    // ⚠️ sendOtpForSignUp يفحص أولاً هل الرقم مسجَّل مسبقاً (Firestore) قبل
+    // إرسال OTP — يمنع ثغرة تداخل الحسابات عند التسجيل برقم مسجَّل بالفعل.
+    final result = await auth.sendOtpForSignUp(phone);
 
     if (!mounted) return;
     setState(() => _isPhoneSending = false);
@@ -181,6 +184,13 @@ class _SignupState extends State<Signup> {
             pendingDisplayName: name,
           ),
         ),
+      );
+    } else if (auth.failure is PhoneAlreadyRegisteredFailure) {
+      _showSnack(auth.failure!.message, Colors.orange);
+      auth.clearFailure();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
       );
     } else if (auth.failure != null) {
       _showSnack(auth.failure!.message, Colors.red);

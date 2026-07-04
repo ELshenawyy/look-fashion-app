@@ -1,14 +1,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.example.my_fashion_app">
     <!-- Microphone permission required for speech-to-text voice search -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- التخزين القديم مطلوب فقط حتى Android 12 (API 32). من Android 13+
-         نستخدم READ_MEDIA_IMAGES بدلاً منه → maxSdkVersion يمنع طلب صلاحية
-         تخزين واسعة على الأنظمة الحديثة (توصية Google Play). -->
+    <!-- التخزين القديم مطلوب فقط حتى Android 12 (API 32) لاختيار الصور. -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- إلغاء أذونات الوصول الدائم للوسائط: التطبيق يختار صورة لمرة واحدة عبر
+         Android Photo Picker (لا يتطلب إذناً). طلب READ_MEDIA_IMAGES/VIDEO
+         يخالف سياسة Google Play "Photo and Video Permissions" ويمنع النشر.
+         tools:node="remove" يلغي أي إعلان مدمج من الإضافات (image_picker). -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove"/>
     <!-- Push notifications (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 

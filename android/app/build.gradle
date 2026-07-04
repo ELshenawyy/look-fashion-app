@@ -26,9 +26,13 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.example.my_fashion_app"
     compileSdk = 35
-    ndkVersion = flutter.ndkVersion
+    // NDK 27 = أول نسخة تبني مكتبات native متحاذية لصفحات 16KB (متطلب Google Play)
+    // وهو أيضاً النسخة التي تطلبها إضافات Firebase. NDK 26 لا يدعم 16KB.
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
+        // مطلوب لـ flutter_local_notifications (ودعم Java 8 APIs على minSdk 23)
+        coreLibraryDesugaringEnabled true
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
@@ -93,4 +97,8 @@ configurations.all {
 
 flutter {
     source '../..'
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }
