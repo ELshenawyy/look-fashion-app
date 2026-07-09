@@ -188,6 +188,16 @@ class _OTPScreenState extends State<OTPScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'لم يصلك الرمز؟ تأكد من صحة رقم الهاتف ورمز الدولة ثم أعد الإرسال.',
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                        fontFamily: 'arial',
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 28),
                     OtpPinField(
                       controller: _otpController,

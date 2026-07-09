@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:my_fashion_app/core/error/failures.dart';
+import 'package:my_fashion_app/core/utils/locale_country.dart';
 import 'package:my_fashion_app/core/utils/password_validator.dart';
+import 'package:my_fashion_app/core/utils/phone_number_validator.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
@@ -339,7 +341,7 @@ class _SignupState extends State<Signup> {
               textDirection: TextDirection.ltr,
               child: IntlPhoneField(
                 controller: _phoneController,
-                initialCountryCode: 'SD',
+                initialCountryCode: defaultPhoneCountryCode(context),
                 showCountryFlag: true,
                 languageCode: 'ar',
                 invalidNumberMessage: 'رقم الهاتف غير صحيح',
@@ -392,8 +394,7 @@ class _SignupState extends State<Signup> {
                   setState(() {
                     _completePhoneNumber =
                         phone.completeNumber.replaceAll(RegExp(r'\s+'), '');
-                    _isPhoneValid = phone.number.isNotEmpty &&
-                        _completePhoneNumber.startsWith('+');
+                    _isPhoneValid = isValidPhoneNumber(phone);
                   });
                 },
               ),

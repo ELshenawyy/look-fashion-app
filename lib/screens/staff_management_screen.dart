@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:my_fashion_app/core/di/injection_container.dart';
+import 'package:my_fashion_app/core/utils/locale_country.dart';
+import 'package:my_fashion_app/core/utils/phone_number_validator.dart';
 import 'package:my_fashion_app/features/admin/data/repositories/admin_repository.dart';
 import 'package:my_fashion_app/features/auth/domain/entities/user_role.dart';
 import 'package:my_fashion_app/widgets/app_sliver_bar.dart';
@@ -254,8 +256,9 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                   Directionality(
                     textDirection: TextDirection.ltr,
                     child: IntlPhoneField(
-                    // السودان (+249) افتراضياً
-                    initialCountryCode: 'SD',
+                    // يُشتق افتراضياً من منطقة الجهاز، ويرجع للسودان (+249)
+                    // فقط لو تعذّر استنتاج دولة الجهاز.
+                    initialCountryCode: defaultPhoneCountryCode(ctx),
                     languageCode: 'ar',
                     showCountryFlag: true,
                     dropdownIcon: const Icon(Icons.arrow_drop_down,
@@ -288,9 +291,7 @@ class _StaffManagementScreenState extends State<StaffManagementScreen> {
                       setDialogState(() {
                         completePhone = p.completeNumber
                             .replaceAll(RegExp(r'\s+'), '');
-                        isPhoneValid = p.number.isNotEmpty &&
-                            completePhone.startsWith('+') &&
-                            p.number.length >= 7;
+                        isPhoneValid = isValidPhoneNumber(p);
                       });
                     },
                   ),
