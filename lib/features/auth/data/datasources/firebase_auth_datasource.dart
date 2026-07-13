@@ -3,9 +3,42 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:my_fashion_app/core/error/exceptions.dart';
 import 'package:my_fashion_app/features/auth/data/models/user_model.dart';
+
+/// يستخرج رمز الدولة فقط (مثال: "+249") من رقم E.164 كامل، لتسجيل
+/// معلومات تشخيصية في Crashlytics دون تخزين رقم الهاتف الكامل (PII).
+String _dialCodePrefix(String e164Phone) {
+  final match = RegExp(r'^\+\d{1,4}').firstMatch(e164Phone);
+  return match?.group(0) ?? '+?';
+}
+
+/// يسجّل فشل OTP كحدث غير قاتل (non-fatal) في Crashlytics عشان نقدر
+/// نشوف معدّلات/أكواد الفشل الحقيقية من المستخدمين في production
+/// (قبل كده كانت هذه الأخطاء تُطبع فقط بـ debugPrint، وهو غير مرئي
+/// في release builds).
+void _recordOtpFailure({
+  required String flow,
+  required Object error,
+  String? phone,
+}) {
+  final code = error is FirebaseAuthException ? error.code : 'unknown';
+  final message = error is FirebaseAuthException ? error.message : error.toString();
+  FirebaseCrashlytics.instance.recordError(
+    error,
+    null,
+    fatal: false,
+    reason: 'otp-failure:$flow',
+    information: [
+      'flow: $flow',
+      'code: $code',
+      'message: $message',
+      if (phone != null) 'dialCode: ${_dialCodePrefix(phone)}',
+    ],
+  );
+}
 
 abstract class FirebaseAuthDataSource {
   Stream<UserModel?> watchCurrentUser();
@@ -290,6 +323,8 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       verificationFailed: (FirebaseAuthException e) {
         debugPrint(
             '[sendOtpForPhoneUpdate] ❌ failed: code=${e.code} msg=${e.message}');
+        _recordOtpFailure(
+            flow: 'sendOtpForPhoneUpdate', error: e, phone: newPhoneNumber);
         if (!completer.isCompleted) completer.completeError(e);
       },
       codeSent: (String verificationId, int? resendToken) {
@@ -315,7 +350,12 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       smsCode: smsCode,
     );
     // قد يرمي 'requires-recent-login' إذا الجلسة قديمة (>5 دقائق).
-    await user.updatePhoneNumber(cred);
+    try {
+      await user.updatePhoneNumber(cred);
+    } catch (e) {
+      _recordOtpFailure(flow: 'updatePhoneNumber', error: e);
+      rethrow;
+    }
     // تحديث Firestore users/{uid}.phone بالرقم الجديد
     final updated = _auth.currentUser;
     if (updated?.phoneNumber != null) {
@@ -401,6 +441,7 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         debugPrint('  plugin:  ${e.plugin}');
         debugPrint('  details: ${e.toString()}');
         debugPrint('══════════════════════════════════════════════');
+        _recordOtpFailure(flow: 'sendOtp', error: e, phone: phoneNumber);
         if (!completer.isCompleted) completer.completeError(e);
       },
       codeSent: (String verificationId, int? resendToken) {
@@ -434,7 +475,13 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
       verificationId: verificationId,
       smsCode: smsCode,
     );
-    final result = await _auth.signInWithCredential(cred);
+    final UserCredential result;
+    try {
+      result = await _auth.signInWithCredential(cred);
+    } catch (e) {
+      _recordOtpFailure(flow: 'verifyOtp', error: e);
+      rethrow;
+    }
     final uid = result.user?.uid;
     if (uid == null) throw const ServerException('auth-null-user');
 

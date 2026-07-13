@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:my_fashion_app/core/utils/locale_country.dart';
 import 'package:my_fashion_app/core/utils/password_validator.dart';
+import 'package:my_fashion_app/core/utils/phone_number_validator.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/features/profile/presentation/providers/profile_provider.dart';
 import 'package:my_fashion_app/shared/widgets/otp_pin_field.dart';
@@ -556,7 +558,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             child: Directionality(
               textDirection: TextDirection.ltr,
               child: IntlPhoneField(
-                initialCountryCode: 'SD',
+                initialCountryCode: defaultPhoneCountryCode(ctx),
                 languageCode: 'ar',
                 showCountryFlag: true,
                 flagsButtonPadding:
@@ -591,8 +593,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   setSt(() {
                     complete =
                         p.completeNumber.replaceAll(RegExp(r'\s+'), '');
-                    isValid =
-                        p.number.isNotEmpty && complete.startsWith('+');
+                    isValid = isValidPhoneNumber(p);
                   });
                 },
               ),

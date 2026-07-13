@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/country_picker_dialog.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:my_fashion_app/core/utils/locale_country.dart';
+import 'package:my_fashion_app/core/utils/phone_number_validator.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:my_fashion_app/firebase/otp_screen.dart';
 import 'package:my_fashion_app/firebase/signup.dart';
@@ -429,7 +431,7 @@ class _LoginPageState extends State<LoginPage> {
             textDirection: TextDirection.ltr,
             child: IntlPhoneField(
               controller: _phoneController,
-              initialCountryCode: 'SD',
+              initialCountryCode: defaultPhoneCountryCode(context),
               showCountryFlag: true,
               languageCode: 'ar',
               invalidNumberMessage: 'رقم الهاتف غير صحيح',
@@ -479,16 +481,17 @@ class _LoginPageState extends State<LoginPage> {
                 setState(() {
                   _completePhoneNumber =
                       phone.completeNumber.replaceAll(RegExp(r'\s+'), '');
-                  _isPhoneValid = phone.number.isNotEmpty &&
-                      _completePhoneNumber.startsWith('+');
+                  _isPhoneValid = isValidPhoneNumber(phone);
                 });
               },
-              onCountryChanged: (_) {
+              onCountryChanged: (country) {
                 setState(() {
-                  final cleaned =
-                      _completePhoneNumber.replaceAll(RegExp(r'\s+'), '');
-                  _completePhoneNumber = cleaned;
-                  _isPhoneValid = cleaned.startsWith('+');
+                  final nationalNumber =
+                      _phoneController.text.replaceAll(RegExp(r'\s+'), '');
+                  _completePhoneNumber =
+                      '+${country.fullCountryCode}$nationalNumber';
+                  _isPhoneValid =
+                      isValidPhoneForCountry(country, nationalNumber);
                 });
               },
             ),
