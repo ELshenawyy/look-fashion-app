@@ -179,6 +179,7 @@ class AuthProvider extends ChangeNotifier {
 
   /// يرجع verificationId عند النجاح، null عند الفشل (failure مُعَيَّن)
   Future<PhoneVerificationResult?> sendOtp(String phoneNumber) async {
+    if (_busy) return null;
     _busy = true;
     _failure = null;
     notifyListeners();
@@ -195,50 +196,34 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// يرسل OTP لإنشاء حساب جديد (تسجيل، وليس تسجيل دخول).
-  /// ⚠️ Security fix: يقوم أولاً بفحص صامت في Firestore (isPhoneRegistered)
-  /// للتأكد أن الرقم غير مسجَّل مسبقاً *قبل* استدعاء verifyPhoneNumber.
-  /// بدون هذا الفحص، رقم مسجَّل مسبقاً كان يُرسَل له OTP يُوجَّه فعلياً
-  /// لجلسة الحساب القديم (ثغرة تداخل حسابات / Account Takeover) بدلاً من
-  /// إنشاء حساب جديد.
+  /// ⚠️ Security: يقوم أولاً بفحص صامت في Firestore (isPhoneRegistered)
+  /// للتأكد أن الرقم غير مسجَّل مسبقاً *قبل* استدعاء verifyPhoneNumber، كـ
+  /// UX gate يمنع تكلفة SMS ويوجّه المستخدم لتسجيل الدخول مبكراً.
+  /// ⚠️ هذا الفحص وحده لا يكفي أمنياً (يمكن تخطّيه أو يقع فيه TOCTOU) —
+  /// القاعدة الفعلية مفروضة أيضاً في verifyOtp على مستوى الـ datasource
+  /// (انظر FirebaseAuthDataSource.verifyOtp) التي ترفض العملية إذا كان
+  /// الحساب موجوداً فعلاً وقت التأكيد، بصرف النظر عن هذا الفحص المبدئي.
   /// يرجع verificationId عند النجاح، null عند الفشل أو إذا كان الرقم
   /// مسجَّلاً بالفعل (failure = PhoneAlreadyRegisteredFailure في هذه الحالة).
   Future<PhoneVerificationResult?> sendOtpForSignUp(String phoneNumber) async {
-    _busy = true;
-    _failure = null;
-    notifyListeners();
+    if (_busy) return null;
 
-    final checkRes = await _isPhoneRegistered(phoneNumber);
-    bool? alreadyRegistered;
-    checkRes.fold((f) => _failure = f, (exists) => alreadyRegistered = exists);
+    final registered = await isPhoneRegistered(phoneNumber);
+    if (registered == null) return null; // failure مُعَيَّن بالفعل
 
-    if (_failure != null) {
-      _busy = false;
-      notifyListeners();
-      return null;
-    }
-
-    if (alreadyRegistered == true) {
-      _busy = false;
+    if (registered) {
       _failure = const PhoneAlreadyRegisteredFailure();
       notifyListeners();
       return null;
     }
 
-    final res = await _sendOtp(phoneNumber);
-    _busy = false;
-    return res.fold((f) {
-      _failure = f;
-      notifyListeners();
-      return null;
-    }, (r) {
-      notifyListeners();
-      return r;
-    });
+    return sendOtp(phoneNumber);
   }
 
   /// يتحقق هل الرقم مسجَّل قبل إرسال OTP.
   /// يرجع true (مسجَّل) أو false (غير مسجَّل)، و null عند الخطأ (failure مُعَيَّن).
   Future<bool?> isPhoneRegistered(String phoneNumber) async {
+    if (_busy) return null;
     _busy = true;
     _failure = null;
     notifyListeners();

@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:my_fashion_app/core/error/failures.dart';
 import 'package:my_fashion_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:my_fashion_app/firebase/login.dart';
 import 'package:my_fashion_app/screens/app_shell.dart';
 import 'package:my_fashion_app/shared/widgets/otp_pin_field.dart';
 import 'package:provider/provider.dart';
@@ -75,7 +77,12 @@ class _OTPScreenState extends State<OTPScreen> {
     setState(() => _isSending = true);
 
     final auth = context.read<AuthProvider>();
-    final result = await auth.sendOtp(widget.phoneNumber);
+    // ⚠️ Security: flow التسجيل (pendingDisplayName != null) لازم يعيد نفس
+    // فحص "هل الرقم مسجَّل مسبقاً" عند إعادة الإرسال أيضاً — وإلا يتخطى
+    // المستخدم الفحص عبر زر "إعادة الإرسال" (ثغرة تداخل حسابات).
+    final result = widget.pendingDisplayName != null
+        ? await auth.sendOtpForSignUp(widget.phoneNumber)
+        : await auth.sendOtp(widget.phoneNumber);
 
     if (!mounted) return;
     setState(() => _isSending = false);
@@ -88,6 +95,15 @@ class _OTPScreenState extends State<OTPScreen> {
       _startCountdown();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تم إرسال رمز جديد.')),
+      );
+    } else if (auth.failure is PhoneAlreadyRegisteredFailure) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(auth.failure!.message)),
+      );
+      auth.clearFailure();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (route) => false,
       );
     } else if (auth.failure != null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -123,6 +139,18 @@ class _OTPScreenState extends State<OTPScreen> {
       );
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const AppShell()),
+        (route) => false,
+      );
+    } else if (auth.failure is PhoneAlreadyRegisteredFailure) {
+      // ⚠️ Security: يحدث نادراً في حالة TOCTOU (رقم سُجِّل من جهاز آخر بين
+      // فحص isPhoneRegistered وتأكيد الرمز) — datasource رفض العملية وأنهى
+      // الجلسة. نوجّه المستخدم لتسجيل الدخول بدل ترك رسالة خطأ عامة.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(auth.failure!.message)),
+      );
+      auth.clearFailure();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
         (route) => false,
       );
     } else if (auth.failure != null) {

@@ -107,6 +107,9 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return await _fetchUser(uid);
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'phone-already-registered') {
+        return const Left(PhoneAlreadyRegisteredFailure());
+      }
       return Left(AuthFailure(_mapAuthError(e.code)));
     } catch (e) {
       return Left(UnknownFailure(e.toString()));
@@ -271,6 +274,8 @@ class AuthRepositoryImpl implements AuthRepository {
       // ── الهاتف ───────────────────────────────────────────────────
       case 'user-not-registered':
         return 'لا يوجد حساب مسجَّل بهذا الرقم. يرجى إنشاء حساب جديد أولاً.';
+      case 'phone-already-registered':
+        return 'هذا الرقم مسجَّل بحساب بالفعل. يرجى تسجيل الدخول بدلاً من إنشاء حساب جديد.';
       case 'invalid-phone-number':
         return 'رقم الهاتف غير صالح. تأكد من رمز الدولة + الرقم.';
       case 'invalid-verification-code':

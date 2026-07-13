@@ -442,9 +442,14 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     final doc = await docRef.get();
 
     // ── Phone signup flow ──────────────────────────────────────────────
-    // إذا مُرَّر displayName → نتأكد من وجود مستند users/{uid}.
-    // إن لم يكن موجوداً → ننشئه بدور 'user' (مستخدم جديد سجَّل بالهاتف).
-    // إن كان موجوداً → لا نعدّله (احتراماً للحساب الموجود).
+    // إذا مُرَّر displayName → نية إنشاء حساب جديد.
+    // ⚠️ Security: signInWithCredential يُعيد نفس الـ uid القديم لو الرقم
+    // مسجَّل بالفعل (Firebase لا يفرّق بين تسجيل دخول/حساب جديد بالهاتف).
+    // فحص isPhoneRegistered في الواجهة هو مجرد UX gate يمكن تخطّيه (جهاز
+    // معدَّل، اتصال مباشر بالـ SDK، أو TOCTOU) — لذا لازم فرض نفس القاعدة
+    // هنا أيضاً: إذا كان doc.exists (حساب سابق) ونية العملية "تسجيل جديد"،
+    // نرفض العملية صراحةً بدل الدخول الصامت لحساب شخص آخر (ثغرة تداخل
+    // حسابات / Account Takeover).
     if (displayName != null && displayName.trim().isNotEmpty) {
       if (!doc.exists) {
         await docRef.set({
@@ -459,6 +464,14 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
         } catch (_) {
           // غير حرج
         }
+      } else {
+        // الرقم مسجَّل بالفعل بحساب آخر — نُلغي الجلسة فوراً حتى لا يبقى
+        // الجهاز موقَّعاً دخوله بحساب لا يخصّه، ونرفض العملية.
+        await _auth.signOut();
+        throw FirebaseAuthException(
+          code: 'phone-already-registered',
+          message: 'هذا الرقم مسجَّل بحساب بالفعل.',
+        );
       }
     } else if (!doc.exists) {
       // ── Phone login flow ────────────────────────────────────────────

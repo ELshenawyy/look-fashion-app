@@ -26,9 +26,9 @@ class AuthFailure extends Failure {
 /// إرسال OTP يوجَّه فعلياً للحساب القديم.
 class PhoneAlreadyRegisteredFailure extends AuthFailure {
   const PhoneAlreadyRegisteredFailure([
-    String message =
+    super.message =
         'هذا الرقم مسجَّل بحساب بالفعل. يرجى تسجيل الدخول بدلاً من إنشاء حساب جديد.',
-  ]) : super(message);
+  ]);
 }
 
 class PermissionFailure extends Failure {

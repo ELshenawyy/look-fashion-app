@@ -166,35 +166,39 @@ class _SignupState extends State<Signup> {
 
     setState(() => _isPhoneSending = true);
     final auth = context.read<AuthProvider>();
-    // ⚠️ sendOtpForSignUp يفحص أولاً هل الرقم مسجَّل مسبقاً (Firestore) قبل
-    // إرسال OTP — يمنع ثغرة تداخل الحسابات عند التسجيل برقم مسجَّل بالفعل.
-    final result = await auth.sendOtpForSignUp(phone);
+    try {
+      // ⚠️ sendOtpForSignUp يفحص أولاً هل الرقم مسجَّل مسبقاً (Firestore) قبل
+      // إرسال OTP — يمنع ثغرة تداخل الحسابات عند التسجيل برقم مسجَّل بالفعل.
+      final result = await auth.sendOtpForSignUp(phone);
 
-    if (!mounted) return;
-    setState(() => _isPhoneSending = false);
+      if (!mounted) return;
 
-    if (result != null) {
-      // pendingDisplayName → سيُمرَّر لـ verifyOtp ليُنشئ مستند users جديد
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OTPScreen(
-            verificationId: result.verificationId,
-            phoneNumber: _completePhoneNumber,
-            pendingDisplayName: name,
+      if (result != null) {
+        // pendingDisplayName → سيُمرَّر لـ verifyOtp ليُنشئ مستند users جديد
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OTPScreen(
+              verificationId: result.verificationId,
+              phoneNumber: _completePhoneNumber,
+              pendingDisplayName: name,
+            ),
           ),
-        ),
-      );
-    } else if (auth.failure is PhoneAlreadyRegisteredFailure) {
-      _showSnack(auth.failure!.message, Colors.orange);
-      auth.clearFailure();
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
-    } else if (auth.failure != null) {
-      _showSnack(auth.failure!.message, Colors.red);
-      auth.clearFailure();
+        );
+      } else if (auth.failure is PhoneAlreadyRegisteredFailure) {
+        _showSnack(auth.failure!.message, Colors.orange);
+        auth.clearFailure();
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      } else if (auth.failure != null) {
+        _showSnack(auth.failure!.message, Colors.red);
+        auth.clearFailure();
+      }
+    } finally {
+      // يُعاد الزر لوضعه الطبيعي في كل المسارات (نجاح/فشل/استثناء).
+      if (mounted) setState(() => _isPhoneSending = false);
     }
   }
 
@@ -405,7 +409,9 @@ class _SignupState extends State<Signup> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _isPhoneValid ? _themeColor : Colors.white24,
+                  backgroundColor: (_isPhoneValid && !_isPhoneSending)
+                      ? _themeColor
+                      : Colors.white24,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

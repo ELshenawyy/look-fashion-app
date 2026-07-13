@@ -39,7 +39,22 @@
       "Skill(code-review)",
       "Skill(code-review:*)",
       "Bash(find . -iname \"index.js\" -path \"*functions*\")",
-      "Bash(ls functions *)"
+      "Bash(ls functions *)",
+      "Read(//c/Users/Ahmed/**)",
+      "Read(//c/Users/Ahmed/AppData/Local/Temp/**)",
+      "Bash(xargs -I{} ls -la \"{}\")",
+      "Bash(sort -k6,7)",
+      "Bash(cp \"/c/Users/Ahmed/Downloads/wedding/hero.jpeg\" \"/c/Users/Ahmed/wedding-site/images/hero.jpg\" && ls -la \"/c/Users/Ahmed/wedding-site/images/\")",
+      "Bash(mkdir -p \"/c/Users/Ahmed/wedding-site/.claude\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{size_download} bytes\\\\n\" http://localhost:8791/images/hero.jpg)",
+      "Bash(ls -la \"/c/Users/Ah/Downloads/wedding\" 2>&1; echo \"---alt---\"; ls -la \"/c/Users/Ahmed/Downloads/wedding\" 2>&1)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" https://elshenawyy.github.io/wedding-site/)",
+      "Bash(curl -s -o /dev/null -w \"hero.jpg: %{http_code}\\\\n\" https://elshenawyy.github.io/wedding-site/images/hero.jpg)",
+      "Bash(curl -s -o /dev/null -w \"song.mp3: %{http_code}\\\\n\" https://elshenawyy.github.io/wedding-site/music/song.mp3)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://elshenawyy.github.io/wedding-site/music/song.mp3)",
+      "Bash(curl -s -o /dev/null -w \"index.html: %{http_code}\\\\n\" https://elshenawyy.github.io/wedding-site/)",
+      "Bash(curl -s https://elshenawyy.github.io/wedding-site/script.js)",
+      "Bash(curl -s https://elshenawyy.github.io/wedding-site/)"
     ]
   }
 }
