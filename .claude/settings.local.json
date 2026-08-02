@@ -54,7 +54,21 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://elshenawyy.github.io/wedding-site/music/song.mp3)",
       "Bash(curl -s -o /dev/null -w \"index.html: %{http_code}\\\\n\" https://elshenawyy.github.io/wedding-site/)",
       "Bash(curl -s https://elshenawyy.github.io/wedding-site/script.js)",
-      "Bash(curl -s https://elshenawyy.github.io/wedding-site/)"
+      "Bash(curl -s https://elshenawyy.github.io/wedding-site/)",
+      "WebSearch",
+      "Bash(node --check index.js)",
+      "WebFetch(domain:prelude.so)",
+      "Bash(firebase use *)",
+      "Bash(firebase projects:list)",
+      "Bash(firebase deploy *)",
+      "Bash(curl -s -X POST \"https://api.unimtx.com/?action=sms.message.send&accessKeyId=5PkYDS3bib79dvKakD3fVZ\" -H \"Content-Type: application/json\" -d '{\"to\":\"+249117777051\",\"templateId\":\"pub_verif_en_basic2\",\"templateData\":{\"code\":\"492071\"}}')",
+      "Bash(python3 /c/Users/Ahmed/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/6198c442-d854-41b9-be98-135660aaf053/c2b78a8e-136e-4a8a-bffa-7f43a1a0da46/skills/docx/scripts/office/soffice.py --headless --convert-to pdf doc.docx)",
+      "Bash(python3 'C:\\\\Users\\\\Ahmed\\\\AppData\\\\Roaming\\\\Claude\\\\local-agent-mode-sessions\\\\skills-plugin\\\\6198c442-d854-41b9-be98-135660aaf053\\\\c2b78a8e-136e-4a8a-bffa-7f43a1a0da46\\\\skills\\\\docx\\\\scripts\\\\office\\\\soffice.py' --headless --convert-to pdf doc.docx)",
+      "PowerShell(Get-Command python, python3, py -ErrorAction SilentlyContinue)",
+      "PowerShell(& py --version)",
+      "Bash(python3 -)",
+      "Bash(cp \"/c/Users/Ahmed/AppData/Local/Temp/claude/C--My-Fashion-App-main-My-Fashion-App-main/6b1ab5fa-bdc9-43b0-8e4c-5bef9af5ccd9/scratchpad/docx_work/out.docx\" \"/c/Users/Ahmed/Downloads/Telegram Desktop/زيادة_وتخفيض_رأس_المال_مصحح.docx\" *)",
+      "WebFetch(domain:brqsms.com)"
     ]
   }
 }

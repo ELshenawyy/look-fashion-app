@@ -2,10 +2,17 @@ import 'package:dartz/dartz.dart';
 import 'package:my_fashion_app/core/error/failures.dart';
 import 'package:my_fashion_app/features/auth/domain/entities/user_entity.dart';
 
+/// نية إرسال الـ OTP — تُفرض server-side في Cloud Functions:
+/// [signup] يرفض رقماً مسجَّلاً، [login] يرفض رقماً غير مسجَّل.
+enum OtpIntent { signup, login }
+
 /// نتيجة بدء التحقق من رقم الهاتف.
+/// [channel] القناة المستخدمة فعلياً للإرسال: 'whatsapp' أو 'sms' (null لو
+/// غير معروفة).
 class PhoneVerificationResult {
   final String verificationId;
-  const PhoneVerificationResult(this.verificationId);
+  final String? channel;
+  const PhoneVerificationResult(this.verificationId, {this.channel});
 }
 
 abstract class AuthRepository {
@@ -29,8 +36,12 @@ abstract class AuthRepository {
     required String name,
   });
 
-  /// إرسال OTP لرقم الهاتف
-  Future<Either<Failure, PhoneVerificationResult>> sendOtp(String phoneNumber);
+  /// إرسال OTP لرقم الهاتف. [intent] يحدد فحص التسجيل الذي يفرضه السيرفر
+  /// قبل الإرسال (signup: الرقم يجب ألا يكون مسجَّلاً، login: يجب أن يكون).
+  Future<Either<Failure, PhoneVerificationResult>> sendOtp(
+    String phoneNumber, {
+    OtpIntent intent = OtpIntent.login,
+  });
 
   /// هل الرقم (E.164) مسجَّل في التطبيق؟ يُستخدم قبل إرسال OTP في flow الدخول
   /// بالهاتف. true = يوجد حساب، false = لا يوجد.

@@ -177,13 +177,15 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  /// يرجع verificationId عند النجاح، null عند الفشل (failure مُعَيَّن)
-  Future<PhoneVerificationResult?> sendOtp(String phoneNumber) async {
+  /// ينفّذ إرسال OTP عبر Twilio Verify (واتساب أولاً ثم SMS احتياطياً) —
+  /// السيرفر يفرض فحص التسجيل حسب النية قبل الإرسال.
+  Future<PhoneVerificationResult?> _sendOtpWithIntent(
+      String phoneNumber, OtpIntent intent) async {
     if (_busy) return null;
     _busy = true;
     _failure = null;
     notifyListeners();
-    final res = await _sendOtp(phoneNumber);
+    final res = await _sendOtp(SendOtpParams(phoneNumber, intent: intent));
     _busy = false;
     return res.fold((f) {
       _failure = f;
@@ -195,30 +197,19 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
+  /// إرسال OTP لتسجيل الدخول (الرقم يجب أن يكون مسجَّلاً).
+  /// يرجع verificationId عند النجاح، null عند الفشل (failure مُعَيَّن).
+  Future<PhoneVerificationResult?> sendOtp(String phoneNumber) =>
+      _sendOtpWithIntent(phoneNumber, OtpIntent.login);
+
   /// يرسل OTP لإنشاء حساب جديد (تسجيل، وليس تسجيل دخول).
-  /// ⚠️ Security: يقوم أولاً بفحص صامت في Firestore (isPhoneRegistered)
-  /// للتأكد أن الرقم غير مسجَّل مسبقاً *قبل* استدعاء verifyPhoneNumber، كـ
-  /// UX gate يمنع تكلفة SMS ويوجّه المستخدم لتسجيل الدخول مبكراً.
-  /// ⚠️ هذا الفحص وحده لا يكفي أمنياً (يمكن تخطّيه أو يقع فيه TOCTOU) —
-  /// القاعدة الفعلية مفروضة أيضاً في verifyOtp على مستوى الـ datasource
-  /// (انظر FirebaseAuthDataSource.verifyOtp) التي ترفض العملية إذا كان
-  /// الحساب موجوداً فعلاً وقت التأكيد، بصرف النظر عن هذا الفحص المبدئي.
-  /// يرجع verificationId عند النجاح، null عند الفشل أو إذا كان الرقم
-  /// مسجَّلاً بالفعل (failure = PhoneAlreadyRegisteredFailure في هذه الحالة).
-  Future<PhoneVerificationResult?> sendOtpForSignUp(String phoneNumber) async {
-    if (_busy) return null;
-
-    final registered = await isPhoneRegistered(phoneNumber);
-    if (registered == null) return null; // failure مُعَيَّن بالفعل
-
-    if (registered) {
-      _failure = const PhoneAlreadyRegisteredFailure();
-      notifyListeners();
-      return null;
-    }
-
-    return sendOtp(phoneNumber);
-  }
+  /// ⚠️ Security: فحص "الرقم مسجَّل مسبقاً" يتم بالكامل server-side داخل
+  /// Cloud Function `sendPhoneOtp` (قبل دفع تكلفة الرسالة) *و* داخل
+  /// `verifyPhoneOtp` لحظة إصدار الجلسة (يغلق ثغرة تداخل الحسابات وTOCTOW
+  /// نهائياً — لا يمكن تخطّيه من عميل معدَّل).
+  /// يرجع null والـ failure = PhoneAlreadyRegisteredFailure لو الرقم مسجَّل.
+  Future<PhoneVerificationResult?> sendOtpForSignUp(String phoneNumber) =>
+      _sendOtpWithIntent(phoneNumber, OtpIntent.signup);
 
   /// يتحقق هل الرقم مسجَّل قبل إرسال OTP.
   /// يرجع true (مسجَّل) أو false (غير مسجَّل)، و null عند الخطأ (failure مُعَيَّن).

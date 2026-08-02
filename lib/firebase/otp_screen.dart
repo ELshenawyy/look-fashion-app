@@ -16,11 +16,15 @@ class OTPScreen extends StatefulWidget {
   /// تلقائياً بهذا الاسم. إذا null → flow الدخول العادي.
   final String? pendingDisplayName;
 
+  /// القناة التي أُرسل بها الرمز فعلياً: 'whatsapp' أو 'sms' (null = غير معروفة).
+  final String? channel;
+
   const OTPScreen({
     super.key,
     required this.verificationId,
     required this.phoneNumber,
     this.pendingDisplayName,
+    this.channel,
   });
 
   @override
@@ -31,16 +35,25 @@ class _OTPScreenState extends State<OTPScreen> {
   final _otpController = TextEditingController();
   final FocusNode _pinFocusNode = FocusNode();
   late String _verificationId;
+  String? _channel; // قد تتغير عند إعادة الإرسال (واتساب ↔ SMS)
   Timer? _countdownTimer;
   int _remainingSeconds = 60;
   bool _isResendAvailable = false;
   bool _isSending = false;
   bool _isVerifying = false;
 
+  /// وصف قناة الإرسال للمستخدم — يوضّح فين يدور على الرمز.
+  String get _channelLabel => _channel == 'whatsapp'
+      ? 'عبر واتساب'
+      : _channel == 'sms'
+          ? 'برسالة SMS'
+          : '';
+
   @override
   void initState() {
     super.initState();
     _verificationId = widget.verificationId;
+    _channel = widget.channel;
     _startCountdown();
   }
 
@@ -90,11 +103,15 @@ class _OTPScreenState extends State<OTPScreen> {
     if (result != null) {
       setState(() {
         _verificationId = result.verificationId;
+        _channel = result.channel; // قد تتبدّل القناة (واتساب ↔ SMS)
         _isResendAvailable = false;
       });
       _startCountdown();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إرسال رمز جديد.')),
+        SnackBar(
+            content: Text(result.channel == 'whatsapp'
+                ? 'تم إرسال رمز جديد عبر واتساب.'
+                : 'تم إرسال رمز جديد برسالة SMS.')),
       );
     } else if (auth.failure is PhoneAlreadyRegisteredFailure) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -208,7 +225,9 @@ class _OTPScreenState extends State<OTPScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'أدخل رمز التحقق المكوّن من 6 أرقام المرسل إلى ${widget.phoneNumber}',
+                      'أدخل رمز التحقق المكوّن من 6 أرقام المرسل '
+                      '${_channelLabel.isNotEmpty ? '$_channelLabel ' : ''}'
+                      'إلى ${widget.phoneNumber}',
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 16,

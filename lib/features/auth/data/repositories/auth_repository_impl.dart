@@ -65,15 +65,31 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  /// يحوّل FirebaseAuthException لخطأ هاتف — يميّز `phone-already-registered`
+  /// (الذي قد يرجع من السيرفر عند الإرسال *أو* عند التحقق) كنوع مستقل حتى
+  /// تستطيع الواجهة توجيه المستخدم لشاشة تسجيل الدخول.
+  Failure _mapPhoneAuthException(FirebaseAuthException e) {
+    if (e.code == 'phone-already-registered') {
+      return const PhoneAlreadyRegisteredFailure();
+    }
+    return AuthFailure(_mapAuthError(e.code));
+  }
+
   @override
   Future<Either<Failure, PhoneVerificationResult>> sendOtp(
-      String phoneNumber) async {
+    String phoneNumber, {
+    OtpIntent intent = OtpIntent.login,
+  }) async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {
-      final id = await remote.sendOtp(phoneNumber);
-      return Right(PhoneVerificationResult(id));
+      final res = await remote.sendOtp(
+        phoneNumber,
+        intent: intent == OtpIntent.signup ? 'signup' : 'login',
+      );
+      return Right(
+          PhoneVerificationResult(res.verificationId, channel: res.channel));
     } on FirebaseAuthException catch (e) {
-      return Left(AuthFailure(_mapAuthError(e.code)));
+      return Left(_mapPhoneAuthException(e));
     } catch (e) {
       return Left(UnknownFailure(e.toString()));
     }
@@ -107,10 +123,7 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return await _fetchUser(uid);
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'phone-already-registered') {
-        return const Left(PhoneAlreadyRegisteredFailure());
-      }
-      return Left(AuthFailure(_mapAuthError(e.code)));
+      return Left(_mapPhoneAuthException(e));
     } catch (e) {
       return Left(UnknownFailure(e.toString()));
     }
@@ -159,10 +172,11 @@ class AuthRepositoryImpl implements AuthRepository {
       String newPhoneNumber) async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {
-      final id = await remote.sendOtpForPhoneUpdate(newPhoneNumber);
-      return Right(PhoneVerificationResult(id));
+      final res = await remote.sendOtpForPhoneUpdate(newPhoneNumber);
+      return Right(
+          PhoneVerificationResult(res.verificationId, channel: res.channel));
     } on FirebaseAuthException catch (e) {
-      return Left(AuthFailure(_mapAuthError(e.code)));
+      return Left(_mapPhoneAuthException(e));
     } catch (e) {
       return Left(UnknownFailure(e.toString()));
     }
@@ -181,7 +195,7 @@ class AuthRepositoryImpl implements AuthRepository {
       );
       return const Right(null);
     } on FirebaseAuthException catch (e) {
-      return Left(AuthFailure(_mapAuthError(e.code)));
+      return Left(_mapPhoneAuthException(e));
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
     } catch (e) {
@@ -276,6 +290,10 @@ class AuthRepositoryImpl implements AuthRepository {
         return 'لا يوجد حساب مسجَّل بهذا الرقم. يرجى إنشاء حساب جديد أولاً.';
       case 'phone-already-registered':
         return 'هذا الرقم مسجَّل بحساب بالفعل. يرجى تسجيل الدخول بدلاً من إنشاء حساب جديد.';
+      case 'not-authenticated':
+        return 'يجب تسجيل الدخول أولاً.';
+      case 'otp-failed':
+        return 'تعذّر إتمام عملية التحقق. حاول مجدداً بعد قليل.';
       case 'invalid-phone-number':
         return 'رقم الهاتف غير صالح. تأكد من رمز الدولة + الرقم.';
       case 'invalid-verification-code':

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -sS -X POST https://graph.facebook.com/v21.0/1000741149631614/message_templates -H 'Authorization: Bearer EAAvwJZC6qkVQBSM1nrPZAeZAZAV3KekSRYmtXa3XHy6nRiQLnc3x60ZAyDZAUwuGYjzrpRoC1aHxcmFJG4H75NUnmDpKexZC0itE5EWqjlEaRs8t3z1ZAuoEQmLZAIG64Q8610qmpXbomWwb3elAH4rbLWATHPgx42yGwZC3jOJbu5EvZA0YofPxuqO9E73wtdRVrZBD9AZDZD' -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(firebase functions:secrets:set WHATSAPP_ACCESS_TOKEN --data-file=-)",
+      "Bash(firebase functions:secrets:set WHATSAPP_PHONE_NUMBER_ID --data-file=-)",
+      "Bash(curl -sS https://graph.facebook.com/v21.0/6530696318899597?fields=verification_status,name -H 'Authorization: Bearer EAAvwJZC6qkVQBSM1nrPZAeZAZAV3KekSRYmtXa3XHy6nRiQLnc3x60ZAyDZAUwuGYjzrpRoC1aHxcmFJG4H75NUnmDpKexZC0itE5EWqjlEaRs8t3z1ZAuoEQmLZAIG64Q8610qmpXbomWwb3elAH4rbLWATHPgx42yGwZC3jOJbu5EvZA0YofPxuqO9E73wtdRVrZBD9AZDZD' -w '\\\\n[HTTP %{http_code}]\\\\n')",
+      "Bash(git --no-pager diff HEAD -- lib/shared/widgets/otp_pin_field.dart .claude/settings.local.json)",
+      "Bash(flutter analyze *)",
+      "Bash(curl -sS https://graph.facebook.com/v21.0/1000741149631614?fields=name,account_review_status,business_verification_status,status -H 'Authorization: Bearer EAAvwJZC6qkVQBSM1nrPZAeZAZAV3KekSRYmtXa3XHy6nRiQLnc3x60ZAyDZAUwuGYjzrpRoC1aHxcmFJG4H75NUnmDpKexZC0itE5EWqjlEaRs8t3z1ZAuoEQmLZAIG64Q8610qmpXbomWwb3elAH4rbLWATHPgx42yGwZC3jOJbu5EvZA0YofPxuqO9E73wtdRVrZBD9AZDZD' -w '\\\\n[HTTP %{http_code}]\\\\n')",
+      "Bash(firebase --version)",
+      "Bash(firebase projects:list)",
+      "Bash(firebase deploy *)",
+      "Bash(node --check functions/index.js)",
+      "Bash(adb devices *)",
+      "Bash(firebase functions:log --only verifyPhoneOtp -n 60)",
+      "Bash(gcloud iam *)",
+      "PowerShell($gcloud = Get-Command gcloud -ErrorAction SilentlyContinue; if \\($gcloud\\) { Write-Output $gcloud.Source } else { Write-Output \"gcloud not found in PATH\" })"
+    ]
+  }
+}

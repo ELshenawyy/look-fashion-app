@@ -7,6 +7,15 @@ import 'package:flutter/foundation.dart';
 import 'package:my_fashion_app/core/error/exceptions.dart';
 import 'package:my_fashion_app/features/auth/data/models/user_model.dart';
 
+/// نتيجة إرسال OTP عبر Twilio Verify.
+/// [verificationId] = رقم الهاتف نفسه (Twilio يعتمد الرقم كمفتاح جلسة التحقق).
+/// [channel] = القناة المستخدمة فعلياً: 'whatsapp' أو 'sms'.
+class OtpSendResponse {
+  final String verificationId;
+  final String channel;
+  const OtpSendResponse({required this.verificationId, required this.channel});
+}
+
 abstract class FirebaseAuthDataSource {
   Stream<UserModel?> watchCurrentUser();
   String? get currentUid;
@@ -22,7 +31,10 @@ abstract class FirebaseAuthDataSource {
     required String name,
   });
 
-  Future<String> sendOtp(String phoneNumber);
+  /// يرسل OTP عبر Cloud Function `sendPhoneOtp` (Twilio Verify — واتساب أولاً
+  /// ثم SMS احتياطياً). [intent]: 'signup' | 'login' | 'update' — يفحص السيرفر
+  /// حالة تسجيل الرقم حسب النية قبل الإرسال.
+  Future<OtpSendResponse> sendOtp(String phoneNumber, {String intent = 'login'});
 
   /// يتحقق هل الرقم (بصيغة E.164) مسجَّل في التطبيق — عبر Cloud Function
   /// (انظر functions/index.js → isPhoneRegistered). يُستخدم قبل إرسال OTP
@@ -44,8 +56,7 @@ abstract class FirebaseAuthDataSource {
 
   /// يرسل OTP للرقم الجديد (للتحقق منه قبل ربطه بالحساب).
   /// يُستخدم في flow تعديل رقم الهاتف من Profile.
-  /// يرجع verificationId.
-  Future<String> sendOtpForPhoneUpdate(String newPhoneNumber);
+  Future<OtpSendResponse> sendOtpForPhoneUpdate(String newPhoneNumber);
 
   /// يحدّث رقم الهاتف الفعلي للمستخدم الحالي + يحدّث Firestore.
   /// يجب أن يُسبَق بـ sendOtpForPhoneUpdate ثم إدخال المستخدم الـ OTP.
@@ -270,35 +281,13 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
   }
 
   @override
-  Future<String> sendOtpForPhoneUpdate(String newPhoneNumber) {
-    // نفس منطق sendOtp لكن مع validation وlogging مختلف للسياق
-    if (!newPhoneNumber.startsWith('+')) {
-      return Future.error(FirebaseAuthException(
-        code: 'invalid-phone-number',
-        message: 'الرقم الجديد لازم يبدأ بـ + ثم رمز الدولة.',
-      ));
+  Future<OtpSendResponse> sendOtpForPhoneUpdate(String newPhoneNumber) {
+    if (_auth.currentUser == null) {
+      return Future.error(const ServerException('not-authenticated'));
     }
-    debugPrint(
-        '[sendOtpForPhoneUpdate] → verifyPhoneNumber for: $newPhoneNumber');
-    final completer = Completer<String>();
-    _auth.verifyPhoneNumber(
-      phoneNumber: newPhoneNumber,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: (PhoneAuthCredential _) {
-        debugPrint('[sendOtpForPhoneUpdate] ✓ auto-verified');
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        debugPrint(
-            '[sendOtpForPhoneUpdate] ❌ failed: code=${e.code} msg=${e.message}');
-        if (!completer.isCompleted) completer.completeError(e);
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        debugPrint('[sendOtpForPhoneUpdate] ✓ codeSent');
-        if (!completer.isCompleted) completer.complete(verificationId);
-      },
-      codeAutoRetrievalTimeout: (String _) {},
-    );
-    return completer.future;
+    // intent 'update' — السيرفر يتحقق أن المستخدم مصادَق وأن الرقم الجديد
+    // غير مربوط بحساب آخر قبل الإرسال.
+    return sendOtp(newPhoneNumber, intent: 'update');
   }
 
   @override
@@ -310,19 +299,17 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     if (user == null) {
       throw const ServerException('not-authenticated');
     }
-    final cred = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
-    // قد يرمي 'requires-recent-login' إذا الجلسة قديمة (>5 دقائق).
-    await user.updatePhoneNumber(cred);
-    // تحديث Firestore users/{uid}.phone بالرقم الجديد
-    final updated = _auth.currentUser;
-    if (updated?.phoneNumber != null) {
-      await _db.collection('users').doc(user.uid).update({
-        'phone': updated!.phoneNumber,
-      });
-    }
+    // السيرفر يتحقق من الكود لدى Twilio ثم يحدّث رقم الهاتف في
+    // Firebase Auth + Firestore users/{uid}.phone بصلاحيات Admin.
+    await _callOtpFunction(() => _functions
+            .httpsCallable('verifyPhoneOtp')
+            .call<Map<String, dynamic>>({
+          'phone': verificationId, // verificationId = الرقم الجديد
+          'code': smsCode,
+          'intent': 'update',
+        }));
+    // إعادة تحميل المستخدم ليلتقط العميل الرقم الجديد من سجلّ Auth.
+    await _auth.currentUser?.reload();
   }
 
   @override
@@ -370,49 +357,64 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     debugPrint('[updateEmail] ✓ verification link sent to: $trimmed');
   }
 
+  /// أكواد الأخطاء الآلية التي يرجعها السيرفر (functions/index.js → AUTH_CODES)
+  /// في حقل message — بنفس صيغة أكواد Firebase Auth ليفهمها _mapAuthError.
+  static const _serverAuthCodes = {
+    'phone-already-registered',
+    'user-not-registered',
+    'invalid-verification-code',
+    'session-expired',
+    'too-many-requests',
+    'invalid-phone-number',
+    'user-banned',
+    'not-authenticated',
+  };
+
+  /// يلفّ استدعاء Cloud Function ويترجم FirebaseFunctionsException إلى
+  /// FirebaseAuthException بالكود المناسب — حتى تعمل خرائط الأخطاء الحالية
+  /// في AuthRepositoryImpl._mapAuthError بدون أي تعديل.
+  Future<T> _callOtpFunction<T>(Future<T> Function() run) async {
+    try {
+      return await run();
+    } on FirebaseFunctionsException catch (e) {
+      final msg = (e.message ?? '').trim();
+      final String code;
+      if (_serverAuthCodes.contains(msg)) {
+        code = msg; // السيرفر حدّد الكود صراحةً
+      } else if (e.code == 'resource-exhausted') {
+        code = 'too-many-requests';
+      } else if (e.code == 'unavailable' || e.code == 'deadline-exceeded') {
+        code = 'network-request-failed';
+      } else {
+        code = 'otp-failed';
+      }
+      debugPrint('[otp] ❌ functions error: ${e.code} / $msg → $code');
+      throw FirebaseAuthException(code: code, message: msg);
+    }
+  }
+
   @override
-  Future<String> sendOtp(String phoneNumber) {
+  Future<OtpSendResponse> sendOtp(String phoneNumber,
+      {String intent = 'login'}) async {
     // ⚠ Sanity check: لازم يكون E.164 (+countryCode...). intl_phone_field
-    // يعطي الـ completeNumber صحيحاً، لكن نحرص هنا قبل إرساله لـ Firebase.
+    // يعطي الـ completeNumber صحيحاً، لكن نحرص هنا قبل إرساله للسيرفر.
     if (!phoneNumber.startsWith('+')) {
       debugPrint(
           '[sendOtp] ❌ INVALID format — must start with +countryCode. got: "$phoneNumber"');
-      return Future.error(FirebaseAuthException(
+      throw FirebaseAuthException(
         code: 'invalid-phone-number',
         message: 'الرقم لازم يبدأ بـ + ثم رمز الدولة (E.164 format).',
-      ));
+      );
     }
 
-    debugPrint('[sendOtp] → verifyPhoneNumber for: $phoneNumber');
-    final completer = Completer<String>();
-    _auth.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: (PhoneAuthCredential _) {
-        // Auto-retrieval على بعض أجهزة Android (يقرأ SMS تلقائياً).
-        // لا نحتاج عمل شيء هنا — verifyOtp اللاحق يستخدم verificationId.
-        debugPrint('[sendOtp] ✓ verificationCompleted (auto-retrieval)');
-      },
-      verificationFailed: (FirebaseAuthException e) {
-        // ⚠ Critical: نطبع كل التفاصيل عشان نقدر نشخّص لماذا فشل
-        debugPrint('═══════ [sendOtp] ❌ verificationFailed ═══════');
-        debugPrint('  code:    ${e.code}');
-        debugPrint('  message: ${e.message}');
-        debugPrint('  plugin:  ${e.plugin}');
-        debugPrint('  details: ${e.toString()}');
-        debugPrint('══════════════════════════════════════════════');
-        if (!completer.isCompleted) completer.completeError(e);
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        debugPrint(
-            '[sendOtp] ✓ codeSent. verificationId=${verificationId.substring(0, 8)}... resendToken=$resendToken');
-        if (!completer.isCompleted) completer.complete(verificationId);
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        debugPrint('[sendOtp] ⏱ codeAutoRetrievalTimeout');
-      },
-    );
-    return completer.future;
+    debugPrint('[sendOtp] → sendPhoneOtp($intent) for: $phoneNumber');
+    final res = await _callOtpFunction(() => _functions
+        .httpsCallable('sendPhoneOtp')
+        .call<Map<String, dynamic>>({'phone': phoneNumber, 'intent': intent}));
+    final channel = (res.data['channel'] as String?) ?? 'sms';
+    debugPrint('[sendOtp] ✓ sent via $channel');
+    // Twilio Verify يعتمد رقم الهاتف كمفتاح الجلسة — لا verificationId منفصل.
+    return OtpSendResponse(verificationId: phoneNumber, channel: channel);
   }
 
   @override
@@ -430,64 +432,29 @@ class FirebaseAuthDataSourceImpl implements FirebaseAuthDataSource {
     required String smsCode,
     String? displayName,
   }) async {
-    final cred = PhoneAuthProvider.credential(
-      verificationId: verificationId,
-      smsCode: smsCode,
-    );
-    final result = await _auth.signInWithCredential(cred);
-    final uid = result.user?.uid;
+    // ⚠️ Security: التحقق كله server-side (functions/index.js → verifyPhoneOtp)
+    // بصلاحيات Admin — السيرفر يفحص الكود لدى Twilio، يفرض قاعدة "رقم مسجَّل
+    // لا يُسجَّل من جديد" (يغلق ثغرة تداخل الحسابات وTOCTOU نهائياً)، يفحص
+    // الحظر، ثم يُصدر Custom Token. لا يوجد "حساب وهمي" يحتاج signOut كما في
+    // النظام القديم — السيرفر يرفض قبل إصدار أي جلسة.
+    final isSignup = displayName != null && displayName.trim().isNotEmpty;
+    final res =
+        await _callOtpFunction(() => _functions.httpsCallable('verifyPhoneOtp')
+                .call<Map<String, dynamic>>({
+              'phone': verificationId, // verificationId = رقم الهاتف
+              'code': smsCode,
+              'intent': isSignup ? 'signup' : 'login',
+              if (isSignup) 'displayName': displayName.trim(),
+            }));
+
+    final token = res.data['customToken'] as String?;
+    if (token == null) throw const ServerException('auth-null-token');
+
+    final cred = await _auth.signInWithCustomToken(token);
+    final uid = cred.user?.uid;
     if (uid == null) throw const ServerException('auth-null-user');
 
-    final docRef = _db.collection('users').doc(uid);
-    final doc = await docRef.get();
-
-    // ── Phone signup flow ──────────────────────────────────────────────
-    // إذا مُرَّر displayName → نية إنشاء حساب جديد.
-    // ⚠️ Security: signInWithCredential يُعيد نفس الـ uid القديم لو الرقم
-    // مسجَّل بالفعل (Firebase لا يفرّق بين تسجيل دخول/حساب جديد بالهاتف).
-    // فحص isPhoneRegistered في الواجهة هو مجرد UX gate يمكن تخطّيه (جهاز
-    // معدَّل، اتصال مباشر بالـ SDK، أو TOCTOU) — لذا لازم فرض نفس القاعدة
-    // هنا أيضاً: إذا كان doc.exists (حساب سابق) ونية العملية "تسجيل جديد"،
-    // نرفض العملية صراحةً بدل الدخول الصامت لحساب شخص آخر (ثغرة تداخل
-    // حسابات / Account Takeover).
-    if (displayName != null && displayName.trim().isNotEmpty) {
-      if (!doc.exists) {
-        await docRef.set({
-          'uid': uid,
-          'name': displayName.trim(),
-          'phone': result.user?.phoneNumber,
-          'role': 'user',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        try {
-          await result.user?.updateDisplayName(displayName.trim());
-        } catch (_) {
-          // غير حرج
-        }
-      } else {
-        // الرقم مسجَّل بالفعل بحساب آخر — نُلغي الجلسة فوراً حتى لا يبقى
-        // الجهاز موقَّعاً دخوله بحساب لا يخصّه، ونرفض العملية.
-        await _auth.signOut();
-        throw FirebaseAuthException(
-          code: 'phone-already-registered',
-          message: 'هذا الرقم مسجَّل بحساب بالفعل.',
-        );
-      }
-    } else if (!doc.exists) {
-      // ── Phone login flow ────────────────────────────────────────────
-      // ⚠️ Critical: signInWithCredential ينجح وينشئ حساب Firebase Auth
-      // جديد تلقائياً حتى لو الرقم لم يُسجَّل في التطبيق من قبل (Firebase
-      // لا يفرّق بين تسجيل دخول/حساب جديد بالهاتف). إذا لم يوجد مستند
-      // Firestore → هذا الرقم لم يُسجَّل فعلياً. نُلغي الحساب الوهمي فوراً
-      // (وإلا سيبقى الجهاز "مسجَّل دخول" بحساب بلا بيانات → شاشة تحميل
-      // لانهائية في AppShell عند إعادة التشغيل) ونمنع الدخول.
-      await _auth.signOut();
-      throw FirebaseAuthException(
-        code: 'user-not-registered',
-        message: 'لا يوجد حساب مسجَّل بهذا الرقم.',
-      );
-    }
-
+    // دفاع إضافي — السيرفر يفحص الحظر قبل إصدار الـ token، وهذا فحص ثانٍ رخيص.
     await _ensureNotBanned(uid);
     return uid;
   }

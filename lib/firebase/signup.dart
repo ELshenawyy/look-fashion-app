@@ -182,6 +182,7 @@ class _SignupState extends State<Signup> {
               verificationId: result.verificationId,
               phoneNumber: _completePhoneNumber,
               pendingDisplayName: name,
+              channel: result.channel,
             ),
           ),
         );

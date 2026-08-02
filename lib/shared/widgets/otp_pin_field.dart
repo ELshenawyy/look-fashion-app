@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:pinput/pinput.dart';
 
-/// Wrapper موحد لـ Pinput v4 لعزل الـ API عن الكود.
-/// أي ترقية مستقبلية لـ pinput تتم في هذا الملف فقط.
 class OtpPinField extends StatelessWidget {
   const OtpPinField({
     super.key,
@@ -37,10 +35,6 @@ class OtpPinField extends StatelessWidget {
       ),
     );
 
-    // ⚠ نُجبر LTR لأن الـ Pinput يرث الـ RTL من Scaffold العربي،
-    // فيكتب من اليمين لليسار (الأرقام تظهر مقلوبة بصرياً).
-    // الـ Directionality.ltr يجعل خانات الـ OTP تنملأ من اليسار لليمين
-    // — نفس طريقة كل التطبيقات العالمية.
     return Directionality(
       textDirection: TextDirection.ltr,
       child: Pinput(

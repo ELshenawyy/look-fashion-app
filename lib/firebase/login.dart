@@ -149,6 +149,7 @@ class _LoginPageState extends State<LoginPage> {
             builder: (context) => OTPScreen(
               verificationId: result.verificationId,
               phoneNumber: _completePhoneNumber,
+              channel: result.channel,
             ),
           ),
         );
