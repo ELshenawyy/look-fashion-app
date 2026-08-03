@@ -10,15 +10,13 @@ admin.initializeApp();
 // واتساب يعمل عبر الإنترنت فيتجاوز مشكلة توصيل الـ SMS للسودان تماماً.
 // Secrets: firebase functions:secrets:set WHATSAPP_ACCESS_TOKEN (وPHONE_NUMBER_ID)
 // Config (functions/.env): SMS_PROVIDER_PRIMARY=whatsapp + WHATSAPP_TEMPLATE_NAME
-// + WHATSAPP_TEMPLATE_LANG. (البدائل textbee/unimatrix تبقى للطوارئ.)
+// + WHATSAPP_TEMPLATE_LANG. WhatsApp is the only provider implemented — see
+// sms_providers.js for details (older textbee/unimatrix/etc. gateways were
+// removed as dead code; check Git history if one is ever needed again).
 const crypto = require('crypto');
 const { sendOtpSms } = require('./sms_providers');
 const WHATSAPP_ACCESS_TOKEN = defineSecret('WHATSAPP_ACCESS_TOKEN');
 const WHATSAPP_PHONE_NUMBER_ID = defineSecret('WHATSAPP_PHONE_NUMBER_ID');
-// ملاحظة: textbee (بوابة SIM احتياطية) غير مُفعَّل حالياً (لا جهاز مربوط) —
-// أُزيلت أسراره من هنا حتى لا تُعطّل النشر. لتفعيله لاحقاً: أعد تعريف
-// TEXTBEE_API_KEY/TEXTBEE_DEVICE_ID كـ defineSecret، أضفهما لـ OTP_SECRETS،
-// واضبط SMS_PROVIDER_FALLBACK=textbee في functions/.env.
 const OTP_SECRETS = [WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID];
 
 const OTP_TTL_MS = 5 * 60 * 1000; // صلاحية الكود: 5 دقائق

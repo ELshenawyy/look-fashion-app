@@ -23,7 +23,7 @@ class _SignupState extends State<Signup> {
   static const Color _themeColor = Color(0xFF570707);
 
   // ── Tabs ──────────────────────────────────────────────────────────────
-  int _tabIndex = 0; // 0 = هاتف, 1 = بريد
+  int _tabIndex = 0; // 0 = بريد, 1 = هاتف
   final PageController _pageController = PageController();
 
   // ── Email signup ──────────────────────────────────────────────────────
@@ -744,8 +744,8 @@ class _SignupState extends State<Signup> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(children: [
-                        _segTab(Icons.phone_outlined, 'الهاتف', 0),
-                        _segTab(Icons.email_outlined, 'البريد', 1),
+                        _segTab(Icons.email_outlined, 'البريد', 0),
+                        _segTab(Icons.phone_outlined, 'الهاتف', 1),
                       ]),
                     ),
                     const SizedBox(height: 12),
@@ -756,8 +756,8 @@ class _SignupState extends State<Signup> {
                         controller: _pageController,
                         onPageChanged: (i) => setState(() => _tabIndex = i),
                         children: [
-                          _buildPhoneTab(),
                           _buildEmailTab(),
+                          _buildPhoneTab(),
                         ],
                       ),
                     ),

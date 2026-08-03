@@ -68,7 +68,8 @@
       "PowerShell(& py --version)",
       "Bash(python3 -)",
       "Bash(cp \"/c/Users/Ahmed/AppData/Local/Temp/claude/C--My-Fashion-App-main-My-Fashion-App-main/6b1ab5fa-bdc9-43b0-8e4c-5bef9af5ccd9/scratchpad/docx_work/out.docx\" \"/c/Users/Ahmed/Downloads/Telegram Desktop/زيادة_وتخفيض_رأس_المال_مصحح.docx\" *)",
-      "WebFetch(domain:brqsms.com)"
+      "WebFetch(domain:brqsms.com)",
+      "Bash(node -c sms_providers.js)"
     ]
   }
 }

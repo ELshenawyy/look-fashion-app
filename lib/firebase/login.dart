@@ -780,8 +780,8 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(children: [
-                        _segTab(Icons.phone_outlined, 'الهاتف', 0),
-                        _segTab(Icons.email_outlined, 'البريد', 1),
+                        _segTab(Icons.email_outlined, 'البريد', 0),
+                        _segTab(Icons.phone_outlined, 'الهاتف', 1),
                       ]),
                     ),
                     const SizedBox(height: 16),
@@ -792,8 +792,8 @@ class _LoginPageState extends State<LoginPage> {
                         controller: _pageController,
                         onPageChanged: (i) => setState(() => _tabIndex = i),
                         children: [
-                          _buildPhoneTab(),
                           _buildEmailTab(),
+                          _buildPhoneTab(),
                         ],
                       ),
                     ),
