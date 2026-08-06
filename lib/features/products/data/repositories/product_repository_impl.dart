@@ -73,11 +73,8 @@ class ProductRepositoryImpl implements ProductRepository {
   Future<Either<Failure, String>> addProduct(ProductInput input) async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {
-      String url = input.imageUrl;
-      if (input.newImage != null) {
-        url = await storage.uploadProductImage(input.newImage!);
-      }
-      final id = await remote.addProduct(_buildMap(input, url));
+      final imageUrls = await _resolveImageUrls(input);
+      final id = await remote.addProduct(_buildMap(input, imageUrls));
       return Right(id);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
@@ -93,11 +90,8 @@ class ProductRepositoryImpl implements ProductRepository {
   }) async {
     if (!await network.isConnected) return const Left(NetworkFailure());
     try {
-      String url = input.imageUrl;
-      if (input.newImage != null) {
-        url = await storage.uploadProductImage(input.newImage!);
-      }
-      await remote.updateProduct(docId, _buildMap(input, url));
+      final imageUrls = await _resolveImageUrls(input);
+      await remote.updateProduct(docId, _buildMap(input, imageUrls));
       return const Right(null);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));
@@ -106,12 +100,20 @@ class ProductRepositoryImpl implements ProductRepository {
     }
   }
 
-  Map<String, dynamic> _buildMap(ProductInput input, String imageUrl) {
+  /// يرفع الصور الجديدة (إن وُجدت) ويضمّها لقائمة الصور المُحتفَظ بها،
+  /// مع الحفاظ على ترتيب: الصور القديمة أولاً ثم الجديدة.
+  Future<List<String>> _resolveImageUrls(ProductInput input) async {
+    if (input.newImages.isEmpty) return List<String>.from(input.existingImageUrls);
+    final uploaded = await storage.uploadProductImages(input.newImages);
+    return [...input.existingImageUrls, ...uploaded];
+  }
+
+  Map<String, dynamic> _buildMap(ProductInput input, List<String> imageUrls) {
     return {
       'title': input.title,
       'price': input.price,
       'description': input.description,
-      'imageUrl': imageUrl,
+      'imageUrls': imageUrls,
       'category': input.category,
       'stockQuantity': input.stockQuantity,
       'sizes': input.sizes,

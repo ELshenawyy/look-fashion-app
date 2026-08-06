@@ -43,6 +43,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   late final Product product;
   String? _selectedSize;
   String? _selectedColor;
+  final PageController _imagePageController = PageController();
+  int _currentImageIndex = 0;
 
   bool get _isEditMode => widget.editCartIndex != null;
 
@@ -66,6 +68,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         context.read<FavoritesProvider>().startWatching(uid);
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _imagePageController.dispose();
+    super.dispose();
   }
 
   Color _resolveColor(String colorCode) => ColorUtils.parse(colorCode);
@@ -316,6 +324,57 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  // ── معرض الصور القابل للسحب (PageView) ─────────────────────────────────
+  Widget _buildImageGallery() {
+    final images = product.imageUrls;
+    if (images.isEmpty) {
+      return Container(
+        color: const Color(0xFF1A1A1A),
+        child: const Icon(Icons.image_not_supported,
+            color: Colors.white24, size: 60),
+      );
+    }
+    return PageView.builder(
+      controller: _imagePageController,
+      itemCount: images.length,
+      onPageChanged: (index) => setState(() => _currentImageIndex = index),
+      itemBuilder: (_, index) => CachedNetworkImage(
+        imageUrl: images[index],
+        fit: BoxFit.cover,
+        placeholder: (_, __) => Shimmer.fromColors(
+          baseColor: const Color(0xFF1A1A1A),
+          highlightColor: const Color(0xFF2C2C2C),
+          child: Container(color: Colors.black),
+        ),
+        errorWidget: (_, __, ___) => Container(
+          color: const Color(0xFF1A1A1A),
+          child: const Icon(Icons.image_not_supported,
+              color: Colors.white24, size: 60),
+        ),
+      ),
+    );
+  }
+
+  // ── مؤشر النقاط أسفل الصورة — يعكس الصفحة الحالية عند السحب ─────────────
+  Widget _buildDotIndicator() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(product.imageUrls.length, (index) {
+        final isActive = index == _currentImageIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 3),
+          width: isActive ? 20 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: isActive ? _gold : Colors.white.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(3),
+          ),
+        );
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenH = MediaQuery.of(context).size.height;
@@ -413,46 +472,43 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ),
               ),
             ],
-            // ── الصورة مع تأثير البارالاكس ──────────────────────────
+            // ── معرض الصور القابل للسحب مع تأثير البارالاكس ─────────
             flexibleSpace: FlexibleSpaceBar(
               collapseMode: CollapseMode.parallax,
               stretchModes: const [StretchMode.zoomBackground],
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CachedNetworkImage(
-                    imageUrl: product.imageUrl,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => Shimmer.fromColors(
-                      baseColor: const Color(0xFF1A1A1A),
-                      highlightColor: const Color(0xFF2C2C2C),
-                      child: Container(color: Colors.black),
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      color: const Color(0xFF1A1A1A),
-                      child: const Icon(Icons.image_not_supported,
-                          color: Colors.white24, size: 60),
-                    ),
-                  ),
+                  _buildImageGallery(),
                   // gradient أسفل الصورة للانتقال السلس للبانل
                   Positioned(
                     bottom: 0,
                     left: 0,
                     right: 0,
                     height: 80,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.transparent,
-                            _panel.withValues(alpha: 0.9),
-                          ],
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              _panel.withValues(alpha: 0.9),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
+                  // مؤشر الصور (نقاط) — يظهر فقط عند وجود أكثر من صورة
+                  if (product.imageUrls.length > 1)
+                    Positioned(
+                      bottom: 14,
+                      left: 0,
+                      right: 0,
+                      child: _buildDotIndicator(),
+                    ),
                 ],
               ),
             ),

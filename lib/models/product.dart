@@ -2,7 +2,7 @@ class Product {
   final int id;
   final double price;
   final String title;
-  final String imageUrl;
+  final List<String> imageUrls;
   final String description;
   final String gender;
   final List<String> sizes;
@@ -16,7 +16,7 @@ class Product {
     required this.id,
     required this.price,
     required this.title,
-    required this.imageUrl,
+    this.imageUrls = const [],
     required this.description,
     required this.gender,
     this.sizes = const [],
@@ -26,6 +26,10 @@ class Product {
     this.docId,
     this.state = '',
   });
+
+  /// صورة الغلاف (الأولى في القائمة) — للاستخدام في الأماكن التي تعرض
+  /// صورة واحدة فقط (بطاقات المنتج، السلة، المفضلة...). فارغة إن لم توجد صور.
+  String get imageUrl => imageUrls.isNotEmpty ? imageUrls.first : '';
 
   factory Product.fromJson(Map<String, dynamic> json) {
     final rawPrice = json['price'];
@@ -50,6 +54,23 @@ class Product {
       parsedColors = List<String>.from(json['colors'].map((e) => e.toString()));
     }
 
+    // يدعم كلا الشكلين: `imageUrls` (قائمة، الشكل الجديد) و
+    // `imageUrl` (نص مفرد، الشكل القديم لمستندات Firestore السابقة).
+    // لا نستخدم else-if لأن المنادي قد يمرر كلا الحقلين معاً (أحدهما فارغ).
+    List<String> parsedImageUrls = [];
+    if (json['imageUrls'] is List) {
+      parsedImageUrls = List<String>.from(
+        (json['imageUrls'] as List)
+            .map((e) => e.toString())
+            .where((e) => e.isNotEmpty),
+      );
+    }
+    if (parsedImageUrls.isEmpty &&
+        json['imageUrl'] is String &&
+        (json['imageUrl'] as String).isNotEmpty) {
+      parsedImageUrls = [json['imageUrl'] as String];
+    }
+
     int parsedStock = -1;
     final rawStock = json['stockQuantity'];
     if (rawStock is int) {
@@ -64,7 +85,7 @@ class Product {
           : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       price: parsedPrice,
       title: json['title'] ?? '',
-      imageUrl: json['imageUrl'] ?? '',
+      imageUrls: parsedImageUrls,
       description: json['description'] ?? '',
       gender: json['gender'] ?? '',
       sizes: parsedSizes,
@@ -82,7 +103,7 @@ class Product {
       if (docId != null) 'docId': docId,
       'price': price,
       'title': title,
-      'imageUrl': imageUrl,
+      'imageUrls': imageUrls,
       'description': description,
       'gender': gender,
       'sizes': sizes,

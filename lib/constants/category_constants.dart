@@ -12,6 +12,11 @@ const Set<String> kCategoriesWithVariants = {
 /// اسم قسم ملابس الأطفال — مرجع موحَّد لتجنّب الـ typos.
 const String kKidsClothingCategory = 'ملابس أطفال';
 
+/// اسم قسم الإكسسوارات — مرجع موحَّد لتجنّب الـ typos.
+/// هذا القسم لا يستوجب مقاسات، لكنه يسمح باختيار لون (اختياري وليس إجبارياً)
+/// خلافاً لأقسام [kCategoriesWithVariants] التي يُجبَر فيها اختيار لون واحد.
+const String kAccessoriesCategory = 'إكسسوارات';
+
 /// هل القسم يستخدم مقاسات حسب العمر (السن) بدلاً من S/M/L؟
 bool isKidsCategory(String? category) => category == kKidsClothingCategory;
 
@@ -28,7 +33,7 @@ const List<String> kShoeSizes = [
 ];
 
 /// مقاسات ملابس الأطفال — حسب الفئة العمرية.
-/// تغطّي من الرضيع (0 شهر) حتى ما قبل المراهقة (14 سنة).
+/// تغطّي من الرضيع (0 شهر) حتى سن المراهقة (16 سنة).
 const List<String> kKidsAgeSizes = [
   '0-3 شهور',
   '3-6 شهور',
@@ -44,6 +49,8 @@ const List<String> kKidsAgeSizes = [
   '8-10 سنوات',
   '10-12 سنة',
   '12-14 سنة',
+  '15 سنة',
+  '16 سنة',
 ];
 
 /// يرجع لائحة المقاسات المتاحة بناءً على القسم.

@@ -105,6 +105,8 @@ class ProductRemoteDataSourceImpl implements ProductRemoteDataSource {
       'docId': docId,
       'price': d['price'] ?? 0.0,
       'title': d['title'] ?? '',
+      // يدعم مستندات قديمة محفوظة بحقل `imageUrl` مفرد + الحقل الجديد `imageUrls`.
+      'imageUrls': d['imageUrls'] ?? const <String>[],
       'imageUrl': d['imageUrl'] ?? '',
       'description': d['description'] ?? '',
       'gender': d['gender'] ?? '',

@@ -37,7 +37,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _stockController = TextEditingController();
 
-  XFile? _pickedImage;
+  /// صور محفوظة سابقاً (وضع التعديل) واحتُفظ بها — روابط Firebase Storage.
+  List<String> _existingImageUrls = [];
+  /// صور جُديدة اختارها المستخدم من المعرض ولم تُرفع بعد.
+  List<XFile> _pickedImages = [];
   bool _isSaving = false;
   int _currentStep = 0;
 
@@ -88,6 +91,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
       _stockController.text = (data['stockQuantity'] ?? '').toString();
       _selectedSizes = List<String>.from(data['sizes'] ?? []);
       _selectedColors = List<String>.from(data['colors'] ?? []);
+      _existingImageUrls = List<String>.from(data['imageUrls'] ?? []);
       _selectedGender = data['gender'] ?? 'للجنسين';
       final savedCategory = data['category']?.toString();
       _selectedCategory =
@@ -97,24 +101,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImages() async {
     try {
-      final XFile? picked = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
+      final List<XFile> picked = await ImagePicker().pickMultiImage(
         maxWidth: 1200,
         maxHeight: 1200,
         imageQuality: 80,
       );
-      if (picked != null) {
+      if (picked.isNotEmpty) {
         setState(() {
-          _pickedImage = picked;
+          _pickedImages = [..._pickedImages, ...picked];
         });
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('فشل اختيار الصورة: $e'),
+          content: Text('فشل اختيار الصور: $e'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -122,13 +125,101 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
+  void _removeExistingImage(int index) {
+    setState(() => _existingImageUrls.removeAt(index));
+  }
+
+  void _removePickedImage(int index) {
+    setState(() => _pickedImages.removeAt(index));
+  }
+
+  // ── معاينة أفقية لكل الصور (المحفوظة سابقاً + المُختارة حديثاً) ─────
+  // مع زر حذف لكل صورة قبل الرفع.
+  Widget _buildImagePreviewList() {
+    return SizedBox(
+      height: 110,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          for (var i = 0; i < _existingImageUrls.length; i++)
+            _buildImageThumb(
+              key: ValueKey('existing_$i${_existingImageUrls[i]}'),
+              image: Image.network(
+                _existingImageUrls[i],
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+              ),
+              onRemove: () => _removeExistingImage(i),
+            ),
+          for (var i = 0; i < _pickedImages.length; i++)
+            _buildImageThumb(
+              key: ValueKey('picked_${_pickedImages[i].path}'),
+              image: Image.file(
+                File(_pickedImages[i].path),
+                width: 100,
+                height: 100,
+                fit: BoxFit.cover,
+              ),
+              onRemove: () => _removePickedImage(i),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageThumb({
+    required Key key,
+    required Widget image,
+    required VoidCallback onRemove,
+  }) {
+    return Padding(
+      key: key,
+      padding: const EdgeInsets.only(right: 10),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: image,
+          ),
+          Positioned(
+            top: -6,
+            right: -6,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   bool get _isShoeCategory => _selectedCategory == 'أحذية';
   bool get _isKidsCategory => isKidsCategory(_selectedCategory);
 
-  /// هل القسم المختار يحتاج مقاسات وألوان؟
+  /// هل القسم المختار يحتاج مقاسات وألوان (إجبارياً)؟
   bool get _needsVariants =>
       _selectedCategory != null &&
       kCategoriesWithVariants.contains(_selectedCategory);
+
+  /// هل القسم المختار هو الإكسسوارات؟ — يُظهر منتقي الألوان لكن كخيار
+  /// اختياري (لا يُجبَر اختيار لون قبل الحفظ)، وبدون مقاسات.
+  bool get _isAccessoriesCategory =>
+      _selectedCategory == kAccessoriesCategory;
+
+  /// هل يظهر منتقي الألوان؟ — للأقسام التي تحتاج variants إجبارياً،
+  /// أو الإكسسوارات (اختياري).
+  bool get _showsColorPicker => _needsVariants || _isAccessoriesCategory;
 
   /// المقاسات المتاحة بناءً على القسم — أحذية / أطفال (سن) / ملابس عادية.
   List<String> get _availableSizes =>
@@ -391,10 +482,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
   Future<void> _saveProduct() async {
     if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
-    if (_pickedImage == null && widget.productData == null) {
+    if (_existingImageUrls.isEmpty && _pickedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('يرجى اختيار صورة للمنتج.'),
+          content: Text('يرجى اختيار صورة واحدة على الأقل للمنتج.'),
           backgroundColor: Colors.red,
           behavior: SnackBarBehavior.floating,
         ),
@@ -435,8 +526,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
       final String category = _selectedCategory!;
       final int stock = int.parse(_stockController.text.trim());
 
-      final existingImageUrl =
-          widget.productData?['imageUrl'] as String? ?? '';
       final input = ProductInput(
         title: title,
         price: price,
@@ -444,12 +533,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
         category: category,
         stockQuantity: stock,
         sizes: _needsVariants ? _selectedSizes : const <String>[],
-        colors: _needsVariants ? _selectedColors : const <String>[],
+        colors: _showsColorPicker ? _selectedColors : const <String>[],
         gender: _selectedGender,
         state: _selectedState ?? '',
-        imageUrl: existingImageUrl,
-        newImage:
-            _pickedImage != null ? File(_pickedImage!.path) : null,
+        existingImageUrls: _existingImageUrls,
+        newImages: _pickedImages.map((x) => File(x.path)).toList(),
       );
 
       if (widget.productId != null) {
@@ -638,39 +726,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
                 children: [
                   ElevatedButton.icon(
                     icon: const Icon(Icons.photo_library),
-                    label: const Text('اختر صورة المنتج'),
+                    label: const Text('اختر صور المنتج'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _maroon,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    onPressed: _pickImage,
+                    onPressed: _pickImages,
                   ),
                   const SizedBox(height: 16),
-                  if (_pickedImage != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        File(_pickedImage!.path),
-                        height: 220,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  else if (widget.productData != null &&
-                      widget.productData!['imageUrl'] != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        widget.productData!['imageUrl'],
-                        height: 220,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  else
+                  if (_existingImageUrls.isEmpty && _pickedImages.isEmpty)
                     Container(
-                      height: 220,
+                      height: 140,
                       decoration: BoxDecoration(
                         color: _surface,
                         borderRadius: BorderRadius.circular(18),
@@ -678,11 +745,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       ),
                       child: const Center(
                         child: Text(
-                          'لم يتم اختيار صورة',
+                          'لم يتم اختيار أي صور',
                           style: TextStyle(color: Colors.white70),
                         ),
                       ),
-                    ),
+                    )
+                  else
+                    _buildImagePreviewList(),
                 ],
               ),
             ),
@@ -721,14 +790,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       setState(() {
                         _selectedCategory = value;
                         if (!kCategoriesWithVariants.contains(value)) {
-                          // قسم لا يحتاج مقاسات/ألوان — امسح الخيارات السابقة
+                          // قسم لا يحتاج مقاسات إجبارية — امسح المقاسات السابقة
                           _selectedSizes.clear();
-                          _selectedColors.clear();
                         } else {
                           // قسم يحتاج مقاسات — احتفظ فقط بالمقاسات المتوافقة مع القسم الجديد
                           _selectedSizes = _selectedSizes
                               .where(_availableSizes.contains)
                               .toList();
+                        }
+                        // امسح الألوان فقط إن كان القسم الجديد لا يُظهر منتقي
+                        // الألوان أصلاً (لا variants إجبارية ولا إكسسوارات).
+                        if (!_showsColorPicker) {
+                          _selectedColors.clear();
                         }
                       });
                     },
@@ -825,12 +898,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                     const SizedBox(height: 24),
                   ],
-                  // ── ألوان — تظهر فقط للملابس والأحذية ───────────────
-                  if (_needsVariants) ...[
+                  // ── ألوان — تظهر للملابس/الأحذية (إجباري) وللإكسسوارات
+                  // (اختياري — يمكن الحفظ بدون اختيار أي لون).
+                  if (_showsColorPicker) ...[
                     _buildSectionHeading(
                       'ألوان المنتج',
-                      subtitle:
-                          'اضغط "إضافة لون" لاختيار أي درجة لون من palette الكامل أو من الـ Quick Colors.',
+                      subtitle: _isAccessoriesCategory
+                          ? 'اختياري — أضف لوناً أو أكثر إن أردت، أو تخطَّ هذه الخطوة.'
+                          : 'اضغط "إضافة لون" لاختيار أي درجة لون من palette الكامل أو من الـ Quick Colors.',
                     ),
                     const SizedBox(height: 12),
                     Wrap(

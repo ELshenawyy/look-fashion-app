@@ -119,13 +119,14 @@ class AdminRepository {
     }
   }
 
-  Future<void> deleteProduct(String docId, {String imageUrl = ''}) async {
+  Future<void> deleteProduct(String docId, {List<String> imageUrls = const []}) async {
     try {
       await _db.collection('products').doc(docId).delete();
 
-      if (imageUrl.isNotEmpty) {
+      for (final url in imageUrls) {
+        if (url.isEmpty) continue;
         try {
-          await _storage.refFromURL(imageUrl).delete();
+          await _storage.refFromURL(url).delete();
         } catch (e) {
           debugPrint('Storage image delete failed (non-fatal): $e');
         }

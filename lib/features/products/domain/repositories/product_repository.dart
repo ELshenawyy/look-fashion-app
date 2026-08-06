@@ -24,8 +24,8 @@ class ProductInput {
   final List<String> colors;
   final String gender;
   final String state;
-  final String imageUrl; // إذا فارغ → لا تُحفظ، يُترك القديم
-  final File? newImage; // إذا != null → ترفع وتُستخدم URL الجديد
+  final List<String> existingImageUrls; // صور محفوظة سابقاً واحتُفظ بها
+  final List<File> newImages; // صور جديدة تُرفع وتُضاف بعد الصور الموجودة
 
   const ProductInput({
     required this.title,
@@ -37,8 +37,8 @@ class ProductInput {
     required this.colors,
     required this.gender,
     required this.state,
-    this.imageUrl = '',
-    this.newImage,
+    this.existingImageUrls = const [],
+    this.newImages = const [],
   });
 }
 

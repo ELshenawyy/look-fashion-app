@@ -33,7 +33,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     _productsStream = sl<WatchProducts>()();
   }
 
-  Future<void> _deleteProduct(String docId, String imageUrl) async {
+  Future<void> _deleteProduct(String docId, List<String> imageUrls) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -59,7 +59,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
     if (confirm != true) return;
 
     try {
-      await _adminRepo.deleteProduct(docId, imageUrl: imageUrl);
+      await _adminRepo.deleteProduct(docId, imageUrls: imageUrls);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,7 +91,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             'title': product.title,
             'price': product.price,
             'description': product.description,
-            'imageUrl': product.imageUrl,
+            'imageUrls': product.imageUrls,
             'category': product.category,
             'stockQuantity': product.stockQuantity,
             'sizes': product.sizes,
@@ -326,7 +326,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   color: Colors.red),
                               tooltip: 'حذف',
                               onPressed: () => _deleteProduct(
-                                  p.docId ?? '', p.imageUrl),
+                                  p.docId ?? '', p.imageUrls),
                             ),
                         ],
                       ),

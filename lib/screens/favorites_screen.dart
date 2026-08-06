@@ -274,7 +274,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       docId: fav.productId,
                       title: fav.title,
                       price: fav.price,
-                      imageUrl: fav.imageUrl,
+                      imageUrls:
+                          fav.imageUrl.isNotEmpty ? [fav.imageUrl] : const [],
                       description: '',
                       gender: '',
                     );
