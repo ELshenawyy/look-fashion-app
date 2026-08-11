@@ -214,6 +214,13 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            const Text(
+              '💡 في حال عدم وصول الرسالة إلى البريد الوارد، يرجى مراجعة '
+              'مجلد الرسائل غير المرغوب فيها (Spam / Junk Mail).',
+              textAlign: TextAlign.start,
+              style: TextStyle(color: Colors.white38, fontSize: 11),
+            ),
           ],
         ),
         actions: [

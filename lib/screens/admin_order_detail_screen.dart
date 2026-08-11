@@ -50,6 +50,44 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
     });
   }
 
+  Future<void> _confirmDeleteOrder() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _panel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('حذف الطلب',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        content: const Text(
+          'هل أنت تأكد من حذف هذا الطلب نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف نهائياً',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final ok = await context.read<OrdersProvider>().deleteOrder(widget.orderId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok ? 'تم حذف الطلب بنجاح' : 'فشل حذف الطلب'),
+      backgroundColor: ok ? Colors.green : Colors.red,
+      behavior: SnackBarBehavior.floating,
+    ));
+    if (ok) Navigator.pop(context);
+  }
+
   Future<void> _updateStatus(OrderStatus newStatus) async {
     final ok = await context.read<OrdersProvider>().updateStatus(
           orderId: widget.orderId,
@@ -164,6 +202,15 @@ class _AdminOrderDetailScreenState extends State<AdminOrderDetailScreen> {
                   const Icon(Icons.arrow_back_ios_new_rounded, color: _gold),
               onPressed: () => Navigator.pop(context),
             ),
+            actions: [
+              if (!_loading && _order != null)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      color: Colors.redAccent),
+                  tooltip: 'حذف الطلب',
+                  onPressed: _confirmDeleteOrder,
+                ),
+            ],
             automaticallyImplyLeading: false,
           ),
         ],

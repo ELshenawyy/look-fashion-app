@@ -19,6 +19,9 @@ abstract class OrderRemoteDataSource {
     String? customerId,
   });
 
+  /// حذف نهائي لمستند الطلب من مجموعة orders — لا يمكن التراجع عنه.
+  Future<void> deleteOrder(String orderId);
+
   /// إشعار الإدمن — خارج المعاملة، non-critical.
   Future<void> notifyAdminsOfNewOrder({
     required String orderId,
@@ -262,6 +265,15 @@ class OrderRemoteDataSourceImpl implements OrderRemoteDataSource {
         status: status,
         customerId: customerId,
       );
+    } on FirebaseException catch (e) {
+      throw ServerException(e.message ?? e.code);
+    }
+  }
+
+  @override
+  Future<void> deleteOrder(String orderId) async {
+    try {
+      await _db.collection('orders').doc(orderId).delete();
     } on FirebaseException catch (e) {
       throw ServerException(e.message ?? e.code);
     }

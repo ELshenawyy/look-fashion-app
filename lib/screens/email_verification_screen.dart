@@ -211,6 +211,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    '💡 في حال عدم وصول الرسالة إلى البريد الوارد، يرجى مراجعة '
+                    'مجلد الرسائل غير المرغوب فيها (Spam / Junk Mail).',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
                   const SizedBox(height: 16),
 
                   // زر تسجيل الخروج

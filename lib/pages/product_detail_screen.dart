@@ -1,4 +1,6 @@
-﻿import 'package:cached_network_image/cached_network_image.dart';
+﻿import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
@@ -45,6 +47,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String? _selectedColor;
   final PageController _imagePageController = PageController();
   int _currentImageIndex = 0;
+  Timer? _autoSlideTimer;
 
   bool get _isEditMode => widget.editCartIndex != null;
 
@@ -68,10 +71,28 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         context.read<FavoritesProvider>().startWatching(uid);
       }
     });
+
+    _startAutoSlide();
+  }
+
+  // ── التمرير التلقائي للصور كل 5 ثوانٍ مع إمكانية السحب اليدوي ───────────
+  void _startAutoSlide() {
+    if (product.imageUrls.length <= 1) return;
+    _autoSlideTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!mounted || !_imagePageController.hasClients) return;
+      final imagesCount = product.imageUrls.length;
+      final nextIndex = (_currentImageIndex + 1) % imagesCount;
+      _imagePageController.animateToPage(
+        nextIndex,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
   }
 
   @override
   void dispose() {
+    _autoSlideTimer?.cancel();
     _imagePageController.dispose();
     super.dispose();
   }
@@ -319,6 +340,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Text(label,
               style: TextStyle(
                   color: fg, fontSize: 12, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+
+  // ── Location badge (الموقع/الولاية) ─────────────────────────────────────
+  Widget? _buildLocationBadge() {
+    final state = product.state.trim();
+    if (state.isEmpty) return null;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _gold.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _gold.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.location_on_rounded, color: _gold, size: 15),
+          const SizedBox(width: 6),
+          Text(
+            'الموقع: $state',
+            style: const TextStyle(
+                color: _gold, fontSize: 12, fontWeight: FontWeight.w700),
+          ),
         ],
       ),
     );
@@ -609,6 +656,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       _buildStockBadge(),
                     ],
                   ),
+
+                  if (_buildLocationBadge() != null) ...[
+                    const SizedBox(height: 12),
+                    _buildLocationBadge()!,
+                  ],
 
                   const SizedBox(height: 22),
                   const Divider(color: Colors.white10, height: 1),

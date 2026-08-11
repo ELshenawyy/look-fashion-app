@@ -5,6 +5,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:my_fashion_app/screens/splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -39,6 +40,23 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ── Edge-to-Edge UI (متطلب Google Play على Android 15+/API 35+) ─────────
+  // يسمح لمحتوى Flutter بالرسم خلف الـ status bar والـ navigation bar.
+  // مع خلفية التطبيق السوداء بالكامل، لازم أيقونات النظام تكون فاتحة
+  // (light) حتى تبقى مرئية فوق المحتوى، والشاشات المعرَّضة (بدون
+  // AppBar/SliverAppBar تلقائي) لازم تُغلَّف بـ SafeArea.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarDividerColor: Colors.transparent,
+    ),
+  );
 
   // Register FCM background handler before runApp
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

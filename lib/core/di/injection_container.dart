@@ -46,6 +46,7 @@ import 'package:my_fashion_app/features/notifications/presentation/providers/not
 import 'package:my_fashion_app/features/orders/data/datasources/order_remote_datasource.dart';
 import 'package:my_fashion_app/features/orders/data/repositories/order_repository_impl.dart';
 import 'package:my_fashion_app/features/orders/domain/repositories/order_repository.dart';
+import 'package:my_fashion_app/features/orders/domain/usecases/delete_order.dart';
 import 'package:my_fashion_app/features/orders/domain/usecases/get_order_by_id.dart';
 import 'package:my_fashion_app/features/orders/domain/usecases/place_order.dart';
 import 'package:my_fashion_app/features/orders/domain/usecases/update_order_status.dart';
@@ -226,6 +227,7 @@ void _initOrders() {
         watchUserOrders: sl(),
         watchAllOrders: sl(),
         updateOrderStatus: sl(),
+        deleteOrder: sl(),
       ));
 
   sl.registerLazySingleton(() => PlaceOrder(sl()));
@@ -233,6 +235,7 @@ void _initOrders() {
   sl.registerLazySingleton(() => WatchAllOrders(sl()));
   sl.registerLazySingleton(() => UpdateOrderStatus(sl()));
   sl.registerLazySingleton(() => GetOrderById(sl()));
+  sl.registerLazySingleton(() => DeleteOrder(sl()));
 
   sl.registerLazySingleton<OrderRepository>(
     () => OrderRepositoryImpl(remote: sl(), network: sl()),

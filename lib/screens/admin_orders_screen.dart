@@ -58,6 +58,45 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
+  Future<void> _confirmDeleteOrder(String orderId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: _panel,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('حذف الطلب',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        content: const Text(
+          'هل أنت تأكد من حذف هذا الطلب نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حذف نهائياً',
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final ok = await context.read<OrdersProvider>().deleteOrder(orderId);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'تم حذف الطلب بنجاح' : 'فشل حذف الطلب'),
+        backgroundColor: ok ? Colors.green : Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   void _showStatusChangeDialog(
       String orderId, OrderStatus current, String? customerId) {
     final statuses = [
@@ -293,6 +332,15 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                       ),
                     ),
                   ),
+                ),
+                IconButton(
+                  onPressed: () => _confirmDeleteOrder(order.id),
+                  icon: const Icon(Icons.delete_outline,
+                      color: Colors.redAccent, size: 20),
+                  tooltip: 'حذف الطلب',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),

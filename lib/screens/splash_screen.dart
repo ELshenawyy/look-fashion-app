@@ -105,60 +105,62 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _black,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // ── اسم العلامة "طلة" ──
-            // RTL: ط (يمين) ← ل ← ة (يسار)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              textDirection: TextDirection.rtl,
-              children: [
-                _letter('ط', _gold, _scaleTa),
-                _letter('ل', Colors.white, _scaleLam),
-                _letter('ة', Colors.white, _scaleTaMarbouta),
-              ],
-            ),
-            const SizedBox(height: 14),
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // ── اسم العلامة "طلة" ──
+              // RTL: ط (يمين) ← ل ← ة (يسار)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                textDirection: TextDirection.rtl,
+                children: [
+                  _letter('ط', _gold, _scaleTa),
+                  _letter('ل', Colors.white, _scaleLam),
+                  _letter('ة', Colors.white, _scaleTaMarbouta),
+                ],
+              ),
+              const SizedBox(height: 14),
 
-            // ── سطر فرعي بـ fade متأخر ──
-            FadeTransition(
-              opacity: _fadeSubtitle,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 18, vertical: 6),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: _gold.withValues(alpha: 0.4), width: 1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  'أناقتك تبدأ من هنا',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    letterSpacing: 1.5,
-                    fontFamily: 'arial',
+              // ── سطر فرعي بـ fade متأخر ──
+              FadeTransition(
+                opacity: _fadeSubtitle,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 6),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: _gold.withValues(alpha: 0.4), width: 1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'أناقتك تبدأ من هنا',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13,
+                      letterSpacing: 1.5,
+                      fontFamily: 'arial',
+                    ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 40),
+              const SizedBox(height: 40),
 
-            // ── Loader خفيف ──
-            FadeTransition(
-              opacity: _fadeSubtitle,
-              child: const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  color: _gold,
-                  strokeWidth: 2,
+              // ── Loader خفيف ──
+              FadeTransition(
+                opacity: _fadeSubtitle,
+                child: const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    color: _gold,
+                    strokeWidth: 2,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

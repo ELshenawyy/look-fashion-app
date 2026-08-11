@@ -56,4 +56,7 @@ abstract class OrderRepository {
     required OrderStatus status,
     String? customerId,
   });
+
+  /// حذف نهائي للطلب — لا يمكن التراجع عنه.
+  Future<Either<Failure, void>> deleteOrder(String orderId);
 }

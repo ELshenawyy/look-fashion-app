@@ -82,4 +82,17 @@ class OrderRepositoryImpl implements OrderRepository {
       return Left(UnknownFailure(e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteOrder(String orderId) async {
+    if (!await network.isConnected) return const Left(NetworkFailure());
+    try {
+      await remote.deleteOrder(orderId);
+      return const Right(null);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (e) {
+      return Left(UnknownFailure(e.toString()));
+    }
+  }
 }

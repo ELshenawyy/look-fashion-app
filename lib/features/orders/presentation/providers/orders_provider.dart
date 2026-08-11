@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:my_fashion_app/core/error/failures.dart';
 import 'package:my_fashion_app/features/orders/domain/entities/order_entity.dart';
 import 'package:my_fashion_app/features/orders/domain/repositories/order_repository.dart';
+import 'package:my_fashion_app/features/orders/domain/usecases/delete_order.dart';
 import 'package:my_fashion_app/features/orders/domain/usecases/place_order.dart';
 import 'package:my_fashion_app/features/orders/domain/usecases/update_order_status.dart';
 import 'package:my_fashion_app/features/orders/domain/usecases/watch_all_orders.dart';
@@ -14,16 +15,19 @@ class OrdersProvider extends ChangeNotifier {
   final WatchUserOrders _watchUserOrders;
   final WatchAllOrders _watchAllOrders;
   final UpdateOrderStatus _updateOrderStatus;
+  final DeleteOrder _deleteOrder;
 
   OrdersProvider({
     required PlaceOrder placeOrder,
     required WatchUserOrders watchUserOrders,
     required WatchAllOrders watchAllOrders,
     required UpdateOrderStatus updateOrderStatus,
+    required DeleteOrder deleteOrder,
   })  : _placeOrder = placeOrder,
         _watchUserOrders = watchUserOrders,
         _watchAllOrders = watchAllOrders,
-        _updateOrderStatus = updateOrderStatus;
+        _updateOrderStatus = updateOrderStatus,
+        _deleteOrder = deleteOrder;
 
   StreamSubscription<List<OrderEntity>>? _userSub;
   StreamSubscription<List<OrderEntity>>? _allSub;
@@ -99,6 +103,22 @@ class OrdersProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }, (_) => true);
+  }
+
+  /// حذف نهائي للطلب — يستدعي الـ backend ثم يزيل الطلب فوراً من القوائم
+  /// المحلية (لا داعي لانتظار الـ stream) عند النجاح.
+  Future<bool> deleteOrder(String orderId) async {
+    final res = await _deleteOrder(orderId);
+    return res.fold((f) {
+      _failure = f;
+      notifyListeners();
+      return false;
+    }, (_) {
+      _allOrders = _allOrders.where((o) => o.id != orderId).toList();
+      _userOrders = _userOrders.where((o) => o.id != orderId).toList();
+      notifyListeners();
+      return true;
+    });
   }
 
   void clearFailure() {
